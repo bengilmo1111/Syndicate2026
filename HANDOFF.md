@@ -27,41 +27,48 @@ branch produces a Vercel preview URL automatically (if the project is connected)
 No environment variables required.
 
 ## Current state (one paragraph)
-The prototype now has a four-agent cyborg squad rendered top-down on a procedural
-cyberpunk street grid. Agents move as a formation under WASD. Number keys 1–4
-toggle individual agent selection (Q toggles all). Left-click fires every selected
-agent at the cursor. The HUD shows four health bars, a mission objective, and a
-running clock. A briefing card sets the EuroCorp / rival-syndicate story tone before
-the first mission. There is one hand-built mission: "Secure Sector 7" — eliminate
-the four enemy guards on the map.
+The prototype is a four-agent squad on a top-down cyberpunk street grid running
+the "Sector 7 — Reclamation" mission. WASD moves selected agents in formation.
+Number keys 1–4 select; Q toggles all. Right-click issues a move order to the
+selected agents that preserves their relative formation; a coloured chevron
+marks each pending destination. Hold left-click to focus all selected agents
+on the cursor. When the mouse is up, every alive agent auto-fires on the
+nearest enemy within 260 px. Mission state lives in a typed model in
+`world.js` (objectives, types, status); the HUD shows the active objective's
+progress like `Eliminate rival guards (3/5)`. Win when all objectives
+complete; lose when the squad is wiped.
 
 ## What works
-- Four agents, formation movement, per-agent damage and death
-- Selection rings on selected agents, keyboard 1–4 / Q toggling
-- Click-to-fire from all selected agents
-- Enemy AI: chase + bump damage
-- Win on all enemies dead, lose on all agents dead
-- HUD: per-agent health bar, kills, time, objective
-- Briefing overlay with story setup; debrief overlay on win/lose
-- Static deploy via Vercel (`vercel.json` at repo root)
+- Four agents, formation movement, per-agent damage / death
+- 1–4 select / Shift+number toggle / Q select-all
+- Right-click move order, formation-preserved, with on-canvas markers
+- Hold left-click for focus fire; auto-fire when mouse is released
+- Enemy AI: chase + bump damage with obstacle slide
+- Typed mission model: objectives with type/target/progress/status
+- HUD: per-agent health bar, kills, time, active objective + progress
+- Briefing / debrief overlays with redeploy
+- Static deploy via Vercel (`main` → https://syndicate2026.vercel.app/)
 
 ## What's stubbed / known gaps
+- Only one objective type implemented (`ELIMINATE`)
+- One mission, no world map / mission select
 - No civilians, no Persuadertron, no police
-- One weapon, no loadout, no upgrades
-- No world map / mission select — single mission only
-- No persistence
-- No sound
-- Enemies have crude collision against obstacles
-- No right-click move-order yet — agents are driven by WASD only
-- No per-agent auto-fire — the squad fires only when player clicks
+- One weapon, no loadout, no upgrades, no research
+- No persistence (no localStorage save yet)
+- No sound or particle effects
+- No line-of-sight check on auto-fire — agents will shoot through walls
 
-## Next up (pick the top unchecked box in IMPLEMENTATION_PLAN.md)
-At the time of this handoff the live boxes under **Phase 1** are:
-1. Per-agent auto-fire at nearest enemy in range
-2. Click-to-move order (right click) for selected agents
+## Next up (top of Phase 2 in IMPLEMENTATION_PLAN.md)
+1. **Objective panel UI**: a Tab-toggled list showing every objective with
+   its status and progress. Lives in `ui.js` with new DOM in `index.html`.
+2. **Mission registry**: pull the inline `makeMission()` body in `world.js`
+   into a `missions/sector-7.js` file and let `world.js` look up by id.
+3. **Add a second objective type**: `RETRIEVE` is the easiest next step —
+   add a briefcase entity to `entities.js`, count pickups, complete the
+   objective when target reached.
 
-Both are small (~one file each). After that, advance to **Phase 2** mission
-systems: build a `world.js` with a typed objective model.
+After Phase 2 closes, Phase 3 (civilians + Persuadertron) is the big-ticket
+feel-of-Syndicate work.
 
 ## Files of note
 - `PRD.md` — vision, story, scope. Update before scope changes.

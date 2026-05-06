@@ -2,6 +2,7 @@ import { Projectile, obstacles, spawnEnemies, MAP_WIDTH, MAP_HEIGHT } from './en
 import { Squad } from './squad.js';
 import { updateHUD, showOverlay, hideOverlay, setOverlayContent } from './ui.js';
 import { drawCity } from './city.js';
+import { makeMission, updateMissionStatus, isMissionComplete } from './world.js';
 
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
@@ -16,7 +17,7 @@ const state = {
   projectiles: [],
   startTime: 0,
   kills: 0,
-  objective: 'Eliminate enemy guards in Sector 7',
+  mission: null,
   isMouseDown: false,
   mouse: { x: 0, y: 0 },
 };
@@ -28,6 +29,7 @@ function startMission() {
   state.enemies = spawnEnemies();
   state.projectiles = [];
   state.kills = 0;
+  state.mission = makeMission();
   state.startTime = performance.now();
   state.mode = 'playing';
   hideOverlay();
@@ -44,7 +46,7 @@ function showBriefing() {
       'Sector 7 is held by a rival cell. Deploy your squad. Eliminate the guards. Re-establish our footprint before the Hong Kong board convenes at dawn.',
     ],
     button: { label: 'DEPLOY SQUAD', onClick: startMission },
-    hint: '1-4 select agents · Q select all · WASD move · Click to fire',
+    hint: '1-4 select · Q all · WASD or right-click to move · Hold left-click to focus fire',
   });
   showOverlay();
 }
@@ -85,11 +87,13 @@ function update(delta) {
     return true;
   });
 
+  updateMissionStatus(state.mission, { kills: state.kills });
+
   if (state.squad.allDead) {
     showDebrief(false);
     return;
   }
-  if (state.enemies.length === 0) {
+  if (isMissionComplete(state.mission)) {
     showDebrief(true);
     return;
   }
@@ -124,7 +128,30 @@ function render() {
   obstacles.forEach(ob => ob.draw(ctx));
   state.enemies.forEach(enemy => enemy.draw(ctx));
   state.projectiles.forEach(proj => proj.draw(ctx));
-  if (state.squad) state.squad.draw(ctx);
+  if (state.squad) {
+    drawMoveOrders(state.squad);
+    state.squad.draw(ctx);
+  }
+}
+
+function drawMoveOrders(squad) {
+  ctx.save();
+  ctx.lineWidth = 1;
+  for (const a of squad.alive) {
+    if (!a.moveTarget) continue;
+    ctx.strokeStyle = a.color;
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.arc(a.moveTarget.x, a.moveTarget.y, 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(a.moveTarget.x - 3, a.moveTarget.y);
+    ctx.lineTo(a.moveTarget.x + 3, a.moveTarget.y);
+    ctx.moveTo(a.moveTarget.x, a.moveTarget.y - 3);
+    ctx.lineTo(a.moveTarget.x, a.moveTarget.y + 3);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 let lastFrame = performance.now();
@@ -163,7 +190,13 @@ canvas.addEventListener('mousemove', event => {
 });
 
 canvas.addEventListener('mousedown', event => {
-  if (event.button === 0) state.isMouseDown = true;
+  if (event.button === 0) {
+    state.isMouseDown = true;
+  } else if (event.button === 2) {
+    if (state.mode === 'playing' && state.squad) {
+      state.squad.issueMove(state.mouse);
+    }
+  }
 });
 canvas.addEventListener('mouseup', event => {
   if (event.button === 0) state.isMouseDown = false;
@@ -174,8 +207,10 @@ window.addEventListener('keydown', event => handleKey(event, true));
 window.addEventListener('keyup', event => handleKey(event, false));
 
 function maybeFire() {
-  if (state.mode !== 'playing' || !state.isMouseDown || !state.squad) return;
-  const projs = state.squad.fireAt(state.mouse);
+  if (state.mode !== 'playing' || !state.squad) return;
+  const projs = state.isMouseDown
+    ? state.squad.fireAt(state.mouse)
+    : state.squad.autoFire(state.enemies);
   for (const p of projs) state.projectiles.push(p);
 }
 setInterval(maybeFire, 60);

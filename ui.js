@@ -1,3 +1,5 @@
+import { activeObjective } from './world.js';
+
 const hudObjective = document.getElementById('hud-objective');
 const hudKills = document.getElementById('hud-kills');
 const hudTime = document.getElementById('hud-time');
@@ -34,7 +36,16 @@ function ensureAgentCards(squad) {
 }
 
 export function updateHUD(state) {
-  hudObjective.textContent = state.objective;
+  if (state.mission) {
+    const obj = activeObjective(state.mission);
+    if (obj) {
+      hudObjective.textContent = `${obj.description} (${obj.progress}/${obj.target})`;
+    } else {
+      hudObjective.textContent = 'All objectives complete';
+    }
+  } else {
+    hudObjective.textContent = '—';
+  }
   hudKills.textContent = state.kills;
   const elapsed = state.startTime ? Math.floor((performance.now() - state.startTime) / 1000) : 0;
   const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
