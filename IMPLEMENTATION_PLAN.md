@@ -46,9 +46,10 @@ The point of this phase is to make the prototype unambiguously *Syndicate*-flavo
 - [x] Mission registry under `missions/` with one definition per mission
 
 ## Phase 3 — Persuadertron and civilians
-- [ ] Civilian entity with simple wandering AI on streets
-- [ ] Persuadertron weapon: cone effect, converts civilian to follower
-- [ ] Followers trail the squad and break line of sight when killed
+- [x] Civilian entity with simple wandering AI on streets
+- [x] Persuadertron weapon: range effect, converts civilian to follower (Space toggle)
+- [x] Followers trail the squad
+- [ ] Followers can be killed (currently civilians are invulnerable)
 - [ ] Police entity that responds to gunfire near civilians
 - [ ] Persuasion mission objective ("convert N civilians and escape")
 

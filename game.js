@@ -51,7 +51,7 @@ function showBriefing() {
     title: 'SYNDICATE 2026',
     body: def.briefing,
     button: { label: 'DEPLOY SQUAD', onClick: startMission },
-    hint: '1-4 select · Q all · WASD or right-click to move · Left-click focus fire',
+    hint: '1-4 select · Q all · WASD / right-click move · Left-click focus fire · Space: Persuadertron',
   });
   showOverlay();
 }
@@ -81,6 +81,9 @@ function update(delta) {
   state.enemies.forEach(enemy => enemy.update(delta, state.squad.alive, obstacles));
   const center = squadCenter();
   state.civilians.forEach(civ => civ.update(delta, center, obstacles));
+  state.squad.persuadeNearby(state.civilians);
+  state.followers = state.civilians.filter(c => c.persuaded && !c.dead).length;
+  state.persuadertron = state.squad.persuadertron;
   state.projectiles.forEach(proj => proj.update(delta));
   state.projectiles = state.projectiles.filter(proj => !proj.dead);
 
@@ -94,7 +97,7 @@ function update(delta) {
     return true;
   });
 
-  updateMissionStatus(state.mission, { kills: state.kills });
+  updateMissionStatus(state.mission, { kills: state.kills, followers: state.followers });
 
   if (state.squad.allDead) {
     showDebrief(false);
@@ -201,6 +204,10 @@ function handleKey(event, isDown) {
     }
   } else if (k === 'q' || k === 'Q' || k === '`') {
     state.squad.selectAll();
+  } else if (k === ' ' || k === 'Spacebar') {
+    state.squad.togglePersuadertron();
+    state.persuadertron = state.squad.persuadertron;
+    event.preventDefault?.();
   }
 }
 
