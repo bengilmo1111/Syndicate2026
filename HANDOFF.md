@@ -4,6 +4,13 @@ This file is the single source of truth for "what is the world like right now"
 when an AI session opens this repo. Read this **first**. Update it **last**, in
 the same commit as your code change.
 
+> **If you are about to write any story material — briefings, debriefs,
+> mission copy, character lines, civilian VO, UI flavor text — stop and
+> read [`NARRATIVE.md`](./NARRATIVE.md) first.** It is the canonical
+> source for the four-act arc, characters, lexicon, and per-mission slot
+> notes. Mission slots are pre-defined there; pick the corresponding
+> slot rather than inventing parallel fiction.
+
 ## Branch & deploy
 - **Production:** `main` is the branch Vercel deploys to https://syndicate2026.vercel.app/.
   Anything merged to `main` ships to that URL within ~30s.
@@ -66,17 +73,22 @@ objective progress, hostiles down, followers, mission time, and a
 - No line-of-sight check — agents shoot through walls; civilians too
 
 ## Next up (top of Phase 3 / Phase 2 in IMPLEMENTATION_PLAN.md)
-1. **Persuasion mission**: a second mission def (`missions/datacore.js`)
-   with a `PERSUADE(target=4)` objective and probably an extraction zone.
-   Exercises the registry and typed objective model end-to-end.
+
+These are the next mission and feature picks. **For mission work, the
+canonical brief / truth / interstitial notes live in `NARRATIVE.md` §5.**
+
+1. **Mission 2 — `district-12` (Annexation Vote)**: a `PERSUADE(target=8)`
+   mission with no rival enemies at start. First "no combat" mission;
+   first time the player explicitly weaponises the Persuadertron as
+   *the entire mission*. See `NARRATIVE.md` Act I, Mission 2.
 2. **Mission select screen**: between briefing and deploy, let the player
-   pick from the registered missions. Small first step toward Phase 5's
-   world map.
+   pick from registered missions. First step toward Phase 5's world map.
+   Initial set is the four Act I missions in `NARRATIVE.md` §5.
 3. **Objective panel UI**: Tab-toggled list of every objective with status
    and progress, not just the active one (Phase 2 leftover).
-4. **Police escalation**: currently 2 police spawn per heat trigger. Try
-   ramping squad size and adding spawn cooldown so the player can't be
-   overwhelmed by a single bad burst of fire.
+4. **Police escalation tuning**: currently 2 police spawn per heat trigger.
+   Add spawn cooldown so a single bad burst of fire doesn't get the
+   player overwhelmed.
 
 ## Heat / police mechanic (current behaviour)
 - Every projectile fired adds `+1` to `state.heat` for each civilian

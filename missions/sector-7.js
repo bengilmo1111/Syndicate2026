@@ -1,3 +1,9 @@
+// Narrative slot: Act I, Mission 1 — see ../NARRATIVE.md §5 Act I.
+// EXEC-7's first contract under Director Yelin. The premise is honest by
+// Veridian standards; the framing is what matters. Briefing copy here
+// should match the act tone (clinical, lightly smug). Update NARRATIVE.md
+// in the same commit if you change the fiction.
+
 import { OBJECTIVE_TYPES, OBJECTIVE_STATUS } from '../world.js';
 
 export const sector7 = {

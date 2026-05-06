@@ -8,10 +8,15 @@ describes.
 
 > **Working agreement for AI sessions**
 > 1. Read `HANDOFF.md` first. It is the current state of the world.
-> 2. Pick the *next* unchecked step from the in-progress phase. Don't skip ahead.
-> 3. Keep changes small — one or two files per commit, descriptive message.
-> 4. Update this plan and `HANDOFF.md` in the same commit as your code change.
-> 5. Always leave the game in a runnable state. Open `index.html` and verify.
+> 2. **If the next work is a mission, briefing, debrief, or any story copy,
+>    read `NARRATIVE.md` *before writing*.** That file is the canonical
+>    source for tone, characters, lexicon, and the four-act arc. Mission
+>    slots there are pre-defined — pick the corresponding slot rather
+>    than inventing parallel fiction.
+> 3. Pick the *next* unchecked step from the in-progress phase. Don't skip ahead.
+> 4. Keep changes small — one or two files per commit, descriptive message.
+> 5. Update this plan and `HANDOFF.md` in the same commit as your code change.
+> 6. Always leave the game in a runnable state. Open `index.html` and verify.
 
 ---
 
@@ -37,12 +42,19 @@ The point of this phase is to make the prototype unambiguously *Syndicate*-flavo
 - [x] Click-to-move order (right click) for selected agents
 
 ## Phase 2 — Mission systems
+> Mission slots, names, briefings, and beats are defined in
+> [`NARRATIVE.md`](./NARRATIVE.md) §5. Each mission below corresponds
+> to a slot there; do not invent parallel missions.
+
 - [x] Mission objective model (`{ id, type, target, status, description }`)
-- [~] Objective types: `eliminate` shipped; `persuade`, `retrieve`, `escort`, `escape` to do
+- [~] Objective types: `eliminate` and `persuade` shipped; `retrieve`,
+      `escort`, `escape`, `sabotage`, `hold` still to do
 - [x] Mission victory triggered on objectives complete (not on kill-all)
 - [ ] Objective panel UI (Tab to toggle full list)
 - [ ] Briefing → mission → debrief flow with retry / continue (already partial)
-- [ ] Two more missions (different objectives, same map shell)
+- [ ] Mission select screen (Act I requires the player to choose between
+      `sector-7`, `district-12`, `halcyon-lab`, `the-bracket`)
+- [ ] Build Act I missions 2–4 from `NARRATIVE.md` (see §5 Act I)
 - [x] Mission registry under `missions/` with one definition per mission
 
 ## Phase 3 — Persuadertron and civilians
