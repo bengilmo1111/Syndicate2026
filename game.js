@@ -2,6 +2,7 @@ import { Projectile, obstacles, spawnEnemies, MAP_WIDTH, MAP_HEIGHT } from './en
 import { Squad } from './squad.js';
 import { updateHUD, showOverlay, hideOverlay, setOverlayContent } from './ui.js';
 import { drawCity } from './city.js';
+import { makeMission, updateMissionStatus, isMissionComplete } from './world.js';
 
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
@@ -16,7 +17,7 @@ const state = {
   projectiles: [],
   startTime: 0,
   kills: 0,
-  objective: 'Eliminate enemy guards in Sector 7',
+  mission: null,
   isMouseDown: false,
   mouse: { x: 0, y: 0 },
 };
@@ -28,6 +29,7 @@ function startMission() {
   state.enemies = spawnEnemies();
   state.projectiles = [];
   state.kills = 0;
+  state.mission = makeMission();
   state.startTime = performance.now();
   state.mode = 'playing';
   hideOverlay();
@@ -85,11 +87,13 @@ function update(delta) {
     return true;
   });
 
+  updateMissionStatus(state.mission, { kills: state.kills });
+
   if (state.squad.allDead) {
     showDebrief(false);
     return;
   }
-  if (state.enemies.length === 0) {
+  if (isMissionComplete(state.mission)) {
     showDebrief(true);
     return;
   }

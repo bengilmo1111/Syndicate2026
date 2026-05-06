@@ -37,12 +37,13 @@ The point of this phase is to make the prototype unambiguously *Syndicate*-flavo
 - [x] Click-to-move order (right click) for selected agents
 
 ## Phase 2 — Mission systems
-- [ ] Mission objective model (`{ id, type, target, status, description }`)
-- [ ] Objective types: `eliminate`, `persuade`, `retrieve`, `escort`, `escape`
-- [ ] Objective panel UI (Tab to toggle)
-- [ ] Mission victory triggered on objectives complete (not on kill-all)
-- [ ] Briefing → mission → debrief flow with retry / continue
+- [x] Mission objective model (`{ id, type, target, status, description }`)
+- [~] Objective types: `eliminate` shipped; `persuade`, `retrieve`, `escort`, `escape` to do
+- [x] Mission victory triggered on objectives complete (not on kill-all)
+- [ ] Objective panel UI (Tab to toggle full list)
+- [ ] Briefing → mission → debrief flow with retry / continue (already partial)
 - [ ] Two more missions (different objectives, same map shell)
+- [ ] Mission registry under `missions/` with one definition per mission
 
 ## Phase 3 — Persuadertron and civilians
 - [ ] Civilian entity with simple wandering AI on streets
