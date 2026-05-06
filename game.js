@@ -1,34 +1,30 @@
-import { Agent, Enemy, Projectile, obstacles, spawnEnemies } from './entities.js';
-import { updateHUD, showOverlay, hideOverlay, updateOverlayText } from './ui.js';
+import { Projectile, obstacles, spawnEnemies, MAP_WIDTH, MAP_HEIGHT } from './entities.js';
+import { Squad } from './squad.js';
+import { updateHUD, showOverlay, hideOverlay, setOverlayContent } from './ui.js';
+import { drawCity } from './city.js';
 
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
-const startButton = document.getElementById('start-button');
 const overlay = document.getElementById('overlay');
 
 const state = {
-  mode: 'menu',
-  mapWidth: canvas.width,
-  mapHeight: canvas.height,
-  player: null,
+  mode: 'briefing',
+  mapWidth: MAP_WIDTH,
+  mapHeight: MAP_HEIGHT,
+  squad: null,
   enemies: [],
   projectiles: [],
   startTime: 0,
   kills: 0,
-  objective: 'Secure the sector',
+  objective: 'Eliminate enemy guards in Sector 7',
   isMouseDown: false,
   mouse: { x: 0, y: 0 },
 };
 
-const input = {
-  up: false,
-  down: false,
-  left: false,
-  right: false,
-};
+const input = { up: false, down: false, left: false, right: false };
 
-function resetGame() {
-  state.player = new Agent(512, 600);
+function startMission() {
+  state.squad = new Squad(MAP_WIDTH / 2, MAP_HEIGHT - 90);
   state.enemies = spawnEnemies();
   state.projectiles = [];
   state.kills = 0;
@@ -38,14 +34,49 @@ function resetGame() {
   updateHUD(state);
 }
 
+function showBriefing() {
+  state.mode = 'briefing';
+  setOverlayContent({
+    title: 'SYNDICATE 2026',
+    body: [
+      '<strong>// EXECUTIVE BRIEFING — 03:42 LOCAL</strong>',
+      'EuroCorp’s monopoly is in pieces. Three syndicates contest the city-states; the CHIP that once enforced order now answers to whoever owns the uplink. You command the field arm of a rising house.',
+      'Sector 7 is held by a rival cell. Deploy your squad. Eliminate the guards. Re-establish our footprint before the Hong Kong board convenes at dawn.',
+    ],
+    button: { label: 'DEPLOY SQUAD', onClick: startMission },
+    hint: '1-4 select agents · Q select all · WASD move · Click to fire',
+  });
+  showOverlay();
+}
+
+function showDebrief(victory) {
+  state.mode = victory ? 'victory' : 'gameover';
+  setOverlayContent({
+    title: victory ? 'SECTOR SECURED' : 'SQUAD WIPED',
+    body: victory
+      ? [
+        'Rival presence in Sector 7 is neutralized. The board will hear of it.',
+        `Hostiles eliminated: <strong>${state.kills}</strong>.`,
+      ]
+      : [
+        'Recovery teams will collect what’s left. The syndicate continues.',
+        'Try again, executive.',
+      ],
+    button: { label: 'REDEPLOY', onClick: startMission },
+  });
+  showOverlay();
+}
+
 function update(delta) {
   if (state.mode !== 'playing') return;
 
-  state.player.update(delta, input, state.mouse);
-  state.enemies.forEach(enemy => enemy.update(delta, state.player, obstacles));
+  state.squad.update(delta, input);
+  state.enemies.forEach(enemy => enemy.update(delta, state.squad.alive, obstacles));
   state.projectiles.forEach(proj => proj.update(delta));
-
   state.projectiles = state.projectiles.filter(proj => !proj.dead);
+
+  resolveCollisions();
+
   state.enemies = state.enemies.filter(enemy => {
     if (enemy.dead) {
       state.kills += 1;
@@ -54,19 +85,15 @@ function update(delta) {
     return true;
   });
 
-  if (state.player.dead) {
-    state.mode = 'gameover';
-    updateOverlayText('Mission failed. Reload to retry.');
-    showOverlay();
+  if (state.squad.allDead) {
+    showDebrief(false);
+    return;
   }
-
   if (state.enemies.length === 0) {
-    state.mode = 'victory';
-    updateOverlayText('Sector secured. Mission complete.');
-    showOverlay();
+    showDebrief(true);
+    return;
   }
 
-  resolveCollisions();
   updateHUD(state);
 }
 
@@ -81,28 +108,23 @@ function resolveCollisions() {
   });
 
   state.enemies.forEach(enemy => {
-    if (!enemy.dead && state.player.collides(enemy)) {
-      state.player.takeDamage(15);
-      enemy.bump();
-    }
+    if (enemy.dead) return;
+    state.squad.alive.forEach(agent => {
+      if (agent.collides(enemy)) {
+        agent.takeDamage(8);
+        enemy.bump();
+      }
+    });
   });
 }
 
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawBackground();
+  drawCity(ctx, canvas.width, canvas.height);
   obstacles.forEach(ob => ob.draw(ctx));
-  state.player.draw(ctx);
   state.enemies.forEach(enemy => enemy.draw(ctx));
   state.projectiles.forEach(proj => proj.draw(ctx));
-}
-
-function drawBackground() {
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, '#121529');
-  gradient.addColorStop(1, '#07080f');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (state.squad) state.squad.draw(ctx);
 }
 
 let lastFrame = performance.now();
@@ -114,12 +136,23 @@ function frame(time) {
   requestAnimationFrame(frame);
 }
 
-function onKeyChange(key, isDown) {
-  switch (key) {
+function handleKey(event, isDown) {
+  const k = event.key;
+  switch (k) {
     case 'ArrowUp': case 'w': case 'W': input.up = isDown; break;
     case 'ArrowDown': case 's': case 'S': input.down = isDown; break;
     case 'ArrowLeft': case 'a': case 'A': input.left = isDown; break;
     case 'ArrowRight': case 'd': case 'D': input.right = isDown; break;
+  }
+  if (!isDown || state.mode !== 'playing' || !state.squad) return;
+  if (k === '1' || k === '2' || k === '3' || k === '4') {
+    if (event.shiftKey) {
+      state.squad.toggleSelect(parseInt(k, 10) - 1);
+    } else {
+      state.squad.selectOnly(parseInt(k, 10) - 1);
+    }
+  } else if (k === 'q' || k === 'Q' || k === '`') {
+    state.squad.selectAll();
   }
 }
 
@@ -129,26 +162,23 @@ canvas.addEventListener('mousemove', event => {
   state.mouse.y = (event.clientY - rect.top) * (canvas.height / rect.height);
 });
 
-canvas.addEventListener('mousedown', () => {
-  state.isMouseDown = true;
+canvas.addEventListener('mousedown', event => {
+  if (event.button === 0) state.isMouseDown = true;
 });
-
-canvas.addEventListener('mouseup', () => {
-  state.isMouseDown = false;
+canvas.addEventListener('mouseup', event => {
+  if (event.button === 0) state.isMouseDown = false;
 });
+canvas.addEventListener('contextmenu', event => event.preventDefault());
 
-window.addEventListener('keydown', event => onKeyChange(event.key, true));
-window.addEventListener('keyup', event => onKeyChange(event.key, false));
-
-startButton.addEventListener('click', resetGame);
+window.addEventListener('keydown', event => handleKey(event, true));
+window.addEventListener('keyup', event => handleKey(event, false));
 
 function maybeFire() {
-  if (state.mode !== 'playing' || !state.isMouseDown) return;
-  const projectile = state.player.fire(state.mouse);
-  if (projectile) {
-    state.projectiles.push(projectile);
-  }
+  if (state.mode !== 'playing' || !state.isMouseDown || !state.squad) return;
+  const projs = state.squad.fireAt(state.mouse);
+  for (const p of projs) state.projectiles.push(p);
 }
+setInterval(maybeFire, 60);
 
-setInterval(maybeFire, 120);
+showBriefing();
 requestAnimationFrame(frame);

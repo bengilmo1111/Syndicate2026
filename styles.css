@@ -1,21 +1,23 @@
 :root {
-  --bg: #090a12;
-  --panel: rgba(10, 14, 28, 0.85);
-  --panel-light: rgba(14, 20, 45, 0.95);
+  --bg: #03060d;
+  --panel: rgba(8, 14, 28, 0.82);
+  --panel-strong: rgba(10, 18, 36, 0.96);
   --text: #e7f2ff;
+  --muted: #8ca7d8;
   --accent: #56e0ff;
+  --accent-soft: rgba(86, 224, 255, 0.32);
   --accent-2: #ff4d91;
-  --shadow: 0 0 24px rgba(84, 229, 255, 0.18);
+  --warning: #ffce4f;
+  --shadow: 0 0 32px rgba(86, 224, 255, 0.18);
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html, body {
   margin: 0;
   min-height: 100%;
-  background: radial-gradient(circle at top left, #121529 0%, #07080f 55%, #020307 100%);
+  background: radial-gradient(circle at top left, #121a30 0%, #07080f 55%, #020307 100%);
   color: var(--text);
   font-family: Inter, system-ui, sans-serif;
 }
@@ -31,9 +33,10 @@ body {
   position: relative;
   width: 1024px;
   max-width: 100%;
-  border: 2px solid rgba(86, 224, 255, 0.35);
+  border: 1px solid var(--accent-soft);
   box-shadow: var(--shadow);
   background: #05070d;
+  font-family: var(--mono);
 }
 
 #game-canvas {
@@ -42,92 +45,206 @@ body {
   background: #11131a;
 }
 
-#hud {
+/* ─── HUD: top bar ─────────────────────────────────────────────── */
+#hud-top {
   position: absolute;
-  top: 18px;
-  left: 18px;
-  right: 18px;
+  top: 14px;
+  left: 14px;
+  right: 14px;
   display: flex;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   pointer-events: none;
+  font-family: var(--mono);
 }
 
 .hud-panel {
-  padding: 10px 14px;
+  padding: 8px 14px;
   background: var(--panel);
-  border: 1px solid rgba(86, 224, 255, 0.24);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  font-size: 0.92rem;
-}
-
-#hud-bottom {
-  position: absolute;
-  bottom: 18px;
-  left: 18px;
-  right: 18px;
+  border: 1px solid var(--accent-soft);
+  border-radius: 4px;
+  backdrop-filter: blur(6px);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
   display: flex;
-  justify-content: flex-start;
-  gap: 12px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
 }
 
-#overlay {
+.hud-label {
+  font-size: 0.62rem;
+  color: var(--muted);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.hud-panel span:last-child {
+  color: var(--accent);
+  font-size: 0.95rem;
+}
+
+/* ─── HUD: squad strip ─────────────────────────────────────────── */
+#hud-squad {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  pointer-events: none;
+  font-family: var(--mono);
+}
+
+.agent-card {
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid rgba(86, 224, 255, 0.18);
+  border-left: 3px solid rgba(86, 224, 255, 0.4);
+  border-radius: 3px;
+  backdrop-filter: blur(6px);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.agent-card.selected {
+  border-color: var(--accent);
+  border-left-color: var(--accent);
+  background: rgba(20, 36, 64, 0.92);
+  box-shadow: 0 0 12px rgba(86, 224, 255, 0.25);
+}
+
+.agent-card.dead {
+  opacity: 0.42;
+  border-left-color: var(--accent-2);
+}
+
+.agent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+}
+
+.agent-id {
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+
+.agent-name {
+  color: var(--text);
+  flex: 1;
+  text-transform: uppercase;
+}
+
+.agent-status {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-card.dead .agent-status { color: var(--accent-2); }
+
+.agent-bar {
+  margin-top: 6px;
+  height: 4px;
+  background: rgba(86, 224, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.agent-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--accent);
+  transition: width 0.12s ease;
+}
+
+/* ─── Overlay: briefing & debrief ──────────────────────────────── */
+.overlay {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.7);
-  transition: opacity 0.25s ease;
+  background: radial-gradient(circle at center, rgba(0, 8, 16, 0.7) 0%, rgba(0, 0, 0, 0.92) 100%);
+  font-family: var(--mono);
 }
 
-.menu-screen .menu-card {
-  width: min(520px, 90%);
-  padding: 32px;
-  border: 1px solid rgba(86, 224, 255, 0.35);
-  border-radius: 24px;
-  background: rgba(8, 12, 24, 0.95);
-  text-align: center;
-  box-shadow: 0 0 48px rgba(86, 224, 255, 0.08);
+.overlay-card {
+  width: min(580px, 92%);
+  padding: 32px 36px;
+  border: 1px solid var(--accent-soft);
+  border-radius: 6px;
+  background: var(--panel-strong);
+  box-shadow: 0 0 64px rgba(86, 224, 255, 0.12), inset 0 0 24px rgba(86, 224, 255, 0.04);
+  position: relative;
 }
 
-.menu-card h1 {
-  margin: 0 0 12px;
-  font-size: clamp(2rem, 5vw, 3rem);
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: #cce8ff;
+.overlay-card::before {
+  content: "// EYES ONLY";
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: var(--warning);
+  opacity: 0.75;
 }
 
-.menu-card p {
+#overlay-title {
   margin: 0 0 18px;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #d6ecff;
+  border-bottom: 1px solid var(--accent-soft);
+  padding-bottom: 14px;
+}
+
+#overlay-body p {
+  margin: 0 0 14px;
   color: #c8d9f6;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  font-family: Inter, system-ui, sans-serif;
 }
 
-#start-button {
-  width: 200px;
+#overlay-body strong {
+  color: var(--accent);
+  letter-spacing: 0.12em;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 0.78rem;
+}
+
+#overlay-button {
+  margin-top: 8px;
+  width: 100%;
   padding: 14px 18px;
-  border: none;
-  border-radius: 999px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
   color: #03070f;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  font-size: 1rem;
+  background: linear-gradient(135deg, var(--accent), #91f0ff);
+  font-family: var(--mono);
+  font-size: 0.84rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
 }
 
-#start-button:hover {
+#overlay-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 0 24px rgba(86, 224, 255, 0.4);
+  box-shadow: 0 0 24px rgba(86, 224, 255, 0.45);
 }
 
 .hint {
   margin-top: 18px;
-  color: #8ca7d8;
-  font-size: 0.92rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-align: center;
+  font-family: var(--mono);
 }
 
-.hidden {
-  display: none !important;
-}
+.hidden { display: none !important; }
