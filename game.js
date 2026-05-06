@@ -1,12 +1,14 @@
-import { Projectile, obstacles, spawnEnemies, MAP_WIDTH, MAP_HEIGHT } from './entities.js';
+import { Projectile, obstacles, spawnEnemies, spawnCivilians, MAP_WIDTH, MAP_HEIGHT } from './entities.js';
 import { Squad } from './squad.js';
 import { updateHUD, showOverlay, hideOverlay, setOverlayContent } from './ui.js';
 import { drawCity } from './city.js';
-import { makeMission, updateMissionStatus, isMissionComplete } from './world.js';
+import { buildMission, getMissionDef, updateMissionStatus, isMissionComplete } from './world.js';
 
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const overlay = document.getElementById('overlay');
+
+const ACTIVE_MISSION_ID = 'sector-7';
 
 const state = {
   mode: 'briefing',
@@ -14,9 +16,12 @@ const state = {
   mapHeight: MAP_HEIGHT,
   squad: null,
   enemies: [],
+  civilians: [],
   projectiles: [],
   startTime: 0,
   kills: 0,
+  followers: 0,
+  persuadertron: false,
   mission: null,
   isMouseDown: false,
   mouse: { x: 0, y: 0 },
@@ -27,9 +32,12 @@ const input = { up: false, down: false, left: false, right: false };
 function startMission() {
   state.squad = new Squad(MAP_WIDTH / 2, MAP_HEIGHT - 90);
   state.enemies = spawnEnemies();
+  state.civilians = spawnCivilians(10, obstacles);
   state.projectiles = [];
   state.kills = 0;
-  state.mission = makeMission();
+  state.followers = 0;
+  state.persuadertron = false;
+  state.mission = buildMission(ACTIVE_MISSION_ID);
   state.startTime = performance.now();
   state.mode = 'playing';
   hideOverlay();
@@ -38,15 +46,12 @@ function startMission() {
 
 function showBriefing() {
   state.mode = 'briefing';
+  const def = getMissionDef(ACTIVE_MISSION_ID);
   setOverlayContent({
     title: 'SYNDICATE 2026',
-    body: [
-      '<strong>// EXECUTIVE BRIEFING — 03:42 LOCAL</strong>',
-      'EuroCorp’s monopoly is in pieces. Three syndicates contest the city-states; the CHIP that once enforced order now answers to whoever owns the uplink. You command the field arm of a rising house.',
-      'Sector 7 is held by a rival cell. Deploy your squad. Eliminate the guards. Re-establish our footprint before the Hong Kong board convenes at dawn.',
-    ],
+    body: def.briefing,
     button: { label: 'DEPLOY SQUAD', onClick: startMission },
-    hint: '1-4 select · Q all · WASD or right-click to move · Hold left-click to focus fire',
+    hint: '1-4 select · Q all · WASD / right-click move · Left-click focus fire · Space: Persuadertron',
   });
   showOverlay();
 }
@@ -74,6 +79,11 @@ function update(delta) {
 
   state.squad.update(delta, input);
   state.enemies.forEach(enemy => enemy.update(delta, state.squad.alive, obstacles));
+  const center = squadCenter();
+  state.civilians.forEach(civ => civ.update(delta, center, obstacles));
+  state.squad.persuadeNearby(state.civilians);
+  state.followers = state.civilians.filter(c => c.persuaded && !c.dead).length;
+  state.persuadertron = state.squad.persuadertron;
   state.projectiles.forEach(proj => proj.update(delta));
   state.projectiles = state.projectiles.filter(proj => !proj.dead);
 
@@ -87,7 +97,7 @@ function update(delta) {
     return true;
   });
 
-  updateMissionStatus(state.mission, { kills: state.kills });
+  updateMissionStatus(state.mission, { kills: state.kills, followers: state.followers });
 
   if (state.squad.allDead) {
     showDebrief(false);
@@ -126,12 +136,26 @@ function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawCity(ctx, canvas.width, canvas.height);
   obstacles.forEach(ob => ob.draw(ctx));
+  state.civilians.forEach(civ => civ.draw(ctx));
   state.enemies.forEach(enemy => enemy.draw(ctx));
   state.projectiles.forEach(proj => proj.draw(ctx));
   if (state.squad) {
     drawMoveOrders(state.squad);
     state.squad.draw(ctx);
   }
+}
+
+function squadCenter() {
+  if (!state.squad) return null;
+  const alive = state.squad.alive;
+  if (alive.length === 0) return null;
+  let cx = 0;
+  let cy = 0;
+  for (const a of alive) {
+    cx += a.x;
+    cy += a.y;
+  }
+  return { x: cx / alive.length, y: cy / alive.length };
 }
 
 function drawMoveOrders(squad) {
@@ -180,6 +204,10 @@ function handleKey(event, isDown) {
     }
   } else if (k === 'q' || k === 'Q' || k === '`') {
     state.squad.selectAll();
+  } else if (k === ' ' || k === 'Spacebar') {
+    state.squad.togglePersuadertron();
+    state.persuadertron = state.squad.persuadertron;
+    event.preventDefault?.();
   }
 }
 

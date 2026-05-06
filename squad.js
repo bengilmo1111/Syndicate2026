@@ -9,6 +9,8 @@ const FORMATION = [
   [30, 30],
 ];
 
+const PERSUADE_RANGE = 170;
+
 export class Squad {
   constructor(centerX, centerY) {
     this.agents = FORMATION.map(([dx, dy], i) => {
@@ -19,6 +21,24 @@ export class Squad {
       a.selected = true;
       return a;
     });
+    this.persuadertron = false;
+  }
+
+  togglePersuadertron() {
+    this.persuadertron = !this.persuadertron;
+  }
+
+  persuadeNearby(civilians) {
+    if (!this.persuadertron) return 0;
+    let converted = 0;
+    for (const a of this.alive) {
+      for (const c of civilians) {
+        if (c.dead || c.persuaded) continue;
+        const d = Math.hypot(c.x - a.x, c.y - a.y);
+        if (d <= PERSUADE_RANGE && c.persuade()) converted += 1;
+      }
+    }
+    return converted;
   }
 
   get alive() {
@@ -114,6 +134,7 @@ export class Squad {
   }
 
   fireAt(target) {
+    if (this.persuadertron) return [];
     const projectiles = [];
     for (const a of this.selected) {
       const p = a.fire(target);
@@ -123,6 +144,7 @@ export class Squad {
   }
 
   autoFire(enemies) {
+    if (this.persuadertron) return [];
     const projectiles = [];
     for (const a of this.alive) {
       const p = a.autoFire(enemies);
@@ -132,6 +154,19 @@ export class Squad {
   }
 
   draw(ctx) {
+    if (this.persuadertron) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(86, 224, 255, 0.35)';
+      ctx.fillStyle = 'rgba(86, 224, 255, 0.06)';
+      ctx.lineWidth = 1;
+      for (const a of this.alive) {
+        ctx.beginPath();
+        ctx.arc(a.x, a.y, PERSUADE_RANGE, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     for (const a of this.agents) a.draw(ctx);
   }
 }

@@ -2,8 +2,10 @@ import { activeObjective } from './world.js';
 
 const hudObjective = document.getElementById('hud-objective');
 const hudKills = document.getElementById('hud-kills');
+const hudFollowers = document.getElementById('hud-followers');
 const hudTime = document.getElementById('hud-time');
 const hudSquad = document.getElementById('hud-squad');
+const hudMode = document.getElementById('hud-mode');
 const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayBody = document.getElementById('overlay-body');
@@ -47,10 +49,12 @@ export function updateHUD(state) {
     hudObjective.textContent = '—';
   }
   hudKills.textContent = state.kills;
+  hudFollowers.textContent = state.followers ?? 0;
   const elapsed = state.startTime ? Math.floor((performance.now() - state.startTime) / 1000) : 0;
   const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
   const seconds = String(elapsed % 60).padStart(2, '0');
   hudTime.textContent = `${minutes}:${seconds}`;
+  hudMode.classList.toggle('hidden', !state.persuadertron);
 
   if (!state.squad) return;
   ensureAgentCards(state.squad);
