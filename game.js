@@ -1,4 +1,4 @@
-import { Projectile, obstacles, spawnEnemies, spawnCivilians, MAP_WIDTH, MAP_HEIGHT } from './entities.js';
+import { Projectile, obstacles, spawnEnemies, spawnCivilians, spawnPolice, MAP_WIDTH, MAP_HEIGHT } from './entities.js';
 import { Squad } from './squad.js';
 import { updateHUD, showOverlay, hideOverlay, setOverlayContent } from './ui.js';
 import { drawCity } from './city.js';
@@ -37,6 +37,8 @@ function startMission() {
   state.kills = 0;
   state.followers = 0;
   state.persuadertron = false;
+  state.heat = 0;
+  state.policeAlertT = 0;
   state.mission = buildMission(ACTIVE_MISSION_ID);
   state.startTime = performance.now();
   state.mode = 'playing';
@@ -91,11 +93,18 @@ function update(delta) {
 
   state.enemies = state.enemies.filter(enemy => {
     if (enemy.dead) {
-      state.kills += 1;
+      if (enemy.faction === 'rival') state.kills += 1;
       return false;
     }
     return true;
   });
+
+  if (state.heat >= 60) {
+    state.enemies.push(...spawnPolice(2));
+    state.heat = 20;
+    state.policeAlertT = 120;
+  }
+  if (state.policeAlertT > 0) state.policeAlertT -= 1;
 
   updateMissionStatus(state.mission, { kills: state.kills, followers: state.followers });
 
@@ -143,6 +152,20 @@ function render() {
     drawMoveOrders(state.squad);
     state.squad.draw(ctx);
   }
+  if (state.policeAlertT > 0) drawPoliceAlert(state.policeAlertT);
+}
+
+function drawPoliceAlert(ttl) {
+  const alpha = Math.min(1, ttl / 120);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = '600 22px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffce4f';
+  ctx.shadowColor = 'rgba(255, 206, 79, 0.7)';
+  ctx.shadowBlur = 12;
+  ctx.fillText('// POLICE INBOUND', canvas.width / 2, 60);
+  ctx.restore();
 }
 
 function squadCenter() {
@@ -239,7 +262,14 @@ function maybeFire() {
   const projs = state.isMouseDown
     ? state.squad.fireAt(state.mouse)
     : state.squad.autoFire(state.enemies);
-  for (const p of projs) state.projectiles.push(p);
+  for (const p of projs) {
+    state.projectiles.push(p);
+    for (const c of state.civilians) {
+      if (!c.dead && Math.hypot(c.x - p.x, c.y - p.y) < 110) {
+        state.heat += 1;
+      }
+    }
+  }
 }
 setInterval(maybeFire, 60);
 

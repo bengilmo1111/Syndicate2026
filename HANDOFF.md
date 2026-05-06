@@ -66,16 +66,28 @@ objective progress, hostiles down, followers, mission time, and a
 - No line-of-sight check — agents shoot through walls; civilians too
 
 ## Next up (top of Phase 3 / Phase 2 in IMPLEMENTATION_PLAN.md)
-1. **Police entity**: spawn N police that aggro on the squad if gunfire
-   happens within range of any civilian. Reuse `Enemy` with a `policeFlag`
-   or subclass. Adds tactical pressure to firing in public.
-2. **Followers can be killed**: civilians take projectile damage; followers
-   reduce the count when they die. Ties to a future score / debrief stat.
-3. **Persuasion mission**: a second mission def (`missions/datacore.js` or
-   similar) with a `PERSUADE(target=4)` objective. Tests the registry and
-   the typed objective model end-to-end.
-4. **Objective panel UI**: Tab-toggled list of every objective with status
+1. **Followers can be killed**: civilians take projectile damage; the
+   FOLLOWERS counter ticks down when they die. Punishes friendly fire.
+2. **Persuasion mission**: a second mission def (`missions/datacore.js`)
+   with a `PERSUADE(target=4)` objective. Exercises the registry and
+   typed objective model end-to-end. May need a mission-select screen.
+3. **Objective panel UI**: Tab-toggled list of every objective with status
    and progress, not just the active one (Phase 2 leftover).
+4. **Heat HUD**: surface the existing `state.heat` value as a meter so the
+   player can see how close they are to triggering police. Currently
+   police arrive without warning beyond the brief on-canvas flash.
+
+## Heat / police mechanic (current behaviour)
+- Each projectile fired adds `+1` to `state.heat` for every civilian
+  within 110 px of the projectile spawn point.
+- When `state.heat >= 60`, two `Police` units spawn at random map edges
+  and `state.heat` resets to 20.
+- Police share `Enemy` behavior (chase + bump + take damage) but are
+  yellow and faster. They spawn endlessly while heat keeps climbing.
+- Police kills do NOT count toward the ELIMINATE objective —
+  `state.kills` only increments for `enemy.faction === 'rival'`.
+- Persuadertron suppresses fire entirely, so a pacifist run never
+  generates heat or police.
 
 After those, Phase 4 (loadout + cybernetics + research) is the next major
 arc. Phase 5 is the world map / meta-loop.

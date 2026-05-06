@@ -134,6 +134,7 @@ export class Enemy extends Entity {
     this.damage = 14;
     this.bumpTimer = 0;
     this.facing = 0;
+    this.faction = 'rival';
   }
 
   update(delta, agents, obstacles) {
@@ -281,6 +282,31 @@ export function spawnEnemies() {
     new Enemy(720, 510),
     new Enemy(500, 660),
   ];
+}
+
+export class Police extends Enemy {
+  constructor(x, y) {
+    super(x, y);
+    this.faction = 'police';
+    this.color = '#ffce4f';
+    this.health = 60;
+    this.damage = 16;
+    this.speed = 145;
+  }
+}
+
+export function spawnPolice(count) {
+  const arr = [];
+  for (let i = 0; i < count; i++) {
+    const edge = Math.floor(Math.random() * 4);
+    let x, y;
+    if (edge === 0) { x = Math.random() * MAP_WIDTH; y = -12; }
+    else if (edge === 1) { x = Math.random() * MAP_WIDTH; y = MAP_HEIGHT + 12; }
+    else if (edge === 2) { x = -12; y = Math.random() * MAP_HEIGHT; }
+    else { x = MAP_WIDTH + 12; y = Math.random() * MAP_HEIGHT; }
+    arr.push(new Police(x, y));
+  }
+  return arr;
 }
 
 export class Civilian extends Entity {
