@@ -28,47 +28,57 @@ No environment variables required.
 
 ## Current state (one paragraph)
 The prototype is a four-agent squad on a top-down cyberpunk street grid running
-the "Sector 7 — Reclamation" mission. WASD moves selected agents in formation.
-Number keys 1–4 select; Q toggles all. Right-click issues a move order to the
-selected agents that preserves their relative formation; a coloured chevron
-marks each pending destination. Hold left-click to focus all selected agents
-on the cursor. When the mouse is up, every alive agent auto-fires on the
-nearest enemy within 260 px. Mission state lives in a typed model in
-`world.js` (objectives, types, status); the HUD shows the active objective's
-progress like `Eliminate rival guards (3/5)`. Win when all objectives
-complete; lose when the squad is wiped.
+the "Sector 7 — Reclamation" mission. Civilians wander the streets and can be
+converted with the **Persuadertron** (Space). WASD moves selected agents in
+formation. Number keys 1–4 select; Q toggles all. Right-click issues a
+formation-preserving move order; chevron markers show pending destinations.
+Hold left-click to focus fire on the cursor; auto-fire engages when the mouse
+is up and an enemy is within 260 px. Press Space to engage the Persuadertron:
+firing is suppressed, a 170 px cyan ring is drawn around each agent, and any
+civilian inside the ring switches sides and follows the squad. The HUD shows
+objective progress, hostiles down, followers, mission time, and a
+"PERSUADERTRON ENGAGED" badge while active. Mission and objective data live in
+`world.js` + `missions/sector-7.js`.
 
 ## What works
-- Four agents, formation movement, per-agent damage / death
-- 1–4 select / Shift+number toggle / Q select-all
+- Four agents: formation movement, per-agent damage / death, KIA flag
+- Selection: 1–4 select / Shift+number toggle / Q select-all
 - Right-click move order, formation-preserved, with on-canvas markers
-- Hold left-click for focus fire; auto-fire when mouse is released
+- Hold left-click focus fire; release for auto-fire on nearest enemy in range
+- Persuadertron (Space) — converts civilians within 170 px to followers
+- Civilians wander on streets, avoid spawning inside buildings
+- Followers follow squad centroid at follow speed
 - Enemy AI: chase + bump damage with obstacle slide
-- Typed mission model: objectives with type/target/progress/status
-- HUD: per-agent health bar, kills, time, active objective + progress
-- Briefing / debrief overlays with redeploy
+- Typed mission model with `eliminate` and `persuade` types wired
+- Mission registry under `missions/` — adding a mission is one new file
+- HUD: per-agent health bar, kills, followers, time, active objective + progress
+- Briefing reads from mission def; debrief offers redeploy
 - Static deploy via Vercel (`main` → https://syndicate2026.vercel.app/)
 
 ## What's stubbed / known gaps
-- Only one objective type implemented (`ELIMINATE`)
-- One mission, no world map / mission select
-- No civilians, no Persuadertron, no police
-- One weapon, no loadout, no upgrades, no research
+- Followers can't be killed; civilians take no damage
+- No police entity that reacts to gunfire
+- Only `eliminate` and `persuade` objective types wired in `updateMissionStatus`
+- One mission only, no world map / mission select
+- One weapon (the Pulse Rifle); no loadout, no upgrades, no research
 - No persistence (no localStorage save yet)
 - No sound or particle effects
-- No line-of-sight check on auto-fire — agents will shoot through walls
+- No line-of-sight check — agents shoot through walls; civilians too
 
-## Next up (top of Phase 2 in IMPLEMENTATION_PLAN.md)
-1. **Objective panel UI**: a Tab-toggled list showing every objective with
-   its status and progress. Lives in `ui.js` with new DOM in `index.html`.
-2. **Mission registry**: pull the inline `makeMission()` body in `world.js`
-   into a `missions/sector-7.js` file and let `world.js` look up by id.
-3. **Add a second objective type**: `RETRIEVE` is the easiest next step —
-   add a briefcase entity to `entities.js`, count pickups, complete the
-   objective when target reached.
+## Next up (top of Phase 3 / Phase 2 in IMPLEMENTATION_PLAN.md)
+1. **Police entity**: spawn N police that aggro on the squad if gunfire
+   happens within range of any civilian. Reuse `Enemy` with a `policeFlag`
+   or subclass. Adds tactical pressure to firing in public.
+2. **Followers can be killed**: civilians take projectile damage; followers
+   reduce the count when they die. Ties to a future score / debrief stat.
+3. **Persuasion mission**: a second mission def (`missions/datacore.js` or
+   similar) with a `PERSUADE(target=4)` objective. Tests the registry and
+   the typed objective model end-to-end.
+4. **Objective panel UI**: Tab-toggled list of every objective with status
+   and progress, not just the active one (Phase 2 leftover).
 
-After Phase 2 closes, Phase 3 (civilians + Persuadertron) is the big-ticket
-feel-of-Syndicate work.
+After those, Phase 4 (loadout + cybernetics + research) is the next major
+arc. Phase 5 is the world map / meta-loop.
 
 ## Files of note
 - `PRD.md` — vision, story, scope. Update before scope changes.
