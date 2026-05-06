@@ -6,6 +6,8 @@ const hudFollowers = document.getElementById('hud-followers');
 const hudTime = document.getElementById('hud-time');
 const hudSquad = document.getElementById('hud-squad');
 const hudMode = document.getElementById('hud-mode');
+const hudHeatFill = document.getElementById('hud-heat-fill');
+const HEAT_THRESHOLD = 60;
 const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayBody = document.getElementById('overlay-body');
@@ -55,6 +57,12 @@ export function updateHUD(state) {
   const seconds = String(elapsed % 60).padStart(2, '0');
   hudTime.textContent = `${minutes}:${seconds}`;
   hudMode.classList.toggle('hidden', !state.persuadertron);
+
+  const heat = Math.max(0, state.heat ?? 0);
+  const pct = Math.min(100, (heat / HEAT_THRESHOLD) * 100);
+  hudHeatFill.style.width = `${pct}%`;
+  hudHeatFill.classList.toggle('warm', pct >= 50 && pct < 85);
+  hudHeatFill.classList.toggle('hot', pct >= 85);
 
   if (!state.squad) return;
   ensureAgentCards(state.squad);
