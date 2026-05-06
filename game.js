@@ -1,4 +1,4 @@
-import { Projectile, obstacles, spawnEnemies, MAP_WIDTH, MAP_HEIGHT } from './entities.js';
+import { Projectile, obstacles, spawnEnemies, spawnCivilians, MAP_WIDTH, MAP_HEIGHT } from './entities.js';
 import { Squad } from './squad.js';
 import { updateHUD, showOverlay, hideOverlay, setOverlayContent } from './ui.js';
 import { drawCity } from './city.js';
@@ -16,9 +16,12 @@ const state = {
   mapHeight: MAP_HEIGHT,
   squad: null,
   enemies: [],
+  civilians: [],
   projectiles: [],
   startTime: 0,
   kills: 0,
+  followers: 0,
+  persuadertron: false,
   mission: null,
   isMouseDown: false,
   mouse: { x: 0, y: 0 },
@@ -29,8 +32,11 @@ const input = { up: false, down: false, left: false, right: false };
 function startMission() {
   state.squad = new Squad(MAP_WIDTH / 2, MAP_HEIGHT - 90);
   state.enemies = spawnEnemies();
+  state.civilians = spawnCivilians(10, obstacles);
   state.projectiles = [];
   state.kills = 0;
+  state.followers = 0;
+  state.persuadertron = false;
   state.mission = buildMission(ACTIVE_MISSION_ID);
   state.startTime = performance.now();
   state.mode = 'playing';
@@ -73,6 +79,8 @@ function update(delta) {
 
   state.squad.update(delta, input);
   state.enemies.forEach(enemy => enemy.update(delta, state.squad.alive, obstacles));
+  const center = squadCenter();
+  state.civilians.forEach(civ => civ.update(delta, center, obstacles));
   state.projectiles.forEach(proj => proj.update(delta));
   state.projectiles = state.projectiles.filter(proj => !proj.dead);
 
@@ -125,12 +133,26 @@ function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawCity(ctx, canvas.width, canvas.height);
   obstacles.forEach(ob => ob.draw(ctx));
+  state.civilians.forEach(civ => civ.draw(ctx));
   state.enemies.forEach(enemy => enemy.draw(ctx));
   state.projectiles.forEach(proj => proj.draw(ctx));
   if (state.squad) {
     drawMoveOrders(state.squad);
     state.squad.draw(ctx);
   }
+}
+
+function squadCenter() {
+  if (!state.squad) return null;
+  const alive = state.squad.alive;
+  if (alive.length === 0) return null;
+  let cx = 0;
+  let cy = 0;
+  for (const a of alive) {
+    cx += a.x;
+    cy += a.y;
+  }
+  return { x: cx / alive.length, y: cy / alive.length };
 }
 
 function drawMoveOrders(squad) {

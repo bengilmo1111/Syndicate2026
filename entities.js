@@ -282,3 +282,117 @@ export function spawnEnemies() {
     new Enemy(500, 660),
   ];
 }
+
+export class Civilian extends Entity {
+  constructor(x, y) {
+    super(x, y, 7, '#aab4c8');
+    this.wanderSpeed = 55;
+    this.followSpeed = 110;
+    this.wanderTarget = null;
+    this.wanderRest = 0;
+    this.persuaded = false;
+    this.facing = 0;
+  }
+
+  update(delta, squadCenter, obstacles) {
+    if (this.dead) return;
+
+    if (this.persuaded && squadCenter) {
+      const dx = squadCenter.x - this.x;
+      const dy = squadCenter.y - this.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 56) {
+        const step = this.followSpeed * delta;
+        this.x += (dx / dist) * step;
+        this.y += (dy / dist) * step;
+        this.facing = Math.atan2(dy, dx);
+      }
+      return;
+    }
+
+    if (this.wanderRest > 0) {
+      this.wanderRest -= delta / 60;
+      return;
+    }
+
+    if (!this.wanderTarget ||
+        Math.hypot(this.wanderTarget.x - this.x, this.wanderTarget.y - this.y) < 6) {
+      this.wanderTarget = pickWanderTarget(this.x, this.y, obstacles);
+      this.wanderRest = 0.4 + Math.random() * 1.2;
+      return;
+    }
+
+    const dx = this.wanderTarget.x - this.x;
+    const dy = this.wanderTarget.y - this.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 0) {
+      this.facing = Math.atan2(dy, dx);
+      const step = this.wanderSpeed * delta;
+      this.x += (dx / dist) * step;
+      this.y += (dy / dist) * step;
+    }
+  }
+
+  persuade() {
+    if (this.persuaded || this.dead) return false;
+    this.persuaded = true;
+    this.color = '#56e0ff';
+    return true;
+  }
+
+  draw(ctx) {
+    if (this.dead) return;
+    ctx.save();
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
+    if (this.persuaded) {
+      ctx.strokeStyle = 'rgba(86, 224, 255, 0.85)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius + 3, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function isInsideAnyObstacle(x, y, obstacles, pad = 10) {
+  for (const ob of obstacles) {
+    if (x > ob.x - pad && x < ob.x + ob.w + pad &&
+        y > ob.y - pad && y < ob.y + ob.h + pad) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function pickWanderTarget(originX, originY, obstacles) {
+  for (let i = 0; i < 12; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 60 + Math.random() * 160;
+    const x = clamp(originX + Math.cos(angle) * radius, 20, MAP_WIDTH - 20);
+    const y = clamp(originY + Math.sin(angle) * radius, 20, MAP_HEIGHT - 20);
+    if (!isInsideAnyObstacle(x, y, obstacles)) return { x, y };
+  }
+  return null;
+}
+
+export function spawnCivilians(count, obstacles) {
+  const civs = [];
+  let tries = 0;
+  while (civs.length < count && tries < count * 40) {
+    tries += 1;
+    const x = 30 + Math.random() * (MAP_WIDTH - 60);
+    const y = 30 + Math.random() * (MAP_HEIGHT - 60);
+    if (!isInsideAnyObstacle(x, y, obstacles)) {
+      civs.push(new Civilian(x, y));
+    }
+  }
+  return civs;
+}
