@@ -43,7 +43,7 @@ The point of this phase is to make the prototype unambiguously *Syndicate*-flavo
 - [ ] Objective panel UI (Tab to toggle full list)
 - [ ] Briefing → mission → debrief flow with retry / continue (already partial)
 - [ ] Two more missions (different objectives, same map shell)
-- [ ] Mission registry under `missions/` with one definition per mission
+- [x] Mission registry under `missions/` with one definition per mission
 
 ## Phase 3 — Persuadertron and civilians
 - [ ] Civilian entity with simple wandering AI on streets

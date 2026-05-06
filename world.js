@@ -1,6 +1,7 @@
 // Mission data model. Pure data + pure update functions — no DOM, no canvas.
-// game.js owns a `mission` object built from makeMission() and asks this
-// module to update progress each frame and to check completion.
+// Concrete missions live under `missions/` and are registered in MISSIONS.
+
+import { sector7 } from './missions/sector-7.js';
 
 export const OBJECTIVE_TYPES = Object.freeze({
   ELIMINATE: 'eliminate',
@@ -16,25 +17,23 @@ export const OBJECTIVE_STATUS = Object.freeze({
   FAILED: 'failed',
 });
 
-/**
- * Build the only mission shipped today. Phase 2 will move mission
- * definitions into a `missions/` registry; for now one definition is fine.
- */
-export function makeMission() {
+const MISSIONS = {
+  [sector7.id]: sector7,
+};
+
+export function getMissionDef(id) {
+  const def = MISSIONS[id];
+  if (!def) throw new Error(`Unknown mission: ${id}`);
+  return def;
+}
+
+export function buildMission(id) {
+  const def = getMissionDef(id);
   return {
-    id: 'sector-7',
-    name: 'Sector 7 — Reclamation',
-    briefing: 'Eliminate the rival cell holding Sector 7 before the Hong Kong board convenes.',
-    objectives: [
-      {
-        id: 'kill-guards',
-        type: OBJECTIVE_TYPES.ELIMINATE,
-        description: 'Eliminate rival guards',
-        target: 5,
-        progress: 0,
-        status: OBJECTIVE_STATUS.PENDING,
-      },
-    ],
+    id: def.id,
+    name: def.name,
+    briefing: def.briefing,
+    objectives: def.buildObjectives(),
   };
 }
 
@@ -49,6 +48,10 @@ export function updateMissionStatus(mission, progressInputs) {
     switch (obj.type) {
       case OBJECTIVE_TYPES.ELIMINATE:
         obj.progress = Math.min(progressInputs.kills, obj.target);
+        if (obj.progress >= obj.target) obj.status = OBJECTIVE_STATUS.COMPLETE;
+        break;
+      case OBJECTIVE_TYPES.PERSUADE:
+        obj.progress = Math.min(progressInputs.followers, obj.target);
         if (obj.progress >= obj.target) obj.status = OBJECTIVE_STATUS.COMPLETE;
         break;
       // Other types land here as they're built.

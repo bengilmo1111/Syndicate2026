@@ -2,11 +2,13 @@ import { Projectile, obstacles, spawnEnemies, MAP_WIDTH, MAP_HEIGHT } from './en
 import { Squad } from './squad.js';
 import { updateHUD, showOverlay, hideOverlay, setOverlayContent } from './ui.js';
 import { drawCity } from './city.js';
-import { makeMission, updateMissionStatus, isMissionComplete } from './world.js';
+import { buildMission, getMissionDef, updateMissionStatus, isMissionComplete } from './world.js';
 
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const overlay = document.getElementById('overlay');
+
+const ACTIVE_MISSION_ID = 'sector-7';
 
 const state = {
   mode: 'briefing',
@@ -29,7 +31,7 @@ function startMission() {
   state.enemies = spawnEnemies();
   state.projectiles = [];
   state.kills = 0;
-  state.mission = makeMission();
+  state.mission = buildMission(ACTIVE_MISSION_ID);
   state.startTime = performance.now();
   state.mode = 'playing';
   hideOverlay();
@@ -38,15 +40,12 @@ function startMission() {
 
 function showBriefing() {
   state.mode = 'briefing';
+  const def = getMissionDef(ACTIVE_MISSION_ID);
   setOverlayContent({
     title: 'SYNDICATE 2026',
-    body: [
-      '<strong>// EXECUTIVE BRIEFING — 03:42 LOCAL</strong>',
-      'EuroCorp’s monopoly is in pieces. Three syndicates contest the city-states; the CHIP that once enforced order now answers to whoever owns the uplink. You command the field arm of a rising house.',
-      'Sector 7 is held by a rival cell. Deploy your squad. Eliminate the guards. Re-establish our footprint before the Hong Kong board convenes at dawn.',
-    ],
+    body: def.briefing,
     button: { label: 'DEPLOY SQUAD', onClick: startMission },
-    hint: '1-4 select · Q all · WASD or right-click to move · Hold left-click to focus fire',
+    hint: '1-4 select · Q all · WASD or right-click to move · Left-click focus fire',
   });
   showOverlay();
 }
