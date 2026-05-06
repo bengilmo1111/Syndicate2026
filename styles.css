@@ -247,6 +247,26 @@ body {
   font-family: var(--mono);
 }
 
+.hud-heat { min-width: 110px; }
+
+.heat-meter {
+  margin-top: 4px;
+  height: 6px;
+  background: rgba(86, 224, 255, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.heat-meter-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.18s ease, background 0.2s ease;
+}
+
+.heat-meter-fill.warm { background: var(--warning); }
+.heat-meter-fill.hot { background: var(--accent-2); }
+
 #hud-mode {
   position: absolute;
   top: 64px;

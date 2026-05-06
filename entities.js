@@ -318,6 +318,18 @@ export class Civilian extends Entity {
     this.wanderRest = 0;
     this.persuaded = false;
     this.facing = 0;
+    this.health = 30;
+  }
+
+  takeDamage(amount) {
+    if (this.dead) return false;
+    this.health -= amount;
+    if (this.health <= 0) {
+      this.health = 0;
+      this.dead = true;
+      return true;
+    }
+    return false;
   }
 
   update(delta, squadCenter, obstacles) {

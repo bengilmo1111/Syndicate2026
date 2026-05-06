@@ -49,7 +49,7 @@ The point of this phase is to make the prototype unambiguously *Syndicate*-flavo
 - [x] Civilian entity with simple wandering AI on streets
 - [x] Persuadertron weapon: range effect, converts civilian to follower (Space toggle)
 - [x] Followers trail the squad
-- [ ] Followers can be killed (currently civilians are invulnerable)
+- [x] Followers can be killed (civilian death + heat penalty for it)
 - [x] Police entity that responds to gunfire near civilians
 - [ ] Persuasion mission objective ("convert N civilians and escape")
 
