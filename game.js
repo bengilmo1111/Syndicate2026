@@ -128,6 +128,14 @@ function resolveCollisions() {
         proj.dead = true;
       }
     });
+    state.civilians.forEach(civ => {
+      if (proj.dead || civ.dead) return;
+      if (proj.collides(civ)) {
+        const killed = civ.takeDamage(proj.damage);
+        proj.dead = true;
+        if (killed) state.heat += 15;
+      }
+    });
   });
 
   state.enemies.forEach(enemy => {
