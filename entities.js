@@ -31,9 +31,25 @@ export class Agent extends Entity {
     this.cooldown = 0;
     this.weapon = 'Pulse Rifle';
     this.damage = 22;
+    this.range = 260;
     this.selected = true;
     this.facing = 0;
     this.muzzleFlash = 0;
+  }
+
+  autoFire(enemies) {
+    if (this.cooldown > 0 || this.dead) return null;
+    let target = null;
+    let bestDist = Infinity;
+    for (const e of enemies) {
+      if (e.dead) continue;
+      const d = Math.hypot(e.x - this.x, e.y - this.y);
+      if (d <= this.range && d < bestDist) {
+        bestDist = d;
+        target = e;
+      }
+    }
+    return target ? this.fire(target) : null;
   }
 
   fire(target) {

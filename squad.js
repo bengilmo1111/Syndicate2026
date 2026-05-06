@@ -84,6 +84,15 @@ export class Squad {
     return projectiles;
   }
 
+  autoFire(enemies) {
+    const projectiles = [];
+    for (const a of this.alive) {
+      const p = a.autoFire(enemies);
+      if (p) projectiles.push(p);
+    }
+    return projectiles;
+  }
+
   draw(ctx) {
     for (const a of this.agents) a.draw(ctx);
   }

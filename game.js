@@ -44,7 +44,7 @@ function showBriefing() {
       'Sector 7 is held by a rival cell. Deploy your squad. Eliminate the guards. Re-establish our footprint before the Hong Kong board convenes at dawn.',
     ],
     button: { label: 'DEPLOY SQUAD', onClick: startMission },
-    hint: '1-4 select agents · Q select all · WASD move · Click to fire',
+    hint: '1-4 select · Q select all · WASD move · Hold click to focus fire · Agents auto-fire in range',
   });
   showOverlay();
 }
@@ -174,8 +174,10 @@ window.addEventListener('keydown', event => handleKey(event, true));
 window.addEventListener('keyup', event => handleKey(event, false));
 
 function maybeFire() {
-  if (state.mode !== 'playing' || !state.isMouseDown || !state.squad) return;
-  const projs = state.squad.fireAt(state.mouse);
+  if (state.mode !== 'playing' || !state.squad) return;
+  const projs = state.isMouseDown
+    ? state.squad.fireAt(state.mouse)
+    : state.squad.autoFire(state.enemies);
   for (const p of projs) state.projectiles.push(p);
 }
 setInterval(maybeFire, 60);
