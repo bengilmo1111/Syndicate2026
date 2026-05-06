@@ -15,6 +15,13 @@ augmented agents into the megacities to assassinate, persuade, steal, and seize
 territory. Every successful mission funds research; every research breakthrough
 buys deeper control of the population.
 
+But that is the surface premise. The full narrative — a four-act arc in which
+the player's executive (designation **EXEC-7**) discovers they were never a
+willing employee, defects, and leads an insurgency to break the CHIP — lives in
+**[`NARRATIVE.md`](./NARRATIVE.md)**. That document is the canonical source for
+all story, mission writing, briefing copy, debriefs, character names, and tone.
+Read it before writing any narrative material.
+
 ## Audience
 - Fans of the 1993 original and the Bullfrog/Peter Molyneux design lineage
 - Players of modern tactical games (Invisible Inc., Hotline Miami, X-COM, Door Kickers)
