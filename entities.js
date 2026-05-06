@@ -35,6 +35,7 @@ export class Agent extends Entity {
     this.selected = true;
     this.facing = 0;
     this.muzzleFlash = 0;
+    this.moveTarget = null;
   }
 
   autoFire(enemies) {

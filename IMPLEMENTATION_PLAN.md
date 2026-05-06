@@ -34,7 +34,7 @@ The point of this phase is to make the prototype unambiguously *Syndicate*-flavo
 - [x] Mission briefing card with story framing on game start
 - [x] City backdrop: street grid + building blocks (placeholder tiles)
 - [x] Per-agent auto-fire at nearest enemy in range
-- [ ] Click-to-move order (right click) for selected agents
+- [x] Click-to-move order (right click) for selected agents
 
 ## Phase 2 — Mission systems
 - [ ] Mission objective model (`{ id, type, target, status, description }`)

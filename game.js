@@ -44,7 +44,7 @@ function showBriefing() {
       'Sector 7 is held by a rival cell. Deploy your squad. Eliminate the guards. Re-establish our footprint before the Hong Kong board convenes at dawn.',
     ],
     button: { label: 'DEPLOY SQUAD', onClick: startMission },
-    hint: '1-4 select · Q select all · WASD move · Hold click to focus fire · Agents auto-fire in range',
+    hint: '1-4 select · Q all · WASD or right-click to move · Hold left-click to focus fire',
   });
   showOverlay();
 }
@@ -124,7 +124,30 @@ function render() {
   obstacles.forEach(ob => ob.draw(ctx));
   state.enemies.forEach(enemy => enemy.draw(ctx));
   state.projectiles.forEach(proj => proj.draw(ctx));
-  if (state.squad) state.squad.draw(ctx);
+  if (state.squad) {
+    drawMoveOrders(state.squad);
+    state.squad.draw(ctx);
+  }
+}
+
+function drawMoveOrders(squad) {
+  ctx.save();
+  ctx.lineWidth = 1;
+  for (const a of squad.alive) {
+    if (!a.moveTarget) continue;
+    ctx.strokeStyle = a.color;
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.arc(a.moveTarget.x, a.moveTarget.y, 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(a.moveTarget.x - 3, a.moveTarget.y);
+    ctx.lineTo(a.moveTarget.x + 3, a.moveTarget.y);
+    ctx.moveTo(a.moveTarget.x, a.moveTarget.y - 3);
+    ctx.lineTo(a.moveTarget.x, a.moveTarget.y + 3);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 let lastFrame = performance.now();
@@ -163,7 +186,13 @@ canvas.addEventListener('mousemove', event => {
 });
 
 canvas.addEventListener('mousedown', event => {
-  if (event.button === 0) state.isMouseDown = true;
+  if (event.button === 0) {
+    state.isMouseDown = true;
+  } else if (event.button === 2) {
+    if (state.mode === 'playing' && state.squad) {
+      state.squad.issueMove(state.mouse);
+    }
+  }
 });
 canvas.addEventListener('mouseup', event => {
   if (event.button === 0) state.isMouseDown = false;

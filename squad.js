@@ -62,16 +62,54 @@ export class Squad {
     const dx = (input.right ? 1 : 0) - (input.left ? 1 : 0);
     const dy = (input.down ? 1 : 0) - (input.up ? 1 : 0);
     const len = Math.hypot(dx, dy);
+
+    // Manual WASD movement cancels any standing move orders for selected agents.
     if (len > 0) {
       const speed = 220;
       const moveX = (dx / len) * speed * delta;
       const moveY = (dy / len) * speed * delta;
       for (const a of this.selected) {
+        a.moveTarget = null;
         a.moveBy(moveX, moveY);
       }
     }
+
+    // Step any agent with an outstanding move order toward its target.
+    for (const a of this.alive) {
+      if (!a.moveTarget) continue;
+      const tdx = a.moveTarget.x - a.x;
+      const tdy = a.moveTarget.y - a.y;
+      const dist = Math.hypot(tdx, tdy);
+      if (dist < 4) {
+        a.moveTarget = null;
+        continue;
+      }
+      const speed = 220;
+      const step = Math.min(dist, speed * delta);
+      a.moveBy((tdx / dist) * step, (tdy / dist) * step);
+    }
+
     for (const a of this.alive) {
       a.tickCooldown(delta);
+    }
+  }
+
+  issueMove(point) {
+    const sel = this.selected;
+    if (sel.length === 0) return;
+    let cx = 0;
+    let cy = 0;
+    for (const a of sel) {
+      cx += a.x;
+      cy += a.y;
+    }
+    cx /= sel.length;
+    cy /= sel.length;
+    for (const a of sel) {
+      a.moveTarget = {
+        x: point.x + (a.x - cx),
+        y: point.y + (a.y - cy),
+      };
     }
   }
 
