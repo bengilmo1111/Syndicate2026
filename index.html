@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2026 Bulldog</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="game-shell">
+    <canvas id="game-canvas" width="1024" height="768" aria-label="2026 Bulldog game canvas"></canvas>
+    <div id="hud">
+      <div id="hud-top">
+        <div class="hud-panel">Health: <span id="hud-health">100</span></div>
+        <div class="hud-panel">Weapon: <span id="hud-weapon">Pulse Rifle</span></div>
+        <div class="hud-panel">Objective: <span id="hud-objective">Secure the sector</span></div>
+      </div>
+      <div id="hud-bottom">
+        <div class="hud-panel">Kills: <span id="hud-kills">0</span></div>
+        <div class="hud-panel">Time: <span id="hud-time">00:00</span></div>
+      </div>
+    </div>
+    <div id="overlay" class="menu-screen">
+      <div class="menu-card">
+        <h1>2026 BULLDOG</h1>
+        <p>Top-down cyberpunk tactical combat.</p>
+        <button id="start-button">Start Mission</button>
+        <p class="hint">Use WASD / arrow keys to move, click to shoot.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>
