@@ -66,28 +66,32 @@ objective progress, hostiles down, followers, mission time, and a
 - No line-of-sight check — agents shoot through walls; civilians too
 
 ## Next up (top of Phase 3 / Phase 2 in IMPLEMENTATION_PLAN.md)
-1. **Followers can be killed**: civilians take projectile damage; the
-   FOLLOWERS counter ticks down when they die. Punishes friendly fire.
-2. **Persuasion mission**: a second mission def (`missions/datacore.js`)
-   with a `PERSUADE(target=4)` objective. Exercises the registry and
-   typed objective model end-to-end. May need a mission-select screen.
+1. **Persuasion mission**: a second mission def (`missions/datacore.js`)
+   with a `PERSUADE(target=4)` objective and probably an extraction zone.
+   Exercises the registry and typed objective model end-to-end.
+2. **Mission select screen**: between briefing and deploy, let the player
+   pick from the registered missions. Small first step toward Phase 5's
+   world map.
 3. **Objective panel UI**: Tab-toggled list of every objective with status
    and progress, not just the active one (Phase 2 leftover).
-4. **Heat HUD**: surface the existing `state.heat` value as a meter so the
-   player can see how close they are to triggering police. Currently
-   police arrive without warning beyond the brief on-canvas flash.
+4. **Police escalation**: currently 2 police spawn per heat trigger. Try
+   ramping squad size and adding spawn cooldown so the player can't be
+   overwhelmed by a single bad burst of fire.
 
 ## Heat / police mechanic (current behaviour)
-- Each projectile fired adds `+1` to `state.heat` for every civilian
+- Every projectile fired adds `+1` to `state.heat` for each civilian
   within 110 px of the projectile spawn point.
+- Killing a civilian with friendly fire adds `+15` heat on top of that.
 - When `state.heat >= 60`, two `Police` units spawn at random map edges
   and `state.heat` resets to 20.
 - Police share `Enemy` behavior (chase + bump + take damage) but are
-  yellow and faster. They spawn endlessly while heat keeps climbing.
+  yellow and faster. They keep coming while heat keeps climbing.
 - Police kills do NOT count toward the ELIMINATE objective —
   `state.kills` only increments for `enemy.faction === 'rival'`.
 - Persuadertron suppresses fire entirely, so a pacifist run never
   generates heat or police.
+- The HUD's HEAT meter shows progress toward the threshold; it shifts
+  cyan → yellow → magenta as the bar fills.
 
 After those, Phase 4 (loadout + cybernetics + research) is the next major
 arc. Phase 5 is the world map / meta-loop.
