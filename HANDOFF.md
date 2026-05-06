@@ -4,9 +4,14 @@ This file is the single source of truth for "what is the world like right now"
 when an AI session opens this repo. Read this **first**. Update it **last**, in
 the same commit as your code change.
 
-## Branch
-All in-progress work lives on `claude/syndicate-game-foundation-RPdGc`. `main`
-is held back for reviewed merges only. Push directly to the feature branch.
+## Branch & deploy
+- **Production:** `main` is the branch Vercel deploys to https://syndicate2026.vercel.app/.
+  Anything merged to `main` ships to that URL within ~30s.
+- **Feature work:** new work goes on `claude/syndicate-game-foundation-RPdGc`
+  (or a fresh `claude/<topic>` branch). Open a small focused branch, commit,
+  push, then merge to `main` with `git merge --no-ff` to keep the lineage
+  visible in `git log --graph`.
+- Don't squash. Small descriptive commits make the change history readable.
 
 ## How to test locally
 The game is a static site with no build step.
