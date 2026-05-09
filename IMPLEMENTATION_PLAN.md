@@ -52,9 +52,10 @@ The point of this phase is to make the prototype unambiguously *Syndicate*-flavo
 - [x] Mission victory triggered on objectives complete (not on kill-all)
 - [ ] Objective panel UI (Tab to toggle full list)
 - [ ] Briefing → mission → debrief flow with retry / continue (already partial)
-- [ ] Mission select screen (Act I requires the player to choose between
-      `sector-7`, `district-12`, `halcyon-lab`, `the-bracket`)
-- [ ] Build Act I missions 2–4 from `NARRATIVE.md` (see §5 Act I)
+- [~] Mission select tabs on briefing (basic version shipped); world-map
+      view still to do for Phase 5
+- [~] Act I missions: `sector-7` and `district-12` shipped;
+      `halcyon-lab` and `the-bracket` still to do (`NARRATIVE.md` §5 Act I)
 - [x] Mission registry under `missions/` with one definition per mission
 
 ## Phase 3 — Persuadertron and civilians

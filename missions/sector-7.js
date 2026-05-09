@@ -14,6 +14,8 @@ export const sector7 = {
     'EuroCorp’s monopoly is in pieces. Three syndicates contest the city-states; the CHIP that once enforced order now answers to whoever owns the uplink. You command the field arm of a rising house.',
     'Sector 7 is held by a rival cell. Deploy your squad. Eliminate the guards and persuade the locals — the more bodies on our side when the Hong Kong board convenes, the better.',
   ],
+  startEnemies: true,
+  civilianCount: 10,
   buildObjectives() {
     return [
       {

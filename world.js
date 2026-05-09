@@ -2,6 +2,7 @@
 // Concrete missions live under `missions/` and are registered in MISSIONS.
 
 import { sector7 } from './missions/sector-7.js';
+import { district12 } from './missions/district-12.js';
 
 export const OBJECTIVE_TYPES = Object.freeze({
   ELIMINATE: 'eliminate',
@@ -19,12 +20,19 @@ export const OBJECTIVE_STATUS = Object.freeze({
 
 const MISSIONS = {
   [sector7.id]: sector7,
+  [district12.id]: district12,
 };
+
+const MISSION_ORDER = [sector7.id, district12.id];
 
 export function getMissionDef(id) {
   const def = MISSIONS[id];
   if (!def) throw new Error(`Unknown mission: ${id}`);
   return def;
+}
+
+export function getAllMissions() {
+  return MISSION_ORDER.map(id => MISSIONS[id]);
 }
 
 export function buildMission(id) {

@@ -191,6 +191,39 @@ body {
   opacity: 0.75;
 }
 
+#overlay-tabs {
+  display: flex;
+  gap: 6px;
+  margin: -8px 0 18px;
+  flex-wrap: wrap;
+}
+
+.mission-tab {
+  padding: 6px 12px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border: 1px solid var(--accent-soft);
+  background: rgba(8, 14, 28, 0.55);
+  color: var(--muted);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: color 0.1s ease, border-color 0.1s ease, background 0.1s ease;
+}
+
+.mission-tab:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.mission-tab.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(20, 36, 64, 0.85);
+  box-shadow: 0 0 12px rgba(86, 224, 255, 0.18);
+}
+
 #overlay-title {
   margin: 0 0 18px;
   font-size: clamp(1.6rem, 3.4vw, 2.4rem);

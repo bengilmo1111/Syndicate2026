@@ -34,18 +34,22 @@ branch produces a Vercel preview URL automatically (if the project is connected)
 No environment variables required.
 
 ## Current state (one paragraph)
-The prototype is a four-agent squad on a top-down cyberpunk street grid running
-the "Sector 7 — Reclamation" mission. Civilians wander the streets and can be
-converted with the **Persuadertron** (Space). WASD moves selected agents in
-formation. Number keys 1–4 select; Q toggles all. Right-click issues a
-formation-preserving move order; chevron markers show pending destinations.
-Hold left-click to focus fire on the cursor; auto-fire engages when the mouse
-is up and an enemy is within 260 px. Press Space to engage the Persuadertron:
-firing is suppressed, a 170 px cyan ring is drawn around each agent, and any
-civilian inside the ring switches sides and follows the squad. The HUD shows
-objective progress, hostiles down, followers, mission time, and a
-"PERSUADERTRON ENGAGED" badge while active. Mission and objective data live in
-`world.js` + `missions/sector-7.js`.
+The prototype is a four-agent squad on a top-down cyberpunk street grid with
+two playable missions selectable from the briefing card via tabs. **Sector 7 —
+Reclamation** (Act I Mission 1, `ELIMINATE` x5) and **District 12 — Annexation
+Vote** (Act I Mission 2, `PERSUADE` x8, no rival enemies at start) are both
+wired through the mission registry. WASD moves selected agents in formation.
+Number keys 1–4 select; Q toggles all. Right-click issues a formation-
+preserving move order; chevron markers show pending destinations. Hold left-
+click to focus fire; auto-fire engages when the mouse is up. Press Space to
+engage the Persuadertron — a 170 px cyan ring around each agent that converts
+civilians into followers and suppresses fire while engaged. Civilians have HP
+and die from projectile fire; killing them spikes HEAT (`+15` each), and once
+HEAT crosses 60 two police units spawn at random map edges. The HUD shows
+objective progress, hostiles down, followers, a HEAT meter that shifts
+cyan→yellow→magenta, mission time, and the `PERSUADERTRON ENGAGED` badge.
+The full four-act narrative arc and per-mission slot specs live in
+`NARRATIVE.md`.
 
 ## What works
 - Four agents: formation movement, per-agent damage / death, KIA flag
@@ -53,42 +57,45 @@ objective progress, hostiles down, followers, mission time, and a
 - Right-click move order, formation-preserved, with on-canvas markers
 - Hold left-click focus fire; release for auto-fire on nearest enemy in range
 - Persuadertron (Space) — converts civilians within 170 px to followers
-- Civilians wander on streets, avoid spawning inside buildings
+- Civilians wander on streets, have 30 HP, can die to friendly fire
 - Followers follow squad centroid at follow speed
 - Enemy AI: chase + bump damage with obstacle slide
+- Police aggro: heat ≥ 60 spawns 2 yellow police; police kills don't count
+  toward ELIMINATE (only `faction === 'rival'` does)
 - Typed mission model with `eliminate` and `persuade` types wired
-- Mission registry under `missions/` — adding a mission is one new file
-- HUD: per-agent health bar, kills, followers, time, active objective + progress
+- Mission registry under `missions/` with `sector-7` and `district-12`;
+  `startEnemies` / `civilianCount` config fields drive per-mission setup
+- Mission-select tabs on the briefing card (cyan when active)
+- HUD: per-agent health bar, kills, followers, HEAT meter, time, objective
 - Briefing reads from mission def; debrief offers redeploy
 - Static deploy via Vercel (`main` → https://syndicate2026.vercel.app/)
 
 ## What's stubbed / known gaps
-- Followers can't be killed; civilians take no damage
-- No police entity that reacts to gunfire
-- Only `eliminate` and `persuade` objective types wired in `updateMissionStatus`
-- One mission only, no world map / mission select
-- One weapon (the Pulse Rifle); no loadout, no upgrades, no research
 - No persistence (no localStorage save yet)
 - No sound or particle effects
-- No line-of-sight check — agents shoot through walls; civilians too
+- No line-of-sight check — agents shoot through walls
+- Only `eliminate` and `persuade` objective types wired in `updateMissionStatus`
+- No interstitials between missions yet (briefing → mission → debrief only)
+- No branch-flag plumbing for the narrative choices in `NARRATIVE.md` Act II+
+- No mission-completion gating — both missions are always available; the
+  arc-order story isn't enforced yet
 
-## Next up (top of Phase 3 / Phase 2 in IMPLEMENTATION_PLAN.md)
+## Next up (top of Phase 2 / 3 in IMPLEMENTATION_PLAN.md)
 
-These are the next mission and feature picks. **For mission work, the
-canonical brief / truth / interstitial notes live in `NARRATIVE.md` §5.**
+For mission work, briefing copy, debriefs, character lines, or any narrative
+material, **read `NARRATIVE.md` first** — mission slots are pre-defined.
 
-1. **Mission 2 — `district-12` (Annexation Vote)**: a `PERSUADE(target=8)`
-   mission with no rival enemies at start. First "no combat" mission;
-   first time the player explicitly weaponises the Persuadertron as
-   *the entire mission*. See `NARRATIVE.md` Act I, Mission 2.
-2. **Mission select screen**: between briefing and deploy, let the player
-   pick from registered missions. First step toward Phase 5's world map.
-   Initial set is the four Act I missions in `NARRATIVE.md` §5.
+1. **Mission 3 — `halcyon-lab` (Asset Retrieval)**: needs a new `RETRIEVE`
+   objective type and an extraction NPC that follows the squad once
+   collected. See `NARRATIVE.md` Act I, Mission 3. The extraction NPC
+   could be a Civilian variant (already follows the squad centroid).
+2. **Mission 4 — `the-bracket` (Terror Cell)**: introduces the **Unstrung**
+   as an enemy type — weak, poorly-armed civilians presented as terrorists.
+   First time the player kills people the briefing has lied about.
 3. **Objective panel UI**: Tab-toggled list of every objective with status
    and progress, not just the active one (Phase 2 leftover).
-4. **Police escalation tuning**: currently 2 police spawn per heat trigger.
-   Add spawn cooldown so a single bad burst of fire doesn't get the
-   player overwhelmed.
+4. **Mission gating**: lock missions until prerequisites complete, so the
+   player walks the arc in order.
 
 ## Heat / police mechanic (current behaviour)
 - Every projectile fired adds `+1` to `state.heat` for each civilian
