@@ -2,13 +2,13 @@ import { Projectile, obstacles, spawnEnemies, spawnCivilians, spawnPolice, MAP_W
 import { Squad } from './squad.js';
 import { updateHUD, showOverlay, hideOverlay, setOverlayContent } from './ui.js';
 import { drawCity } from './city.js';
-import { buildMission, getMissionDef, updateMissionStatus, isMissionComplete } from './world.js';
+import { buildMission, getMissionDef, getAllMissions, updateMissionStatus, isMissionComplete } from './world.js';
 
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const overlay = document.getElementById('overlay');
 
-const ACTIVE_MISSION_ID = 'sector-7';
+const DEFAULT_MISSION_ID = 'sector-7';
 
 const state = {
   mode: 'briefing',
@@ -23,6 +23,7 @@ const state = {
   followers: 0,
   persuadertron: false,
   mission: null,
+  selectedMissionId: DEFAULT_MISSION_ID,
   isMouseDown: false,
   mouse: { x: 0, y: 0 },
 };
@@ -30,16 +31,17 @@ const state = {
 const input = { up: false, down: false, left: false, right: false };
 
 function startMission() {
+  const def = getMissionDef(state.selectedMissionId);
   state.squad = new Squad(MAP_WIDTH / 2, MAP_HEIGHT - 90);
-  state.enemies = spawnEnemies();
-  state.civilians = spawnCivilians(10, obstacles);
+  state.enemies = def.startEnemies ? spawnEnemies() : [];
+  state.civilians = spawnCivilians(def.civilianCount ?? 10, obstacles);
   state.projectiles = [];
   state.kills = 0;
   state.followers = 0;
   state.persuadertron = false;
   state.heat = 0;
   state.policeAlertT = 0;
-  state.mission = buildMission(ACTIVE_MISSION_ID);
+  state.mission = buildMission(state.selectedMissionId);
   state.startTime = performance.now();
   state.mode = 'playing';
   hideOverlay();
@@ -48,9 +50,18 @@ function startMission() {
 
 function showBriefing() {
   state.mode = 'briefing';
-  const def = getMissionDef(ACTIVE_MISSION_ID);
+  const def = getMissionDef(state.selectedMissionId);
   setOverlayContent({
     title: 'SYNDICATE 2026',
+    missionTabs: getAllMissions().map(m => ({
+      id: m.id,
+      name: m.name,
+      active: m.id === state.selectedMissionId,
+    })),
+    onSelectMission: (id) => {
+      state.selectedMissionId = id;
+      showBriefing();
+    },
     body: def.briefing,
     button: { label: 'DEPLOY SQUAD', onClick: startMission },
     hint: '1-4 select · Q all · WASD / right-click move · Left-click focus fire · Space: Persuadertron',

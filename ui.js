@@ -86,8 +86,34 @@ export function hideOverlay() {
   overlay.classList.add('hidden');
 }
 
-export function setOverlayContent({ title, body, button, hint }) {
+let missionTabsEl = null;
+function ensureMissionTabsContainer() {
+  if (missionTabsEl) return missionTabsEl;
+  missionTabsEl = document.createElement('div');
+  missionTabsEl.id = 'overlay-tabs';
+  overlayTitle.parentNode.insertBefore(missionTabsEl, overlayTitle.nextSibling);
+  return missionTabsEl;
+}
+
+export function setOverlayContent({ title, body, button, hint, missionTabs, onSelectMission }) {
   overlayTitle.textContent = title || '';
+
+  if (Array.isArray(missionTabs) && missionTabs.length > 0) {
+    const container = ensureMissionTabsContainer();
+    container.innerHTML = '';
+    container.style.display = '';
+    for (const tab of missionTabs) {
+      const btn = document.createElement('button');
+      btn.className = 'mission-tab' + (tab.active ? ' active' : '');
+      btn.textContent = tab.name;
+      btn.onclick = () => onSelectMission && onSelectMission(tab.id);
+      container.appendChild(btn);
+    }
+  } else if (missionTabsEl) {
+    missionTabsEl.innerHTML = '';
+    missionTabsEl.style.display = 'none';
+  }
+
   overlayBody.innerHTML = '';
   if (Array.isArray(body)) {
     for (const para of body) {
