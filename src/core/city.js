@@ -127,8 +127,10 @@ export function buildCity(spec = {}) {
     }
   }
 
-  // Street-level destructibles: the cover layer. These are what collapse.
-  const coverCount = Math.round(openCells.length * 0.55) + 6;
+  // Street-level destructibles: the cover layer. These are what collapse,
+  // so an empty lot should never be genuinely empty — it's a firefight
+  // waiting to happen and it needs something to fight over.
+  const coverCount = Math.round(openCells.length * 1.6) + 6;
   for (let i = 0; i < coverCount; i++) {
     const cell = pick(rng, openCells);
     const kind = rng() < 0.4 ? STRUCT.DEPOT : STRUCT.KIOSK;

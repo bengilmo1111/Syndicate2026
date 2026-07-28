@@ -58,9 +58,9 @@ export const sector7 = registerMission({
       cols: 9,
       rows: 9,
       syndicate: 'amazon',
-      density: 0.68,
+      density: 0.82,
       maxFloors: 8,
-      plaza: { col: 3, row: 3, w: 3, h: 3 },
+      plaza: { col: 3, row: 3, w: 2, h: 2 },
     });
 
     addLandmark(city, {
