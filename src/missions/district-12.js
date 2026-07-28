@@ -51,7 +51,7 @@ export const district12 = registerMission({
       cols: 8,
       rows: 8,
       syndicate: 'google',
-      density: 0.6,
+      density: 0.74,
       maxFloors: 6,
       plaza: { col: 3, row: 2, w: 2, h: 4 },
     });
