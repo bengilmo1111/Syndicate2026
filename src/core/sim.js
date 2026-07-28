@@ -10,7 +10,8 @@ import {
   randomStreetPoint, resolveCollision, damageStructure, structureInPath, STREET,
 } from './city.js';
 import {
-  getMissionDef, buildMission, updateMissionStatus, isMissionComplete, OBJECTIVE,
+  getMissionDef, buildMission, updateMissionStatus, isMissionComplete,
+  failedObjective, OBJECTIVE,
 } from './mission.js';
 
 /** Heat thresholds, ported from the 2D prototype and re-tuned for metres. */
@@ -34,16 +35,23 @@ export const PHASE = Object.freeze({
 export function createSim(missionId) {
   const def = getMissionDef(missionId);
   const rng = makeRng(def.cityseed ?? 1);
-  const { city, hostiles, civilianCount } = def.setup(rng);
+  const { city, hostiles, civilianCount, assets = [], extraction = null } = def.setup(rng);
 
   const civilians = [];
   for (let i = 0; i < civilianCount; i++) {
     const p = randomStreetPoint(city, rng, 1.4);
     civilians.push(new Civilian(p.x, p.z, rng));
   }
+  // Assets live in the civilian array so they get collision, damage, and
+  // rendering for free. `isAsset` is what tells them apart.
+  civilians.push(...assets);
 
   const squad = new Squad(city.deploy.x, city.deploy.z);
   for (const a of squad.agents) resolveCollision(city, a);
+  for (const a of assets) {
+    resolveCollision(city, a);
+    a.anchor = { x: a.x, z: a.z };
+  }
 
   const sim = {
     phase: PHASE.PLAYING,
@@ -52,6 +60,8 @@ export function createSim(missionId) {
     squad,
     hostiles,
     civilians,
+    assets,
+    extraction,
     projectiles: [],
     mission: buildMission(missionId),
     events: [],
@@ -59,9 +69,15 @@ export function createSim(missionId) {
     kills: 0,
     civilianDeaths: 0,
     alignedCount: 0,
+    assetsSecured: 0,
+    squadExtracted: false,
     heat: 0,
     enforcerWaves: 0,
     alertTimer: 0,
+    /** Set when the mission is lost for a reason other than a squad wipe. */
+    failReason: null,
+    /** Current subtitle line, or null. Drained by the HUD. */
+    dialogue: null,
     /** Renderer sets this from the mouse each frame; sim uses it for aiming. */
     cursor: { x: 0, z: 0 },
   };
@@ -118,8 +134,22 @@ export function step(sim, dt, intent) {
     for (const shot of out) spawnProjectile(sim, shot);
   }
 
-  // --- Civilians ------------------------------------------------------
+  // --- Civilians and assets -------------------------------------------
   for (const c of sim.civilians) c.update(dt, city, center, sim.rng);
+
+  for (const asset of sim.assets) {
+    if (asset.trySecure(squad.alive)) {
+      sim.events.push({ type: 'secured', x: asset.x, z: asset.z, asset });
+      if (asset.onSecuredLine) say(sim, asset.name, asset.onSecuredLine, 6);
+    }
+  }
+  sim.assetsSecured = sim.assets.filter(a => a.secured && !a.dead).length;
+  sim.squadExtracted = checkExtraction(sim);
+
+  if (sim.dialogue) {
+    sim.dialogue.t -= dt;
+    if (sim.dialogue.t <= 0) sim.dialogue = null;
+  }
 
   // --- Projectiles ----------------------------------------------------
   for (const p of sim.projectiles) {
@@ -168,18 +198,51 @@ export function step(sim, dt, intent) {
     kills: sim.kills,
     aligned: sim.alignedCount,
     landmarks: city.landmarks,
-    inZone: false,
-    squadExtracted: false,
-    assetsSecured: 0,
+    assets: sim.assets,
+    assetsSecured: sim.assetsSecured,
+    squadExtracted: sim.squadExtracted,
+    inZone: sim.squadExtracted,
   });
 
   if (squad.allDead) {
+    sim.failReason = 'wipe';
     sim.phase = PHASE.LOST;
     return;
   }
+
+  const failed = failedObjective(sim.mission);
+  if (failed) {
+    sim.failReason = failed.failReason ?? 'objective';
+    sim.phase = PHASE.LOST;
+    return;
+  }
+
   if (isMissionComplete(sim.mission)) {
     sim.phase = PHASE.WON;
   }
+}
+
+/** Show a subtitle. Replaces whatever was on screen — one voice at a time. */
+export function say(sim, speaker, text, seconds = 5) {
+  sim.dialogue = { speaker, text, t: seconds };
+  sim.events.push({ type: 'line', speaker, text });
+}
+
+/**
+ * Extraction: every living agent inside the zone, and every asset that has
+ * been collected in there with them. Leaving someone behind doesn't count.
+ */
+function checkExtraction(sim) {
+  const zone = sim.extraction;
+  if (!zone) return false;
+  const inside = (e) => dist(e.x, e.z, zone.x, zone.z) <= zone.radius;
+
+  for (const a of sim.squad.alive) if (!inside(a)) return false;
+  for (const asset of sim.assets) {
+    if (asset.dead) continue;
+    if (!asset.secured || !inside(asset)) return false;
+  }
+  return true;
 }
 
 function spawnProjectile(sim, shot) {

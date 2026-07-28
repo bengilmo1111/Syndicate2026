@@ -47,33 +47,46 @@ python3 -m http.server 8000
 
 ## Current state (one paragraph)
 
-Two playable missions on a rotatable, destructible low-poly city block.
-**Sector 7 — Reclamation** (Act I·1: eliminate an Amazon field cell ×5,
-then collapse their relay pylon) and **District 12 — Provisioning Vote**
-(Act I·2: align 18 residents, no rivals on the map) are both wired
-through the mission registry and selectable from tabs on the briefing
-card, which renders over a live, slowly orbiting view of the sector.
+Three playable missions on rotatable, destructible low-poly city blocks,
+selectable from tabs on the briefing card, which renders over a live,
+slowly orbiting view of the sector. **Sector 7 — Reclamation** (Act I·1:
+eliminate an Amazon field cell ×5, then collapse their relay pylon),
+**District 12 — Provisioning Vote** (Act I·2: align 18 residents, no
+rivals on the map) and **Sable Campus — Asset Retrieval** (Act I·3:
+reach Dr. Vasht on an Anthropic campus and escort her to extraction).
 Four agents deploy on a street intersection inside the block. WASD moves
 the selection in formation, camera-relative. 1–4 select, Shift+N adds, Q
-selects all. Right-click issues a formation-preserving move order with
-ground markers. Hold left-click to focus fire; release for auto-fire on
-the nearest hostile **with line of sight** — shots are blocked by
-standing structures. Space engages the Aligner, which suppresses fire
-entirely and converts civilians within 13.5m into followers. Civilians
-carry a visible compute tier (Free/Plus/Pro/Frontier) that sets their
-speed and reaction time, plus a name and a job. They panic, take fire,
-and die; killing one spikes HEAT by 15, and crossing 60 spawns a pair of
-enforcers at the map edge. Street cover is destructible: shoot a kiosk
-or depot enough and it collapses into rubble that still blocks movement
-but **no longer blocks line of sight**, opening firing lanes that didn't
-exist at mission start.
+selects all. Right-click issues a formation-preserving move order —
+**routed by A\* over the street grid**, so a click across the block walks
+the avenues instead of grinding into a wall. Hold left-click to focus
+fire; release for auto-fire on the nearest hostile **with line of
+sight**. Space engages the Aligner, which suppresses fire entirely and
+converts civilians within 13.5m into followers. Civilians carry a visible
+compute tier (Free/Plus/Pro/Frontier) that sets their speed and reaction
+time, plus a name and a job. They panic, take fire, and die; killing one
+spikes HEAT by 15, and crossing 60 spawns a pair of enforcers at the map
+edge. Street cover is destructible: shoot a kiosk or depot enough and it
+collapses into rubble that still blocks movement but **no longer blocks
+line of sight**, opening firing lanes that didn't exist at mission start.
 
 ## What works
 
 - Four agents: camera-relative formation movement, per-agent damage,
   death, KIA state in the HUD
 - Selection: 1–4 select, Shift+N toggle, Q select-all, rings on the ground
-- Right-click move orders, formation preserved, markers that clear on arrival
+- Right-click move orders, formation preserved, markers on the final
+  destination, **A\* routing over the street-intersection graph**
+  (`src/core/nav.js`) with a stuck-detector that re-routes twice before
+  giving up
+- **Escortable assets** (`Asset` extends `Civilian`) — wait on a leash,
+  follow once an agent reaches them, cannot be aligned, and fail the
+  mission outright if killed
+- **Extraction zones** — every living agent plus every collected asset
+  must be inside; leaving someone behind doesn't count
+- **Subtitle channel** — `say(sim, speaker, text, seconds)` puts a line
+  on screen. Act II leans on this heavily; it's in now.
+- Objective prerequisites (`after:`) and per-objective failure predicates
+  with per-reason debrief copy and titles
 - Hold left-click focus fire; release for auto-fire on nearest visible target
 - Line of sight — standing structures block both shots and target selection
 - **Collapse-to-cover**: destructibles drop to rubble; rubble blocks
@@ -109,16 +122,20 @@ expensive.
 
 - No persistence (no localStorage save yet)
 - No sound
-- Objective types `retrieve`, `extract`, `hold` are declared in
-  `src/core/mission.js` but not implemented — each needs an entity
-  (escortable asset / extraction zone / hold zone)
-- No mission gating — both missions are always available, arc order
+- Objective type `hold` is declared in `src/core/mission.js` but not
+  implemented — needs a zone entity. First used by
+  `reverse-the-gradient` (Act IV).
+- No mission gating — all three missions are always available, arc order
   isn't enforced
 - No interstitials between missions
 - No branch-flag plumbing yet for `bravoCalibrated`, `playerSuspicion`,
   `defectedAtRefusal`, `yelinFate` (spec'd in `NARRATIVE.md` §9)
-- No pathfinding — agents slide along geometry and drop a move order when
-  hard-blocked. Fine for street grids, not for interiors.
+- **Followers and escorted assets don't path.** Agents route properly
+  now; anyone following them still beelines for the squad centroid and
+  slides along whatever they hit. Usually fine because the squad walks
+  streets, but it will show on a tight escort.
+- Hostiles don't path either — they close in a straight line and hold
+  once they have a clear shot
 - Buildings are solid boxes. No interiors.
 - No unquantized civilian type yet (needed for `the-bracket`)
 
@@ -127,16 +144,16 @@ expensive.
 For any mission work, briefing copy, debriefs, or character lines,
 **read `NARRATIVE.md` first** — the slots are pre-defined.
 
-1. **Mission 3 — `sable-campus` (Asset Retrieval)** · `NARRATIVE.md` §6
-   Act I·3. Needs the `RETRIEVE` objective wired plus an extraction NPC
-   that follows the squad once collected. `Civilian` already follows the
-   squad centroid when aligned, so this is a small variant, not a new
-   class. Rival: Anthropic.
-2. **Mission 4 — `the-bracket` (Terror Cell)** · Act I·4. Introduces the
+1. **Mission 4 — `the-bracket` (Terror Cell)** · `NARRATIVE.md` §6
+   Act I·4, and the mission that closes Act I. Introduces the
    **unquantized** as an enemy type — weak, poorly armed, and immune to
    the Aligner, which is how the player works out that the briefing lied.
-3. **Mission gating** so the player walks Act I in order.
-4. **Interstitials** — the Yelin notes and street graffiti between
+   The Aligner already returns false on an unalignable target
+   (`Asset.align()` does exactly this), so the immunity is a small
+   subclass, not a new system. Use the subtitle channel for the
+   mid-fight lines — they're the point of the mission.
+2. **Mission gating** so the player walks Act I in order.
+3. **Interstitials** — the Yelin notes and street graffiti between
    missions carry most of Act I→II's tonal shift.
 
 After Act I ships complete, Phase 4 (loadout + compute upgrades +

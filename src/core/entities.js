@@ -87,6 +87,10 @@ export class Agent extends Actor {
     this.range = 34;
     this.muzzle = 0;
     this.moveTarget = null;
+    this.path = null;
+    this.finalGoal = null;
+    this.stuck = 0;
+    this.repaths = 0;
     this.walking = false;
     // Act II gives BRAVO a hesitation on every order. Wired here, off by default.
     this.hesitation = 0;
@@ -314,6 +318,80 @@ export class Civilian extends Actor {
     this.x += Math.sin(this.facing) * this.wanderSpeed * dt;
     this.z += Math.cos(this.facing) * this.wanderSpeed * dt;
     resolveCollision(city, this);
+  }
+}
+
+/**
+ * A named person a mission needs moved, alive, from one place to another.
+ *
+ * Mechanically a Civilian who waits where she is until the squad reaches
+ * her and then follows the centroid — the follow behaviour is already
+ * there for aligned civilians, so this is a variant, not a new system.
+ *
+ * She cannot be aligned. Whatever is being done to her, it isn't that.
+ */
+export class Asset extends Civilian {
+  constructor(x, z, rng, opts = {}) {
+    super(x, z, rng);
+    this.isAsset = true;
+    this.name = opts.name ?? 'ASSET';
+    this.job = opts.job ?? '';
+    this.tier = opts.tier ?? TIER.PRO;
+    this.maxHealth = opts.health ?? 90;
+    this.health = this.maxHealth;
+    this.radius = 0.8;
+    this.secured = false;
+    this.secureRange = opts.secureRange ?? 3.2;
+    this.followSpeed = 9.5;
+    this.panicSpeed = 9.5;
+    // Said once, on being secured. Never referenced by anyone afterwards.
+    this.onSecuredLine = opts.line ?? null;
+    this.anchor = { x, z };
+    this.leash = opts.leash ?? 9;
+  }
+
+  /** The Aligner does nothing here. She isn't being converted. */
+  align() { return false; }
+
+  /** Returns true on the frame she is first collected. */
+  trySecure(agents) {
+    if (this.secured || this.dead) return false;
+    for (const a of agents) {
+      if (dist(a.x, a.z, this.x, this.z) <= this.secureRange) {
+        this.secured = true;
+        this.panic = 0;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  update(dt, city, squadCenter, rng) {
+    if (this.dead) return;
+    if (this.secured) {
+      // Reuse the aligned-follower path without being aligned.
+      this.tick(dt);
+      const d = dist(this.x, this.z, squadCenter?.x ?? this.x, squadCenter?.z ?? this.z);
+      if (squadCenter && d > 4.5) {
+        this.turnToward(squadCenter.x, squadCenter.z, dt, 9);
+        this.x += Math.sin(this.facing) * this.followSpeed * dt;
+        this.z += Math.cos(this.facing) * this.followSpeed * dt;
+        resolveCollision(city, this);
+      }
+      return;
+    }
+
+    // Before collection she stays put — pacing inside her own building,
+    // not wandering the sector.
+    if (dist(this.x, this.z, this.anchor.x, this.anchor.z) > this.leash) {
+      this.turnToward(this.anchor.x, this.anchor.z, dt, 6);
+      this.x += Math.sin(this.facing) * this.wanderSpeed * dt;
+      this.z += Math.cos(this.facing) * this.wanderSpeed * dt;
+      resolveCollision(city, this);
+      this.tick(dt);
+      return;
+    }
+    super.update(dt, city, null, rng);
   }
 }
 

@@ -48,6 +48,14 @@ export function objective(type, opts = {}) {
     progress: 0,
     optional: !!opts.optional,
     hidden: !!opts.hidden,
+    // Id of an objective that must complete before this one starts counting.
+    // Without it an EXTRACT objective completes on frame one, because the
+    // squad is usually standing in the extraction zone when it deploys.
+    after: opts.after ?? null,
+    // Optional predicate on the same state snapshot updateMissionStatus gets.
+    failed: opts.failed ?? null,
+    // Key into the mission's debrief copy when this objective is what lost it.
+    failReason: opts.failReason ?? null,
     status: STATUS.PENDING,
     // Free-form payload the mission setup fills in (landmark name, zone, …).
     meta: opts.meta ?? {},
@@ -74,8 +82,19 @@ export function buildMission(id) {
  * Adding an objective type means handling it here and nowhere else.
  */
 export function updateMissionStatus(mission, s) {
+  const byId = new Map(mission.objectives.map(o => [o.id, o]));
+
   for (const obj of mission.objectives) {
     if (obj.status !== STATUS.PENDING) continue;
+    if (obj.after && byId.get(obj.after)?.status !== STATUS.COMPLETE) continue;
+
+    // A mission can fail an objective outright — the escorted asset dies,
+    // the target escapes. Failing a required objective ends the mission.
+    if (obj.failed?.(s)) {
+      obj.status = STATUS.FAILED;
+      continue;
+    }
+
     switch (obj.type) {
       case OBJECTIVE.ELIMINATE:
         obj.progress = Math.min(s.kills, obj.target);
@@ -110,6 +129,11 @@ export function isMissionComplete(mission) {
   return mission.objectives
     .filter(o => !o.optional)
     .every(o => o.status === STATUS.COMPLETE);
+}
+
+/** A failed required objective loses the mission even with the squad alive. */
+export function failedObjective(mission) {
+  return mission.objectives.find(o => !o.optional && o.status === STATUS.FAILED) ?? null;
 }
 
 export function activeObjective(mission) {

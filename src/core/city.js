@@ -63,6 +63,9 @@ export function buildCity(spec = {}) {
     syndicate = 'google',
     density = 0.72,
     maxFloors = 9,
+    // How thickly the street-cover layer fills open lots. A logistics
+    // district wants clutter; a campus wants lawn.
+    coverDensity = 1.6,
     plaza = { col: 4, row: 4, w: 2, h: 2 },
   } = spec;
 
@@ -130,7 +133,7 @@ export function buildCity(spec = {}) {
   // Street-level destructibles: the cover layer. These are what collapse,
   // so an empty lot should never be genuinely empty — it's a firefight
   // waiting to happen and it needs something to fight over.
-  const coverCount = Math.round(openCells.length * 1.6) + 6;
+  const coverCount = Math.round(openCells.length * coverDensity) + 6;
   for (let i = 0; i < coverCount; i++) {
     const cell = pick(rng, openCells);
     const kind = rng() < 0.4 ? STRUCT.DEPOT : STRUCT.KIOSK;

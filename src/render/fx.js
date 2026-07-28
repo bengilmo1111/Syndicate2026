@@ -80,6 +80,16 @@ export class Fx {
       this.orderMarks.push(m);
     }
 
+    // Extraction zone: a wide ring on the ground the squad has to stand in.
+    this.zoneMat = glow(0x9be7ff, {
+      transparent: true, opacity: 0.4, side: THREE.DoubleSide,
+    });
+    this.zoneMesh = new THREE.Mesh(RING, this.zoneMat);
+    this.zoneMesh.rotation.x = -Math.PI / 2;
+    this.zoneMesh.position.y = 0.11;
+    this.zoneMesh.visible = false;
+    scene.add(this.zoneMesh);
+
     // Ground cursor.
     this.cursorMat = glow(0x9be7ff, {
       transparent: true, opacity: 0.7, side: THREE.DoubleSide,
@@ -138,6 +148,18 @@ export class Fx {
     }
   }
 
+  setExtractionZone(zone, ready) {
+    this.zoneMesh.visible = !!zone;
+    if (!zone) return;
+    this.zoneMesh.position.set(zone.x, 0.11, zone.z);
+    const pulse = 0.97 + Math.sin(performance.now() / 300) * 0.03;
+    this.zoneMesh.scale.setScalar(zone.radius * pulse);
+    // Dim until the objective is actually live, so it reads as a marker
+    // rather than as somewhere you should already be standing.
+    this.zoneMat.color.setHex(ready ? 0x6fe3d0 : 0x54627a);
+    this.zoneMat.opacity = ready ? 0.55 : 0.25;
+  }
+
   setCursor(x, z, visible = true) {
     this.cursorMesh.visible = visible;
     this.cursorMesh.position.x = x;
@@ -159,11 +181,14 @@ export class Fx {
         ring.scale.setScalar(ALIGNER_RADIUS * pulse);
       }
 
+      // Mark where the order actually ends, not the next waypoint on the
+      // route there — the player asked for the destination.
+      const goal = a.finalGoal ?? a.moveTarget;
       const mark = this.orderMarks[i];
-      mark.visible = !!a.moveTarget && !a.dead;
+      mark.visible = !!goal && !a.dead;
       if (mark.visible) {
-        mark.position.x = a.moveTarget.x;
-        mark.position.z = a.moveTarget.z;
+        mark.position.x = goal.x;
+        mark.position.z = goal.z;
       }
     });
   }

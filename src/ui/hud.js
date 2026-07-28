@@ -77,6 +77,15 @@ export function updateHUD(sim) {
   const alert = el('hud-alert');
   alert.classList.toggle('hidden', sim.alertTimer <= 0);
 
+  const sub = el('hud-subtitle');
+  if (sim.dialogue) {
+    sub.classList.remove('hidden');
+    el('subtitle-speaker').textContent = sim.dialogue.speaker;
+    el('subtitle-text').textContent = sim.dialogue.text;
+  } else {
+    sub.classList.add('hidden');
+  }
+
   renderObjectivePanel(sim);
 }
 
