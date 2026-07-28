@@ -265,23 +265,26 @@ task-focused and barely present.
   EXEC-7. The vote will be decided before the votes are cast. That
   isn't cynicism, it's scheduling."* First small wrongness.
 
-#### Mission 3 — Asset Retrieval: Sable Campus `[next]`
+#### Mission 3 — Asset Retrieval: Sable Campus `[shipped]`
 - **ID:** `sable-campus` · **Rival:** Anthropic
 - **Premise:** Extract Dr. Caro Vasht, an alignment researcher, from
   Anthropic's Sable Campus. She is "expecting you."
 - **Truth:** She is not expecting them. She is being abducted. Note the
   irony the mission never comments on: OpenAI is kidnapping a safety
   researcher and calling it retrieval.
-- **Mechanical hooks:** New `RETRIEVE` objective type — reach Vasht,
-  then keep her alive to an extraction zone. She moves on her own once
-  collected (a Civilian variant already follows the squad centroid, so
-  this is a small extension, not a new system). Anthropic defenders are
-  few and well-positioned rather than numerous.
+- **Mechanical hooks:** `RETRIEVE` then `EXTRACT`. Vasht is an `Asset`
+  — a Civilian subclass that waits on a leash until an agent reaches her
+  and then follows the squad centroid. She cannot be aligned; whatever
+  is being done to her, it isn't that. Losing her fails the mission
+  outright rather than letting the player walk an empty extraction.
+  Anthropic defenders are few and placed between her and the way out.
+- **Note:** the first mission completable without firing a shot, and the
+  first whose failure state is someone else's death rather than yours.
 - **Interstitial:** Yelin debriefs while signing off Vasht's "voluntary
   employment contract." The player can hear her through the wall behind
   the desk. Yelin doesn't comment.
 
-#### Mission 4 — Terror Cell: The Bracket `[planned]`
+#### Mission 4 — Terror Cell: The Bracket `[next]`
 - **ID:** `the-bracket` · **Rival:** none (framed as terrorism)
 - **Premise:** A cell called the Bracket is operating out of a derelict
   overpass. Eliminate them.

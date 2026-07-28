@@ -64,16 +64,20 @@ the 2D logic onto a 3D engine instead of losing it.
 > Do not invent parallel missions.
 
 - [x] Mission objective model with a typed registry
-- [x] Objective types shipped: `eliminate`, `align`, `demolish`
-- [ ] Objective types remaining: `retrieve`, `extract`, `hold`
-      (all three are stubbed in `src/core/mission.js` and need their
-      entities: an escortable asset, an extraction zone, a hold zone)
+- [x] Objective types shipped: `eliminate`, `align`, `demolish`,
+      `retrieve`, `extract`
+- [ ] Objective type remaining: `hold` (stubbed in `src/core/mission.js`,
+      needs a zone entity — first used by `reverse-the-gradient`)
+- [x] Objective prerequisites (`after:`) so an EXTRACT doesn't complete
+      on frame one while the squad is still standing in the drop zone
+- [x] Per-objective failure predicates and per-reason debrief copy
 - [x] Victory on objectives complete, not on kill-all
 - [x] Objective panel UI (Tab toggles the full list)
 - [x] Briefing → mission → debrief flow with redeploy
 - [x] Mission-select tabs on the briefing card
-- [~] Act I missions: `sector-7` and `district-12` shipped;
-      **`sable-campus` is next**, then `the-bracket`
+- [~] Act I missions: `sector-7`, `district-12` and `sable-campus`
+      shipped; **`the-bracket` is next** and closes Act I
+- [x] Subtitle channel for in-mission dialogue (`say()` in `sim.js`)
 - [ ] Mission gating — lock missions until prerequisites complete so the
       player walks the arc in order
 - [ ] Interstitial screens between missions (Yelin's notes, graffiti beats)
@@ -111,8 +115,9 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Camera follow with smoothing; screen shake on collapse
 - [ ] Sound: weapons, ambient city, mission stingers (CC0 or original)
 - [ ] Building interiors — currently every structure is a solid box
-- [ ] Pathfinding — agents slide along geometry and drop blocked orders;
-      fine for street grids, not for interiors
+- [x] Pathfinding — A* over the street-intersection graph (`src/core/nav.js`)
+- [ ] Followers and escorted assets path too; they still beeline for the
+      squad centroid and slide along whatever they hit
 - [ ] Accessibility: colorblind palette, key remap, reduce-motion mode
 - [ ] Mobile / touch controls (stretch)
 
@@ -130,13 +135,15 @@ src/
   core/                 ENGINE-AGNOSTIC. No Three.js, no DOM.
     math.js             clamp/lerp, seeded RNG, segment-box, circle-box
     city.js             city generation, collision, line of sight, damage
-    entities.js         Agent, Hostile, Enforcer, Civilian, Projectile
+    nav.js              A* over the street-intersection graph
+    entities.js         Agent, Hostile, Enforcer, Civilian, Asset, Projectile
     squad.js            selection, formation, move orders, the Aligner
-    mission.js          objective model, mission registry
+    mission.js          objective model, prerequisites, mission registry
     sim.js              the simulation — owns all mutable game state
   missions/             one file per mission, self-registering
     sector-7.js         Act I·1  ELIMINATE + DEMOLISH
     district-12.js      Act I·2  ALIGN
+    sable-campus.js     Act I·3  RETRIEVE + EXTRACT
   render/               READS sim state, never writes to it
     ps1.js              materials, vertex jitter, fog, lights, windows
     cityView.js         city meshes, collapse reconciliation
@@ -169,7 +176,12 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 8. Shoot a street kiosk until it collapses — the camera kicks, debris
    flies, and you can now shoot across ground you couldn't before.
 9. Space engages the Aligner; fire stops, nearby civilians convert.
-10. Tab opens the objective list with live progress.
-11. Complete the objectives and confirm the debrief; confirm the wipe
+10. On Sable Campus, right-click across the whole block and confirm the
+    squad walks the avenues rather than grinding into a building. Reach
+    Dr. Vasht, confirm her line appears as a subtitle, then escort her
+    back to the ring — the extraction objective must not tick until she
+    is collected, and must not complete with anyone left outside.
+11. Tab opens the objective list with live progress.
+12. Complete the objectives and confirm the debrief; confirm the wipe
     state by letting the squad die.
-12. **Check the browser console is clean.** Zero errors is the bar.
+13. **Check the browser console is clean.** Zero errors is the bar.

@@ -150,7 +150,7 @@ const TIER_COLORS = {
 export class CivilianView extends ActorView {
   constructor(civ) {
     const color = TIER_COLORS[civ.tier] ?? 0x707888;
-    super(humanoid(color, 0x9aa4b8, 0.82));
+    super(humanoid(color, 0x9aa4b8, civ.isAsset ? 0.95 : 0.82));
     this.baseColor = color;
     this.civ = civ;
 
@@ -174,6 +174,17 @@ export class CivilianView extends ActorView {
   update() {
     const c = this.civ;
     this.syncTransform(c);
+
+    // Mission assets are named people, not crowd. Mark them, always.
+    if (c.isAsset && !c.dead) {
+      this.ring.visible = true;
+      this.ringMat.color.setHex(c.secured ? 0x6fe3d0 : 0xffd166);
+      this.ringMat.opacity = 0.9;
+      this.ring.scale.setScalar(0.85 + Math.sin(performance.now() / 260) * 0.08);
+      this.bodyMat.color.setHex(c.hitFlash > 0 ? 0xffffff : 0xbcc6dc);
+      this.badgeMat.color.setHex(0xffd166);
+      return;
+    }
 
     if (c.dead) {
       this.group.rotation.z = Math.PI / 2.1;

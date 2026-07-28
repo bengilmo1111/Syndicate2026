@@ -72,14 +72,21 @@ function startMission() {
 function showDebrief(won) {
   app.phase = won ? PHASE.WON : PHASE.LOST;
   const def = getMissionDef(app.sim.mission.id);
-  const lines = won ? def.debrief.win : def.debrief.loss;
+  // A mission can be lost specifically — the escorted asset died, the
+  // target got away — and the debrief should say which.
+  const lines = won
+    ? def.debrief.win
+    : (def.debrief[app.sim.failReason] ?? def.debrief.loss);
   const stats = [
     '',
     `HOSTILES DOWN <strong>${app.sim.kills}</strong> · ALIGNED <strong>${app.sim.alignedCount}</strong> · CIVILIAN LOSSES <strong>${app.sim.civilianDeaths}</strong>`,
   ];
+  const titles = def.debrief.titles ?? {};
+  const lostTitle = titles[app.sim.failReason]
+    ?? (app.sim.failReason === 'assetLost' ? 'ASSET LOST' : 'DEPLOYMENT TERMINATED');
   setOverlay({
     eyebrow: won ? 'DEPLOYMENT CLOSED' : 'DEPLOYMENT LOST',
-    title: won ? 'SECTOR PROVISIONED' : 'DEPLOYMENT TERMINATED',
+    title: won ? (titles.win ?? 'SECTOR PROVISIONED') : lostTitle,
     body: [...lines, ...stats],
     button: { label: won ? 'RETURN TO BRIEFING' : 'REDEPLOY', onClick: won ? showBriefing : startMission },
     hint: CONTROLS_HINT,
@@ -142,7 +149,7 @@ canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
   } else if (e.button === 2 && app.phase === PHASE.PLAYING && app.sim) {
     const p = view.screenToGround(pointer.nx, pointer.ny);
-    if (p) app.sim.squad.issueMove(p);
+    if (p) app.sim.squad.issueMove(p, app.sim.city);
   }
 });
 

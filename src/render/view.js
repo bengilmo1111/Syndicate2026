@@ -93,6 +93,7 @@ export class View {
     this.civilianLayer.sync(sim.civilians, dt);
 
     this.fx.syncSquad(sim.squad);
+    this.fx.setExtractionZone(sim.extraction, sim.assetsSecured >= sim.assets.length);
     this.fx.update(dt);
 
     this.rig.follow(sim.squad.selectedCenter() ?? sim.squad.center());

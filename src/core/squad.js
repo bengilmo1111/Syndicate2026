@@ -4,6 +4,7 @@
 
 import { Agent } from './entities.js';
 import { resolveCollision } from './city.js';
+import { findPath } from './nav.js';
 import { dist } from './math.js';
 
 /** Diamond formation offsets, in metres, relative to the squad anchor. */
@@ -92,6 +93,7 @@ export class Squad {
     for (const a of this.agents) a.walking = false;
     for (const a of this.selected) {
       a.moveTarget = null;
+      a.path = null;
       a.walking = true;
       a.x += nx * a.speed * dt;
       a.z += nz * a.speed * dt;
@@ -101,35 +103,71 @@ export class Squad {
     return true;
   }
 
-  /** Right-click order. Formation offsets are preserved around the target. */
-  issueMove(point) {
+  /**
+   * Right-click order. Formation offsets are preserved around the target,
+   * and each agent gets its own route through the street grid — the block
+   * is full of buildings, so a straight line is rarely the order.
+   */
+  issueMove(point, city) {
     const sel = this.selected;
     if (!sel.length) return;
     const center = this.selectedCenter();
     for (const a of sel) {
-      a.moveTarget = {
+      const goal = {
         x: point.x + (a.x - center.x),
         z: point.z + (a.z - center.z),
       };
+      a.path = city ? findPath(city, a, goal, a.radius) : [goal];
+      a.finalGoal = goal;
+      a.moveTarget = a.path.shift() ?? goal;
+      a.stuck = 0;
+      a.repaths = 0;
     }
   }
 
-  /** Advance any agent with a standing move order. */
+  /** Advance any agent with a standing move order, one waypoint at a time. */
   followOrders(dt, city) {
     for (const a of this.agents) a.walking = false;
     for (const a of this.alive) {
       if (!a.moveTarget) continue;
       a.walking = true;
+
       const d = dist(a.x, a.z, a.moveTarget.x, a.moveTarget.z);
-      if (d < 0.9) { a.moveTarget = null; continue; }
+      if (d < 1.1) {
+        a.moveTarget = a.path?.shift() ?? null;
+        if (!a.moveTarget) { a.path = null; a.finalGoal = null; }
+        a.stuck = 0;
+        continue;
+      }
+
       a.turnToward(a.moveTarget.x, a.moveTarget.z, dt, 10);
       const step = Math.min(a.speed * dt, d);
+      const before = { x: a.x, z: a.z };
       a.x += Math.sin(a.facing) * step;
       a.z += Math.cos(a.facing) * step;
-      const before = { x: a.x, z: a.z };
       resolveCollision(city, a);
-      // Blocked hard against geometry — drop the order rather than grind.
-      if (dist(before.x, before.z, a.x, a.z) > step * 0.9) a.moveTarget = null;
+
+      // Grinding against geometry the route didn't account for — usually
+      // another agent's body or rubble. Re-route once, then give up rather
+      // than stand there vibrating against a wall forever.
+      const progress = dist(before.x, before.z, a.x, a.z);
+      if (progress < step * 0.35) {
+        a.stuck += dt;
+        if (a.stuck > 0.7) {
+          a.stuck = 0;
+          a.repaths = (a.repaths ?? 0) + 1;
+          if (a.repaths > 2 || !a.finalGoal) {
+            a.moveTarget = null;
+            a.path = null;
+            a.finalGoal = null;
+          } else {
+            a.path = findPath(city, a, a.finalGoal, a.radius);
+            a.moveTarget = a.path.shift() ?? a.finalGoal;
+          }
+        }
+      } else {
+        a.stuck = 0;
+      }
     }
   }
 

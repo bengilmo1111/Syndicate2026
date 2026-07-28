@@ -133,6 +133,34 @@ html, body {
 
 @keyframes pulse { 50% { opacity: 0.25; } }
 
+/* ---------------------------------------------------------------- Dialogue */
+
+#hud-subtitle {
+  position: absolute;
+  left: 50%;
+  bottom: 88px;
+  transform: translateX(-50%);
+  max-width: min(680px, 84vw);
+  padding: 9px 18px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+  background: rgba(6, 8, 14, 0.86);
+  border-left: 2px solid var(--accent);
+}
+
+#subtitle-speaker {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  color: var(--accent);
+}
+
+#subtitle-text { color: #eef4f8; }
+
 /* ------------------------------------------------------------ Squad strip */
 
 #hud-squad {
