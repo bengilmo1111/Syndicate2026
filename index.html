@@ -4,36 +4,52 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Syndicate 2026</title>
+  <meta name="description" content="A squad-tactics reimagining of Syndicate Wars. Five syndicates. One resource: compute." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23070910'/%3E%3Crect x='3' y='3' width='4' height='4' fill='%236fe3d0'/%3E%3Crect x='9' y='9' width='4' height='4' fill='%236fe3d0'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div id="game-shell">
-    <canvas id="game-canvas" width="1024" height="768" aria-label="Syndicate 2026 game canvas"></canvas>
+    <canvas id="game-canvas" aria-label="Syndicate 2026 — 3D city view"></canvas>
 
     <div id="hud-top">
-      <div class="hud-panel"><span class="hud-label">OBJECTIVE</span><span id="hud-objective">—</span></div>
+      <div class="hud-panel wide"><span class="hud-label">OBJECTIVE</span><span id="hud-objective">—</span></div>
       <div class="hud-panel"><span class="hud-label">HOSTILES DOWN</span><span id="hud-kills">0</span></div>
-      <div class="hud-panel"><span class="hud-label">FOLLOWERS</span><span id="hud-followers">0</span></div>
+      <div class="hud-panel"><span class="hud-label">ALIGNED</span><span id="hud-aligned">0</span></div>
+      <div class="hud-panel"><span class="hud-label">CIVILIAN LOSSES</span><span id="hud-losses">0</span></div>
       <div class="hud-panel hud-heat">
         <span class="hud-label">HEAT</span>
         <div class="heat-meter"><div id="hud-heat-fill" class="heat-meter-fill"></div></div>
       </div>
-      <div class="hud-panel"><span class="hud-label">MISSION TIME</span><span id="hud-time">00:00</span></div>
+      <div class="hud-panel"><span class="hud-label">ELAPSED</span><span id="hud-time">00:00</span></div>
     </div>
-    <div id="hud-mode" class="hidden">PERSUADERTRON ENGAGED</div>
 
-    <div id="hud-squad" aria-label="Squad status"></div>
+    <div id="hud-alert" class="hidden">// LOCAL ENFORCEMENT INBOUND</div>
+    <div id="hud-mode" class="hidden">ALIGNER ENGAGED</div>
+
+    <div id="objective-panel" class="hidden">
+      <div class="panel-head">
+        <span id="objective-mission">—</span>
+        <small id="objective-sector"></small>
+      </div>
+      <ul id="objective-list"></ul>
+      <p class="panel-foot">TAB to close</p>
+    </div>
+
+    <div id="hud-squad" aria-label="Deployment status"></div>
 
     <div id="overlay" class="overlay">
       <div class="overlay-card">
+        <p id="overlay-eyebrow" class="eyebrow"></p>
         <h1 id="overlay-title">SYNDICATE 2026</h1>
+        <div id="overlay-tabs" class="mission-tabs hidden"></div>
         <div id="overlay-body"></div>
-        <button id="overlay-button">DEPLOY SQUAD</button>
+        <button id="overlay-button">DEPLOY</button>
         <p id="overlay-hint" class="hint"></p>
       </div>
     </div>
   </div>
 
-  <script type="module" src="game.js"></script>
+  <script type="module" src="src/main.js"></script>
 </body>
 </html>

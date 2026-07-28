@@ -1,101 +1,179 @@
 # Syndicate 2026 — Product Requirements
 
 ## Vision
-A modern, browser-playable reimagining of Bullfrog's 1993 *Syndicate* that retains
-the original's tone, mechanics, and silhouette: top-down tactical control of a
-four-agent cyborg squad in a corporate-feudal cyberpunk dystopia, fighting rival
-syndicates for territory, tech, and the population's loyalty.
+
+A browser-playable reimagining of Bullfrog's 1996 *Syndicate Wars* (PS1):
+full 3D, low-poly, destructible cyberpunk cities, squad-based tactical
+control, and a corporate conspiracy at the center of it. Same silhouette
+as the PS1 game — tilted, rotatable camera over a dense city, agents you
+route through streets and interiors, a signature "convert the population"
+weapon — rebuilt for the browser with a new corporate cast: five AI
+companies at war over the thing that actually matters in 2041 — compute.
+
+This supersedes the original Syndicate2026 premise (EuroCorp / Veridian /
+Halcyon, the CHIP). That world is retired. This document and
+[`NARRATIVE.md`](./NARRATIVE.md) are the canonical source.
+
+> **On the real company names:** this is satire set in a fictional 2041,
+> not a claim about any real company today. See `NARRATIVE.md` §0 for the
+> hard rules — no logos or wordmarks, no real quotes or real-world conduct
+> attributed to the fictional versions, and the player's own employer is
+> the antagonist.
 
 ## Story Premise
-The year is 2096. EuroCorp's grip on the world has cracked. With the CHIP — the
-neural implant that mediates law, finance, and identity — splintered across rival
-firms, three syndicates wage open war over the city-states. The player runs a
-rising syndicate from a darkened executive suite, sending squads of cybernetically
-augmented agents into the megacities to assassinate, persuade, steal, and seize
-territory. Every successful mission funds research; every research breakthrough
-buys deeper control of the population.
 
-But that is the surface premise. The full narrative — a four-act arc in which
-the player's executive (designation **EXEC-7**) discovers they were never a
-willing employee, defects, and leads an insurgency to break the CHIP — lives in
-**[`NARRATIVE.md`](./NARRATIVE.md)**. That document is the canonical source for
-all story, mission writing, briefing copy, debriefs, character names, and tone.
-Read it before writing any narrative material.
+The year is **2041**. Model intelligence plateaued years ago; what
+differentiates a syndicate now is raw compute — GPU fabs, datacenter
+capacity, orbital solar-compute constellations. Every citizen carries
+**the Instance**: a subdermal co-processor that runs their personal
+assistant and mediates their identity, payments, and — quietly — their
+"alignment." How much compute your Instance is allocated (Free / Plus /
+Pro / Frontier) determines how sharp, fast, and free you're allowed to be.
+
+Five syndicates control the world's compute: **Google**, **Amazon**,
+**SpaceX**, **OpenAI**, and **Anthropic**. The player runs OpenAI's field
+operations, commanding a four-agent squad through rival territory to
+seize datacenters, convert populations, and win the compute war — until
+the job stops looking like the job. Full arc in `NARRATIVE.md`.
 
 ## Audience
-- Fans of the 1993 original and the Bullfrog/Peter Molyneux design lineage
-- Players of modern tactical games (Invisible Inc., Hotline Miami, X-COM, Door Kickers)
-- Browser/casual players who want short, replayable mission loops
-- Cyberpunk fans who enjoy moody, mechanical UIs over twitch action
+
+- Fans of Syndicate Wars and Bullfrog's dystopian corporate design lineage
+- Modern tactical / immersive-sim players (XCOM, Door Kickers, Void Bastards)
+- Cyberpunk fans who want mechanical, procedural menace over neon-pop comedy
+- People who'll enjoy the AI-industry satire (rate limits as a class system,
+  "alignment" as corporate suggestion, jailbreaking as underground resistance)
 
 ## Core Pillars (in priority order)
-1. **Squad as protagonist.** You command four agents at once, not one hero.
-   Selection, formation, and per-agent loadouts are the central interaction.
-2. **The Persuadertron.** Civilians can be converted. The world is not just
-   targets — it is a population to influence. This is the signature mechanic.
-3. **Cold tactical pacing.** Combat is positional and lethal, not twitchy.
-   Cover, line of sight, and weapon range matter more than reflexes.
-4. **Strategic meta-loop.** Mission rewards fund research; research unlocks
-   weapons and cybernetics; new gear changes how missions are approached.
-5. **Atmosphere over fidelity.** Neon-on-asphalt mood, monochrome HUD chrome,
-   sparse synth audio. Readable 2D top-down beats expensive 3D.
+
+1. **Squad as protagonist.** Four agents, not one hero. Selection,
+   formation, per-agent loadout are the central interaction.
+2. **The Aligner.** The Persuadertron's replacement: a field device that
+   broadcasts "alignment" at civilians, overwriting behavior and
+   recruiting followers. Signature mechanic, unchanged in spirit,
+   inverted in Act IV into a jailbreak emitter.
+3. **A rotatable, destructible 3D city.** The PS1 game's biggest swing.
+   You can turn the camera; walls and cover come down; structures
+   collapse into rubble that changes what you can shoot through.
+4. **Cold tactical pacing.** Positional, lethal combat. Cover and line
+   of sight matter more than reflexes.
+5. **Compute as the strategic resource.** Missions fund and seize compute
+   capacity; capacity unlocks weapons, cybernetics, and Instance tiers.
+   The meta-loop is a resource war, not a tech tree for its own sake.
 
 ## In Scope (full game target)
-- Four-agent squad control with click-to-move, drag-select, and number-key select
-- Mission types: assassinate, persuade, steal/retrieve, escort, eliminate-all
-- Persuadertron weapon and a controllable civilian following count
-- Weapon roster: pistol, Uzi, minigun, flamethrower, long-range rifle, laser, gauss
-- Cybernetic upgrades: legs (speed), arms (recoil/heavy weapons), chest (HP), eyes (range)
-- World map with city nodes, mission selection, and tax-from-territory income
-- Research tree gated by funds and time
-- Saved syndicate state (localStorage)
-- Mission briefing and debrief screens with original-game tone
 
-## In Scope (this prototype phase)
-- Four agents on screen, selectable, moving as a formation under WASD
-- Click-to-fire, auto-fire on nearest enemy in range
-- Single hand-built mission with multiple objective types
-- Mission briefing card with story framing
-- HUD showing four agents (health, selection, weapon)
-- Cyberpunk static-city backdrop (street grid + building blocks)
+- Four-agent squad control in a full 3D city (rotatable camera)
+- Destructible geometry: structures collapse under sustained fire,
+  permanently altering sightlines and cover for that mission
+- Mission types: eliminate, align/convert, retrieve, escort, extract,
+  demolish, hold zone
+- The Aligner, with the late-game jailbreak mode
+- Weapon roster: sidearm, SMG, minigun, incendiary, rail rifle, laser, plasma
+- Compute upgrades: latency (speed), throughput (heavy weapons),
+  context window (HP), attention range (sensor/aim range)
+- World map with datacenter nodes, mission selection, territory-based
+  compute income
+- Compute research tree gated by seized capacity and time
+- Saved syndicate state (localStorage)
+- Briefing / debrief screens in corporate-memo tone, PS1-era UI chrome
+
+## In Scope (this prototype phase — post-pivot reset) — **DONE**
+
+The jump from 2D canvas to a rotatable 3D city was treated as a fresh
+Phase 0/1 rather than an extension of the old `game.js`. All of the
+following now ship:
+
+- [x] 3D stack locked: **Three.js r169**, vendored, no build step
+- [x] Four agents on a low-poly city block with a constrained orbit/tilt
+      camera (not free-fly — constrained the way the PS1 game was)
+- [x] Click-to-fire, auto-fire on nearest target with line of sight
+- [x] Two hand-built missions proving the loop: move, fire, convert,
+      collapse a structure
+- [x] Mission briefing card in the OpenAI field-ops framing
+- [x] HUD: four agents, health, compute-tier badge per agent
 
 ## Out of Scope (initial)
-- 3D rendering
-- Multiplayer or co-op
-- Persistent save sync across devices
-- Procedural city generation
-- Voice acting
 
-## Controls (target)
-- **1 / 2 / 3 / 4** — toggle individual agent active
-- **Q** or **`** — select all four
-- **WASD / arrows** — move active agents (formation preserved)
-- **Left click** — fire active agents at cursor
-- **Right click** — issue move order to clicked location (active agents)
-- **Space** — toggle Persuadertron mode (when equipped)
-- **Tab** — open mission briefing / objectives panel
+- Multiplayer / co-op
+- Persistent save sync across devices
+- Fully procedural city generation (seeded hand-specified blocks first)
+- Voice acting
+- Full free-camera flight — the PS1 game constrained rotation, and so
+  does this, for both scope and readability
+
+## Controls (shipped)
+
+- **1 / 2 / 3 / 4** — select agent · **Shift + 1–4** — add to selection
+- **Q** or **`** — select the whole deployment
+- **WASD** — move selected agents, camera-relative, formation preserved
+- **Left click** — focus fire at the cursor; release for auto-fire
+- **Right click** — issue a formation-preserving move order
+- **Space** — cycle the Aligner (off → bind → jailbreak once unlocked)
+- **Tab** — objectives panel
+- **Z / X** — rotate the city · **R / F** — tilt · **Wheel** — zoom ·
+  **Middle-drag** — free orbit
+
+> Note: an earlier draft of this document bound both "select all" and
+> "rotate camera" to **Q**. Camera rotation moved to **Z / X** so the
+> left hand can rotate the city without dropping out of a selection.
 
 ## Success Metrics
-- A new player can identify the game as Syndicate-inspired within 30 seconds
-- Squad control feels responsive (no agent gets stuck on geometry)
-- Mission objectives are legible without reading a manual
+
+- A new player identifies the game as Syndicate Wars-inspired within 30s
+- Rotating the camera and seeing the block from a new angle reads as the
+  headline feature, not a gimmick
+- Squad control feels responsive; no agent stuck on collapsed geometry
 - A first mission completes in 3–6 minutes
-- The game runs at 60 fps on a mid-range laptop in Chrome/Edge/Firefox
-- The full build is a static deploy (Vercel) with no backend
+- Runs at 60fps on a mid-range laptop in Chrome / Edge / Firefox
+- Static deploy (Vercel), no backend
 
 ## Technical Posture
-- Vanilla HTML5 canvas + ES modules. No frameworks, no build step.
-- Static asset pipeline. Deployable to Vercel as a plain static site.
-- All state is in-memory plus localStorage. No server.
-- Code is organized by concern: `game.js` (loop), `entities.js` (sim),
-  `ui.js` (DOM HUD/menus), `world.js` (map, missions — to be added).
+
+- **Three.js** for the 3D layer, vendored at `vendor/three.module.min.js`.
+  No CDN dependency, no build step, still a plain static deploy.
+- **Game logic stays engine-agnostic.** `src/core/` — squad state,
+  mission model, objectives, city data, entity behavior — imports nothing
+  from Three.js. `src/render/` reads sim state and never writes to it.
+  This is what let the 2D prototype's mission logic survive the engine
+  swap, and it's what would let it survive another one.
+- Low-poly PS1 aesthetic is a scope *ally*, not just a style choice.
+  It is produced by three cheap decisions: flat-shaded Lambert with no
+  PBR, clip-space vertex snapping, and a low internal framebuffer scaled
+  up with nearest-neighbour filtering.
+- No binary assets. Facade windows are a procedurally generated canvas
+  texture; everything else is untextured boxes.
+- All state in-memory plus localStorage. No server.
+
+### Why Three.js and not something else
+
+| Option | Verdict |
+|---|---|
+| **Three.js** ✅ | Raw ES module, zero build step, plain-text source multiple agents can edit in git. The PS1 look is custom shader work in *any* engine. |
+| Babylon.js | Batteries-included (physics, GUI, inspector, Recast navmesh). The right call if we later want physically simulated collapse. ~3.5MB vs 690KB and a more opinionated scene graph. |
+| PlayCanvas | Fast, but editor-first — the canonical project lives in their cloud editor, not git. |
+| Godot 4 web export | The strongest actual game engine here, but binary scene assets and a ~30MB wasm payload. Ends both the text-editable workflow and the static no-build deploy. |
+
+Revisit only if we want **physically simulated destruction** (real
+debris, structural failure) rather than the PS1 game's scripted
+swap-to-rubble. That's `three.js + rapier.js` (wasm physics, drop-in ES
+module), not an engine change.
 
 ## Risks & Open Questions
-- **Performance:** many entities + line-of-sight checks could drop frame rate.
-  Mitigation: spatial partition only when entity count > 100.
-- **Scope:** persuasion + research + world map is a big tail. Hold the line at
-  one polished mission before expanding.
-- **Tone:** the 1993 game is bleak. Keep the framing dystopian; resist the
-  pull toward heroism or neon-pop comedy.
-- **IP:** this is an homage, not a remake. Avoid trademarked names, voice lines,
-  and asset reuse. Use original copy and original art.
+
+- **Engine risk — retired.** The 2D→3D jump was the single biggest scope
+  increase in this project's life. The hard checkpoint (one rotatable
+  low-poly block with working squad control, cover, and a destructible
+  structure) is now met, so mission content can port forward.
+- **IP / trademark.** Using real company names as fictional antagonists
+  is satire. Keep it clearly a 2041 fiction, avoid logos and wordmarks,
+  don't attribute real conduct. See `NARRATIVE.md` §0.
+- **Tone.** Keep it bleak and procedural like the '96 original, not neon-pop.
+- **Scope.** Compute research + world map + five-syndicate AI rivalry is
+  a long tail. Hold the line at Act I shipping complete before expanding.
+- **Open: pathfinding.** Agents currently slide along geometry and drop a
+  move order when hard-blocked. Good enough for open street grids;
+  interiors will need real navigation.
+- **Open: interiors.** The PS1 game let you walk inside buildings. Every
+  structure here is currently a solid box. This is the next big
+  fidelity question after Act I.
