@@ -25,6 +25,13 @@ export const ALIGNER = Object.freeze({
 export const ALIGNER_RADIUS = 13.5;
 
 /**
+ * How far from the ordered point an agent may be placed to keep the
+ * squad's shape. A little larger than the diamond, so a tight squad
+ * arrives in formation and a scattered one regroups.
+ */
+export const MAX_SPREAD = 4;
+
+/**
  * How much alignment pressure a target resists.
  *
  * Straight from the original: converting a crowd is how you *earn* the
@@ -146,10 +153,20 @@ export class Squad {
     if (!sel.length) return;
     const center = this.selectedCenter();
     for (const a of sel) {
-      const goal = {
-        x: point.x + (a.x - center.x),
-        z: point.z + (a.z - center.z),
-      };
+      // Preserve the shape of the squad, but only up to a formation's
+      // worth of it. A firefight scatters agents tens of metres apart,
+      // and an uncapped offset means "go there" resolves to each agent's
+      // own current position — the order looks issued and nobody moves.
+      // Found by the autopilot on the-tower, where the squad ended up
+      // ringing the objective at 25m and standing still forever.
+      let ox = a.x - center.x;
+      let oz = a.z - center.z;
+      const spread = Math.hypot(ox, oz);
+      if (spread > MAX_SPREAD) {
+        ox = (ox / spread) * MAX_SPREAD;
+        oz = (oz / spread) * MAX_SPREAD;
+      }
+      const goal = { x: point.x + ox, z: point.z + oz };
       a.path = city ? findPath(city, a, goal, a.radius) : [goal];
       a.finalGoal = goal;
       a.moveTarget = a.path.shift() ?? goal;

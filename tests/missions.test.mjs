@@ -14,6 +14,7 @@ import {
 import { createSim, step, PHASE } from '../src/core/sim.js';
 import { Projectile } from '../src/core/entities.js';
 import { ALIGNER } from '../src/core/squad.js';
+import { interlude, answerInterlude, answerTo } from '../src/core/interlude.js';
 
 const MISSIONS = getAllMissions();
 const FIELD = getFieldMissions();
@@ -633,4 +634,140 @@ test('reverse-the-gradient: the briefing warns you what it costs', () => {
   ok(text.includes('turned') || text.includes('carrying'),
     'the briefing says the emitter reaches your own followers');
   ok(def.jailbreak, 'and the mission is flagged as the one that unlocks it');
+});
+
+// -------------------------------------------------------------- interludes
+
+suite('interludes');
+
+test('a blocking interlude freezes the field until it is answered', () => {
+  const sim = createSim('sector-7');
+  sim.interludeDefs = [interlude({
+    id: 'test',
+    speaker: 'NOBODY',
+    when: s => s.elapsed > 0.5,
+    options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+  })];
+
+  for (let i = 0; i < 60; i++) step(sim, 1 / 60, idle);
+  ok(sim.interlude, 'it fired');
+
+  const before = {
+    elapsed: sim.elapsed,
+    x: sim.squad.agents[0].x,
+    hp: sim.squad.agents[0].health,
+  };
+  for (let i = 0; i < 600; i++) step(sim, 1 / 60, idle);
+  eq(sim.elapsed, before.elapsed, 'no time passes');
+  eq(sim.squad.agents[0].x, before.x, 'nobody moves');
+  eq(sim.squad.agents[0].health, before.hp, 'and nobody gets shot while he talks');
+
+  ok(answerInterlude(sim, 'b'), 'answering works');
+  notOk(sim.interlude, 'and clears the card');
+  for (let i = 0; i < 60; i++) step(sim, 1 / 60, idle);
+  ok(sim.elapsed > before.elapsed, 'the field runs again');
+});
+
+test('an interlude fires once, not every frame its condition holds', () => {
+  const sim = createSim('sector-7');
+  let fired = 0;
+  sim.interludeDefs = [interlude({
+    id: 'once',
+    speaker: 'NOBODY',
+    when: () => true,
+    options: [{ id: 'a', label: 'A', effect: () => { fired++; } }],
+  })];
+
+  for (let i = 0; i < 5; i++) {
+    step(sim, 1 / 60, idle);
+    if (sim.interlude) answerInterlude(sim, 'a');
+  }
+  eq(fired, 1, 'answered exactly once');
+  eq(answerTo(sim, 'once'), 'a', 'and the answer is on the record');
+});
+
+test('an answer can write a narrative flag and change the field', () => {
+  const sim = createSim('sector-7');
+  const before = sim.hostiles.length;
+  sim.interludeDefs = [interlude({
+    id: 'costly',
+    speaker: 'NOBODY',
+    when: () => true,
+    options: [{
+      id: 'pay',
+      label: 'PAY',
+      flag: { paid: true },
+      effect: s => { s.hostiles.push(s.hostiles[0]); },
+    }],
+  })];
+  step(sim, 1 / 60, idle);
+  answerInterlude(sim, 'pay');
+  eq(sim.mission.flags.paid, true, 'the flag is written');
+  eq(sim.hostiles.length, before + 1, 'and the effect ran');
+});
+
+test('an unanswerable option id changes nothing', () => {
+  const sim = createSim('sector-7');
+  sim.interludeDefs = [interlude({
+    id: 'x', speaker: 'NOBODY', when: () => true,
+    options: [{ id: 'a', label: 'A' }],
+  })];
+  step(sim, 1 / 60, idle);
+  eq(answerInterlude(sim, 'nonsense'), null, 'rejected');
+  ok(sim.interlude, 'and the card is still up');
+});
+
+test('an interlude with no options is a hang, so it cannot be declared', () => {
+  let threw = false;
+  try {
+    interlude({ id: 'bad', speaker: 'X', when: () => true, options: [] });
+  } catch { threw = true; }
+  ok(threw, 'declaring one throws at load time, not at play time');
+});
+
+// ------------------------------------------------------------- the tower
+
+test('the-tower: Yelin does not open the channel until the guard is down', () => {
+  const sim = createSim('the-tower');
+  const parley = sim.interludeDefs.find(i => i.id === 'parley');
+  ok(parley, 'the parley is declared');
+  notOk(parley.when({ kills: 0 }), 'not on arrival');
+  notOk(parley.when({ kills: 3 }), 'not after a skirmish');
+  ok(parley.when({ kills: 8 }), 'once the guard is two thirds down');
+});
+
+test('the-tower: listening costs you and interrupting does not', () => {
+  const listen = autoplay('the-tower', { answers: { parley: 'listen' } });
+  const cut = autoplay('the-tower', { answers: { parley: 'cut' } });
+  ok(listen.won && cut.won, 'both routes finish');
+  eq(listen.interludeAnswers.parley, 'listen', 'the answer is recorded');
+
+  // The whole reason the option is worth offering: the harder choice has
+  // to be legible as a cost within the next thirty seconds. Count the
+  // reinforcements by name — comparing array lengths across runs picks up
+  // enforcer waves, which vary with how the firefight happened to go.
+  const reinforcements = s => s.hostiles.filter(h => h.label === 'BOARD SECURITY');
+  gte(reinforcements(listen.sim).length, 4, 'listening puts four more guns on the floor');
+  eq(reinforcements(cut.sim).length, 0, 'cutting him off does not');
+  ok(reinforcements(listen.sim).every(h => !h.countsForObjective),
+    'and they are pure cost — killing them earns no objective progress');
+});
+
+test('the-tower: the debrief knows whether you stood there and listened', () => {
+  const def = getMissionDef('the-tower');
+  eq(def.debriefKey({ interludeAnswers: { parley: 'listen' } }), 'heard', 'listened');
+  eq(def.debriefKey({ interludeAnswers: { parley: 'cut' } }), 'win', 'cut him off');
+  eq(def.debriefKey({ interludeAnswers: {} }), 'win', 'never reached the beat');
+  ok(def.debrief.heard?.length, 'and there is copy for having listened');
+  notOk(def.debrief.heard.join(' ') === def.debrief.win.join(' '), 'that differs');
+});
+
+test('the-tower: Yelin\'s argument is actually made', () => {
+  // NARRATIVE.md is explicit that the argument has to land. A parley
+  // option whose reply is one line is not the beat that was designed.
+  const def = getMissionDef('the-tower');
+  const parley = def.interludes.find(i => i.id === 'parley');
+  const listen = parley.options.find(o => o.id === 'listen');
+  gte(listen.lines.length, 3, 'he gets more than a soundbite');
+  gte(listen.lines.join(' ').length, 400, 'and it is a real argument');
 });

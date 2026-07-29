@@ -33,6 +33,16 @@ html, body {
   height: 100vh;
 }
 
+/* Fullscreen puts the shell itself edge to edge, so the HUD and the
+   overlay cards come with it rather than being left behind on the page.
+   The viewport units above stop meaning anything here — the fullscreen
+   element is already exactly the screen. */
+#game-shell:fullscreen {
+  width: 100%;
+  height: 100%;
+  background: var(--bg, #070910);
+}
+
 #game-canvas {
   display: block;
   width: 100%;
@@ -72,6 +82,25 @@ html, body {
 
 .hud-panel.wide { flex: 2.4; }
 .hud-panel:last-child { border-right: none; }
+
+/* A HUD panel that happens to be clickable. Styled as part of the bar
+   rather than as a button, so it doesn't read as a menu. */
+.hud-button {
+  flex: 0.7;
+  background: none;
+  border: none;
+  border-right: 1px solid rgba(111, 227, 208, 0.12);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The HUD bar is click-through so the player can right-click the street
+   underneath it. The one control in the bar has to opt back in. */
+.hud-button { pointer-events: auto; }
+.hud-button:hover { background: rgba(111, 227, 208, 0.08); }
+.hud-button:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 
 .hud-label {
   font-size: 9px;

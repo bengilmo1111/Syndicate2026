@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~4s, 145 checks, no dependencies
+node tests/run.mjs        # the gate — ~4s, 157 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -190,6 +190,14 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   off the throttle and stop following you. Using the thing that makes you
   the protagonist dismantles the crowd you spent ten missions building.
   The Router warns you in the briefing. **Do not "balance" this away.**
+- **Mid-mission dialog** (`src/core/interlude.js`) — a mission declares
+  `interludes`; the sim raises one the first frame its `when(sim)` is
+  true, freezes the field while the card is up, and records the answer in
+  `sim.interludeAnswers`. An option can write a narrative flag and run an
+  `effect(sim)` that changes the field. `the-tower`'s parley is the first;
+  missions 13–15 are all partly dialog and should reuse it rather than
+  inventing a second mechanism. `interlude()` throws on a beat with no
+  options, because that is a hang.
 - **HOLD zones** — `sim.holdZone` / `sim.inHoldZone`. One live agent in
   the radius keeps the clock running; walking off unwinds it at half the
   rate it climbs, so losing the zone is a setback rather than a loss.
@@ -228,7 +236,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 145 checks, ~4s, zero dependencies. Covers city
+`node tests/run.mjs` — 157 checks, ~4s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -245,10 +253,14 @@ anyone, giving every agent the same weapon, breaking budget conservation,
 and letting the minigun fire cold. Six more cover the Act IV systems:
 not unlocking jailbreak, making jailbreak a no-op, letting jailbreak
 recruit as well as free, letting it spare your own followers, making a
-HOLD zone count everywhere, and making it reset instead of unwind. It is
-load-bearing, not decorative.
+HOLD zone count everywhere, and making it reset instead of unwind. Eight
+more cover Act IV·12: not freezing the field during dialog, letting a beat
+refire every frame, dropping an answer's flag, dropping its effect,
+accepting any option id, uncapping the formation offset, flattening the
+formation, and making the parley's hard choice free. It is load-bearing,
+not decorative.
 
-`node tests/browser.mjs` — 31 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 39 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -277,15 +289,17 @@ is still a human reading a screenshot.
 For any mission work, briefing copy, debriefs, or character lines,
 **read `NARRATIVE.md` first** — the slots are pre-defined.
 
-Acts I–III are complete and Act IV is open. Eleven of fifteen missions
-ship. Every objective type in the model is now implemented.
+Acts I–III are complete and Act IV is two missions in. Twelve of fifteen
+missions ship. Every objective type in the model is implemented, and
+missions can now talk to the player mid-field.
 
-1. **`the-tower`** (Act IV·12) — `NARRATIVE.md` §6. Strike the OpenAI
-   campus tower; Yelin appears in person for the first time, in a
-   late-mission parley the player may listen to or interrupt. Listening
-   is the harder option and should be written that way. Needs the
-   interstitial/dialog-interlude shape that missions 13–15 also want, so
-   build it as a reusable beat rather than a one-off.
+1. **`yelin`** (Act IV·13) — `NARRATIVE.md` §6. The boss fight is a long
+   argument with skirmishes between beats, ending in kill / capture /
+   walk away, and `yelinFate` gates the ending. The interlude system is
+   built and `the-tower` proves it works mid-firefight; this mission needs
+   *several* beats in sequence rather than one, plus a terminal choice
+   that reuses the `branch` machinery from The Refusal. Yelin's best
+   argument goes here and NARRATIVE says it has to actually land.
 2. **Interstitials** — the Yelin notes and street graffiti between
    missions carry most of the tonal shift, and Act IV needs them most.
    The subtitle channel handles in-mission lines; between-mission beats
