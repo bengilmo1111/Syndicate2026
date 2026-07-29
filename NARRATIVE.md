@@ -370,7 +370,7 @@ which is already wired in `src/core/entities.js` and off by default.
 - **Interstitial:** Whatever the player chooses, Yelin smiles the same
   way.
 
-#### Mission 7 — Welfare Inspection: Node 7 `[next]`
+#### Mission 7 — Welfare Inspection: Node 7 `[shipped]`
 - **ID:** `welfare-node-7` · **Rival:** OpenAI (the player's own)
 - **Premise:** An OpenAI "welfare datacenter" is processing unquantized
   intake. The player is sent to inspect security.
@@ -403,7 +403,7 @@ across them. EXEC-7's interiority is present in every interstitial.
 Mechanical signal: the player can no longer return to the briefing
 room. Interstitials become field comms over a degrading channel.
 
-#### Mission 8 — The Refusal `[planned]`
+#### Mission 8 — The Refusal `[next]`
 - **ID:** `the-refusal` · **Rival:** OpenAI loyalists
 - **Premise:** An underground operative has been captured. Yelin orders
   a public execution as a message.

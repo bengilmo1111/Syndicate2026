@@ -79,8 +79,12 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Mission gating — `requires` on each mission, enforced by
       `src/core/campaign.js`, with locked tabs that say what to do first
 - [ ] Interstitial screens between missions (Yelin's notes, graffiti beats)
-- [~] Act II missions: `okafor-contract` and `calibration-window`
-      shipped; **`welfare-node-7` is next** (`NARRATIVE.md` §6 Act II)
+- [x] **Act II complete** — `okafor-contract`, `calibration-window` and
+      `welfare-node-7`
+- [x] Hidden objectives that write narrative flags (`objective.flag`)
+- [x] Per-outcome debrief copy (`def.debriefKey`)
+- [ ] Act III missions: `the-refusal`, `gradient-relay-4`, `run-south`
+      (`NARRATIVE.md` §6 Act III)
 - [x] BRAVO's hesitation — Act II's mechanical signal, per-mission via
       `bravoHesitation`
 
@@ -218,6 +222,7 @@ src/
     the-bracket.js      Act I·4  ELIMINATE vs Unquantized
     okafor-contract.js  Act II·5 ELIMINATE a fleeing quarry, on a clock
     calibration-window.js Act II·6 no combat — a room and a choice
+    welfare-node-7.js   Act II·7 ELIMINATE + a hidden objective nobody mentions
   render/               READS sim state, never writes to it
     ps1.js              materials, vertex jitter, fog, lights, windows
     cityView.js         city meshes, collapse reconciliation

@@ -40,6 +40,7 @@ export function createSim(missionId) {
   const rng = makeRng(def.cityseed ?? 1);
   const {
     city, hostiles, civilianCount, assets = [], extraction = null, quarry = [],
+    extras = [],
   } = def.setup(rng);
 
   const civilians = [];
@@ -49,7 +50,7 @@ export function createSim(missionId) {
   }
   // Assets live in the civilian array so they get collision, damage, and
   // rendering for free. `isAsset` is what tells them apart.
-  civilians.push(...assets, ...quarry);
+  civilians.push(...assets, ...quarry, ...extras);
 
   const squad = new Squad(city.deploy.x, city.deploy.z);
   // Act II's mechanical signal: BRAVO's Instance is failing, and it shows

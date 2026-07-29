@@ -178,8 +178,11 @@ function showDebrief(won) {
   }
   // A mission can be lost specifically — the escorted asset died, the
   // target got away — and the debrief should say which.
+  // A mission can win in more than one way — freeing the holding block at
+  // Node 7 earns different copy from walking past it.
+  const winKey = won ? (def.debriefKey?.(app.sim) ?? 'win') : null;
   const lines = won
-    ? def.debrief.win
+    ? (def.debrief[winKey] ?? def.debrief.win)
     : (def.debrief[app.sim.failReason] ?? def.debrief.loss);
   const stats = [
     '',
@@ -190,7 +193,7 @@ function showDebrief(won) {
     ?? (app.sim.failReason === 'assetLost' ? 'ASSET LOST' : 'DEPLOYMENT TERMINATED');
   setOverlay({
     eyebrow: won ? 'DEPLOYMENT CLOSED' : 'DEPLOYMENT LOST',
-    title: won ? (titles.win ?? 'SECTOR PROVISIONED') : lostTitle,
+    title: won ? (titles[winKey] ?? titles.win ?? 'SECTOR PROVISIONED') : lostTitle,
     body: [...lines, ...stats],
     button: { label: won ? 'RETURN TO BRIEFING' : 'REDEPLOY', onClick: won ? showBriefing : startMission },
     altButton: won ? null : { label: 'BRIEFING ROOM', onClick: showBriefing },

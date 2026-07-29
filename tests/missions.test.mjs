@@ -347,3 +347,60 @@ test('a decision mission still gates the missions after it', () => {
   const def = getMissionDef('calibration-window');
   gte((def.requires ?? []).length, 1, 'it is gated like anything else');
 });
+
+test('welfare-node-7: the holding block is there, and nothing points at it', () => {
+  // The hidden objective is the mission. If it ever becomes visible, the
+  // player is being told to have a conscience instead of having one.
+  const sim = createSim('welfare-node-7');
+  const free = sim.mission.objectives.find(o => o.id === 'free');
+  ok(free, 'the objective exists');
+  ok(free.hidden, 'and is hidden');
+  ok(free.optional, 'and optional — you can walk past it');
+
+  const shown = sim.mission.objectives.filter(o => !o.hidden);
+  eq(shown.length, 1, 'the player is only ever shown the housekeeping');
+  eq(shown[0].id, 'clear', 'which is clearing the infiltrators');
+
+  const detained = sim.civilians.filter(c => c.detained);
+  gte(detained.length, 12, 'and the people are actually there');
+  ok(detained.every(c => c.tier === 'Free'), 'Free-tier, which is what the programme is for');
+});
+
+test('welfare-node-7: freeing them is what sets playerSuspicion', () => {
+  const sim = createSim('welfare-node-7');
+  notOk(sim.mission.flags.playerSuspicion, 'not set by default');
+
+  for (const c of sim.civilians.filter(x => x.detained)) c.aligned = true;
+  step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+
+  const free = sim.mission.objectives.find(o => o.id === 'free');
+  eq(free.status, STATUS.COMPLETE, 'the hidden objective completes');
+  ok(sim.mission.flags.playerSuspicion, 'and the game notices');
+});
+
+test('welfare-node-7: walking past the holding block still wins', () => {
+  // Ignoring it must remain a real option, or the choice is fake.
+  const sim = createSim('welfare-node-7');
+  sim.kills = 4;
+  step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  eq(sim.phase, PHASE.WON, 'the briefed objective alone closes the mission');
+  notOk(sim.mission.flags.playerSuspicion, 'with nothing recorded');
+});
+
+test('welfare-node-7: the two endings read differently', () => {
+  const def = getMissionDef('welfare-node-7');
+  ok(def.debrief.freed?.length, 'there is copy for freeing them');
+  ok(def.debriefKey, 'and the mission picks between them');
+  eq(def.debriefKey({ mission: { flags: {} } }), 'win', 'walked past');
+  eq(def.debriefKey({ mission: { flags: { playerSuspicion: true } } }), 'freed', 'freed');
+  notOk(def.debrief.win.join(' ') === def.debrief.freed.join(' '), 'and they differ');
+});
+
+test('the infiltrators at Node 7 are the only people trying to stop it', () => {
+  // Tone check with teeth: the mission must not dress them as a rival
+  // syndicate, because they are not one.
+  const def = getMissionDef('welfare-node-7');
+  eq(def.rival, 'openai', 'the facility is ours');
+  const sim = createSim('welfare-node-7');
+  ok(sim.hostiles.every(h => h.label === 'INFILTRATOR'), 'and they are not a syndicate');
+});

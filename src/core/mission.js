@@ -71,6 +71,10 @@ export function objective(type, opts = {}) {
     // Key into the mission's debrief copy when this objective is what lost it.
     failReason: opts.failReason ?? null,
     status: STATUS.PENDING,
+    // Narrative flags written onto mission.flags when this completes.
+    // A hidden objective is how the game notices what the player chose to
+    // do when nothing asked them to.
+    flag: opts.flag ?? null,
     // Free-form payload the mission setup fills in (landmark name, zone, …).
     meta: opts.meta ?? {},
   };
@@ -137,7 +141,10 @@ export function updateMissionStatus(mission, s) {
       default:
         break;
     }
-    if (obj.progress >= obj.target) obj.status = STATUS.COMPLETE;
+    if (obj.progress >= obj.target) {
+      obj.status = STATUS.COMPLETE;
+      if (obj.flag) Object.assign(mission.flags ??= {}, obj.flag);
+    }
   }
 }
 
