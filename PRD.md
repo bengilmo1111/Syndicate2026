@@ -171,9 +171,16 @@ module), not an engine change.
 - **Tone.** Keep it bleak and procedural like the '96 original, not neon-pop.
 - **Scope.** Compute research + world map + five-syndicate AI rivalry is
   a long tail. Hold the line at Act I shipping complete before expanding.
-- **Open: pathfinding.** Agents currently slide along geometry and drop a
-  move order when hard-blocked. Good enough for open street grids;
-  interiors will need real navigation.
+- **Pathfinding — resolved for streets, open for interiors.** Agents route
+  with A\* over the street-intersection graph (`src/core/nav.js`). The
+  city being a regular grid is what made that cheap; interiors would not
+  be, and would need a real navmesh. Followers and escorted assets still
+  don't path — they beeline for the squad centroid and slide.
 - **Open: interiors.** The PS1 game let you walk inside buildings. Every
   structure here is currently a solid box. This is the next big
   fidelity question after Act I.
+- **Open: no coverage of the render layer.** `node tests/run.mjs` covers
+  the simulation exhaustively because `src/core/` is engine-agnostic;
+  `tests/browser.mjs` covers boot, rendering, and input wiring. Nothing
+  asserts that the game *looks* right — that is still a human judgement
+  from a screenshot.

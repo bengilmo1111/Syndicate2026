@@ -3,7 +3,7 @@
 
 const el = id => document.getElementById(id);
 
-export function setOverlay({ eyebrow, title, body, tabs, onSelectTab, button, hint }) {
+export function setOverlay({ eyebrow, title, body, tabs, onSelectTab, button, altButton, hint }) {
   el('overlay-eyebrow').textContent = eyebrow ?? '';
   el('overlay-title').textContent = title;
 
@@ -27,6 +27,15 @@ export function setOverlay({ eyebrow, title, body, tabs, onSelectTab, button, hi
   const btn = el('overlay-button');
   btn.textContent = button.label;
   btn.onclick = button.onClick;
+
+  // Secondary action. Without one, a lost mission is a dead end — the only
+  // button redeploys you into the same sector forever.
+  const alt = el('overlay-alt-button');
+  alt.classList.toggle('hidden', !altButton);
+  if (altButton) {
+    alt.textContent = altButton.label;
+    alt.onclick = altButton.onClick;
+  }
 
   el('overlay-hint').innerHTML = hint ?? '';
 }

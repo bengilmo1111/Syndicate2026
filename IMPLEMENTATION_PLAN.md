@@ -6,22 +6,14 @@ sessions without stepping on each other. Mark steps `[x]` done, `[~]` in
 progress, `[ ]` not started. Always update this file in the same commit
 as the work it describes.
 
-> **Working agreement for AI sessions**
-> 1. Read `HANDOFF.md` first. It is the current state of the world.
-> 2. **If the next work is a mission, briefing, debrief, or any story
->    copy, read `NARRATIVE.md` *before writing*.** It's canonical for
->    tone, cast, lexicon, and the four-act arc. All fifteen mission slots
->    are pre-defined in §6 — pick the matching slot rather than inventing
->    parallel fiction.
-> 3. Pick the *next* unchecked step from the in-progress phase. Don't
->    skip ahead.
-> 4. Keep changes small — one or two files per commit, descriptive message.
-> 5. Update this plan and `HANDOFF.md` in the same commit as your code.
-> 6. Always leave the game runnable. Verify before you push (see
->    **Verification** below).
-> 7. **Respect the layer boundary.** `src/core/` must never import from
->    `src/render/`, `src/ui/`, or Three.js. That separation is the only
->    reason the 2D prototype's logic survived the engine swap.
+> **The working agreement lives in [`AGENTS.md`](./AGENTS.md)** — read it
+> first. It owns the layer rule, the test gate, the content rules, and the
+> git conventions, so they're stated once instead of drifting across four
+> files.
+>
+> For this document specifically: pick the *next* unchecked step from the
+> in-progress phase, don't skip ahead, and tick the box in the same commit
+> as the code.
 
 ---
 
@@ -115,6 +107,17 @@ the 2D logic onto a 3D engine instead of losing it.
 - [ ] Rival syndicate AI that contests held sectors
 - [ ] Save / load syndicate state across sessions
 
+## Phase 2.5 — Verification (DONE)
+- [x] Dependency-free Node test harness; `src/core/` runs headless
+- [x] Autopilot that plays every registered mission to a win
+- [x] Core invariants: city, nav, destruction, ballistics, aligner,
+      morale, objectives, heat
+- [x] Per-mission story-beat assertions
+- [x] Optional Playwright pass: boot, render, input wiring, clean console
+- [x] CI on push and PR (`.github/workflows/verify.yml`)
+- [ ] Golden-image / visual regression (nothing asserts the game *looks*
+      right; that is still a human call on a screenshot)
+
 ## Phase 6 — Polish
 - [x] Particle effects: tracers, impact sparks, collapse debris
 - [x] Camera follow with smoothing; screen shake on collapse
@@ -131,10 +134,18 @@ the 2D logic onto a 3D engine instead of losing it.
 ## File map
 
 ```
+AGENTS.md               the working contract — read first
 index.html              entry — canvas, HUD DOM, overlay card
 styles.css              HUD chrome, briefing/debrief cards
 vendor/
   three.module.min.js   Three.js r169, vendored (MIT)
+tests/
+  run.mjs               the gate: `node tests/run.mjs`
+  core.test.mjs         city, nav, ballistics, aligner, morale, objectives
+  missions.test.mjs     definitions, completability, per-mission story beats
+  browser.mjs           optional Playwright pass over the real page
+  lib/harness.mjs       zero-dependency registry + assertions
+  lib/autopilot.mjs     bot that plays a mission headlessly to completion
 src/
   main.js               input, fixed-step loop, briefing→mission→debrief
   core/                 ENGINE-AGNOSTIC. No Three.js, no DOM.
@@ -164,8 +175,22 @@ src/
 
 ## Verification (every session)
 
-No test suite yet — verify by playing. Run a local server (ES modules
-won't load over `file://`):
+### The gate — automated
+
+```
+node tests/run.mjs        # ~1s, no dependencies. MUST pass before you push.
+node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
+```
+
+`node tests/run.mjs` runs the whole simulation headlessly, including an
+autopilot that plays **every registered mission to a win**. Add a mission
+and it is covered automatically; if it can't be won, the suite goes red.
+
+### By hand — for anything the tests can't judge
+
+The suite says the game *works*. It cannot say the game *looks right* or
+*feels right*. Serve it and play when you've touched rendering, pacing,
+or copy:
 
 ```
 python3 -m http.server 8000   # then open http://localhost:8000/
@@ -189,5 +214,6 @@ python3 -m http.server 8000   # then open http://localhost:8000/
     is collected, and must not complete with anyone left outside.
 11. Tab opens the objective list with live progress.
 12. Complete the objectives and confirm the debrief; confirm the wipe
-    state by letting the squad die.
+    state by letting the squad die, and that you can get back to mission
+    select from the loss screen.
 13. **Check the browser console is clean.** Zero errors is the bar.

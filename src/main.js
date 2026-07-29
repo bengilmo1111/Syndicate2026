@@ -89,6 +89,7 @@ function showDebrief(won) {
     title: won ? (titles.win ?? 'SECTOR PROVISIONED') : lostTitle,
     body: [...lines, ...stats],
     button: { label: won ? 'RETURN TO BRIEFING' : 'REDEPLOY', onClick: won ? showBriefing : startMission },
+    altButton: won ? null : { label: 'BRIEFING ROOM', onClick: showBriefing },
     hint: CONTROLS_HINT,
   });
   showOverlay();

@@ -317,8 +317,15 @@ html, body {
 #overlay-body em { color: var(--text-dim); }
 #overlay-body strong { color: var(--accent); }
 
-#overlay-button {
+.overlay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
   margin-top: 22px;
+}
+
+#overlay-button {
   padding: 11px 30px;
   font-family: var(--mono);
   font-size: 12px;
@@ -330,6 +337,19 @@ html, body {
 }
 
 #overlay-button:hover { background: #8ff5e4; }
+
+#overlay-alt-button {
+  padding: 11px 24px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid rgba(111, 227, 208, 0.3);
+  cursor: pointer;
+}
+
+#overlay-alt-button:hover { color: var(--accent); border-color: var(--accent); }
 
 .hint {
   margin: 16px 0 0;

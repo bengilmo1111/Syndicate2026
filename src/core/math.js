@@ -61,6 +61,23 @@ export function segmentHitsBox(ax, az, bx, bz, box) {
   return true;
 }
 
+/**
+ * Closest distance from point P to segment AB.
+ *
+ * Needed because a projectile moving 78 m/s covers 1.3m in a frame while
+ * an agent's hit disc is 1.5m across — testing only the endpoint lets
+ * fast rounds tunnel straight through the person they hit.
+ */
+export function segmentPointDistance(ax, az, bx, bz, px, pz) {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const lenSq = dx * dx + dz * dz;
+  if (lenSq < 1e-9) return Math.hypot(px - ax, pz - az);
+  let t = ((px - ax) * dx + (pz - az) * dz) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
+}
+
 /** Push a circle out of an axis-aligned box. Returns {x, z} corrected position. */
 export function pushOutOfBox(x, z, radius, box) {
   const minX = box.x - box.w / 2 - radius;

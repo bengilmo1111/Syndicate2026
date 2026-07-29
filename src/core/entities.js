@@ -2,7 +2,7 @@
 // writes to these, it only reads. Ported from the 2D prototype's entity
 // logic (wander, chase, bump, persuade) with line-of-sight added.
 
-import { clamp, dist, range, angleDelta } from './math.js';
+import { clamp, dist, range, angleDelta, segmentPointDistance } from './math.js';
 import { resolveCollision, hasLineOfSight, randomStreetPoint } from './city.js';
 
 export const TIER = Object.freeze({
@@ -546,8 +546,14 @@ export class Projectile {
     if (this.life <= 0) this.dead = true;
   }
 
+  /**
+   * Swept test against the segment travelled this frame, not just the
+   * endpoint — at 78 m/s a round covers more ground per step than a
+   * target is wide, so a point test silently misses.
+   */
   hits(actor) {
     if (actor.dead || actor === this.owner) return false;
-    return dist(this.x, this.z, actor.x, actor.z) < actor.radius + this.radius;
+    const d = segmentPointDistance(this.prevX, this.prevZ, this.x, this.z, actor.x, actor.z);
+    return d < actor.radius + this.radius;
   }
 }
