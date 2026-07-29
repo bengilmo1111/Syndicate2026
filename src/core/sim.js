@@ -90,6 +90,8 @@ export function createSim(missionId) {
     throttledCount: 0,
     /** Set when the mission is lost for a reason other than a squad wipe. */
     failReason: null,
+    /** Set the moment the squad turns on its own side. */
+    defected: false,
     /** The Aligner reports an unquantized target once, not every frame. */
     alignerRefusalSeen: false,
     /** Current subtitle line, or null. Drained by the HUD. */
@@ -144,7 +146,7 @@ export function step(sim, dt, intent) {
 
   // Turned operatives are on our side now: agents must not shoot them,
   // and objectives must not count them.
-  const stillHostile = sim.hostiles.filter(h => !h.aligned);
+  const stillHostile = sim.hostiles.filter(h => !h.aligned && !h.dormant);
   const converts = sim.hostiles.filter(h => h.aligned && !h.dead);
   sim.followerGuns = converts.length;
 
@@ -204,6 +206,9 @@ export function step(sim, dt, intent) {
     if (asset.trySecure(squad.alive)) {
       sim.events.push({ type: 'secured', x: asset.x, z: asset.z, asset });
       if (asset.onSecuredLine) say(sim, asset.name, asset.onSecuredLine, 6);
+      // Cutting a prisoner loose in front of your own side is a decision
+      // that cannot be walked back.
+      wakeDormant(sim, 'the squad has moved on the prisoner');
     }
   }
   sim.assetsSecured = sim.assets.filter(a => a.secured && !a.dead).length;
@@ -279,6 +284,7 @@ export function step(sim, dt, intent) {
     landmarks: city.landmarks,
     assets: sim.assets,
     assetsSecured: sim.assetsSecured,
+    assetsLost: sim.assets.filter(a => a.dead).length,
     squadExtracted: sim.squadExtracted,
     inZone: sim.squadExtracted,
   });
@@ -366,11 +372,12 @@ function resolveProjectile(sim, p) {
   }
 
   const targets = p.friendly
-    ? sim.hostiles
+    ? sim.hostiles          // includes dormant loyalists — you can start it
     : [...sim.squad.alive, ...sim.civilians.filter(c => c.aligned)];
 
   for (const t of targets) {
     if (!p.hits(t)) continue;
+    if (p.friendly && t.dormant) wakeDormant(sim, 'the squad fired on its own side');
     const killed = t.takeDamage(damageAgainst(sim, p, t));
     const spent = p.consumeHit(t);
     sim.events.push({ type: 'hit', x: p.x, z: p.z, actor: t, killed, spent });
@@ -440,6 +447,24 @@ function applySurge(sim, dt) {
   }
   sim.throttledCount = throttled;
   sim.heat += SURGE_HEAT_PER_SECOND * dt;
+}
+
+/**
+ * Turn loyalists hostile. Nothing does this except the player: freeing the
+ * prisoner, or putting a round into one of them. Either way, the moment it
+ * happens is the moment EXEC-7 stops working for OpenAI.
+ */
+function wakeDormant(sim, reason) {
+  const sleeping = sim.hostiles.filter(h => h.dormant);
+  if (!sleeping.length) return false;
+  for (const h of sleeping) {
+    h.dormant = false;
+    h.aggroRange = 70;
+  }
+  sim.defected = true;
+  sim.events.push({ type: 'defect', reason });
+  say(sim, 'FIELD COMMS', 'deployment flagged non-compliant · channel closing', 6);
+  return true;
 }
 
 function spawnEnforcers(sim, count) {

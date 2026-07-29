@@ -136,6 +136,13 @@ function goalFor(sim, obj) {
     case OBJECTIVE.RETRIEVE:
       return nearest(centre, sim.assets.filter(a => !a.dead && !a.secured));
 
+    case OBJECTIVE.SUNSET: {
+      // A named non-combatant. Same rule as the Okafor contract: the squad
+      // will never auto-target them, so this only happens on purpose.
+      const near = nearest(centre, sim.assets.filter(a => !a.dead));
+      return near && { ...near, aim: near.ref, actor: true };
+    }
+
     case OBJECTIVE.EXTRACT:
       return sim.extraction ? { x: sim.extraction.x, z: sim.extraction.z } : null;
 

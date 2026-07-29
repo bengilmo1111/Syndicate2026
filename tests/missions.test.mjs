@@ -12,6 +12,7 @@ import {
   getAllMissions, getFieldMissions, getMissionDef, isFieldMission, STATUS,
 } from '../src/core/mission.js';
 import { createSim, step, PHASE } from '../src/core/sim.js';
+import { Projectile } from '../src/core/entities.js';
 import { ALIGNER } from '../src/core/squad.js';
 
 const MISSIONS = getAllMissions();
@@ -403,4 +404,91 @@ test('the infiltrators at Node 7 are the only people trying to stop it', () => {
   eq(def.rival, 'openai', 'the facility is ours');
   const sim = createSim('welfare-node-7');
   ok(sim.hostiles.every(h => h.label === 'INFILTRATOR'), 'and they are not a syndicate');
+});
+
+// ------------------------------------------------------------------ act III
+
+suite('act III');
+
+test('the-refusal: the order is pre-staged and the escort is on your side', () => {
+  const sim = createSim('the-refusal');
+  eq(sim.assets.length, 1, 'the prisoner is on the map from frame one');
+  eq(sim.assets[0].name, 'TEO SALAS', 'and he has a name');
+  eq(sim.hostiles.length, 4, 'with an escort');
+  ok(sim.hostiles.every(h => h.dormant), 'who are not hostile yet');
+  notOk(sim.defected, 'and nothing has happened');
+
+  // You cannot start this by accident: the squad will not auto-target
+  // its own side, and the escort will not fire.
+  const agent = sim.squad.agents[0];
+  agent.x = sim.hostiles[0].x; agent.z = sim.hostiles[0].z + 3; agent.range = 100;
+  const live = sim.hostiles.filter(h => !h.dormant);
+  eq(agent.pickTarget(sim.city, live), null, 'no target among the escort');
+});
+
+test('the-refusal: carrying out the order completes it without defecting', () => {
+  const sim = createSim('the-refusal');
+  sim.assets[0].dead = true;
+  step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  eq(sim.phase, PHASE.WON, 'the mission closes');
+  eq(sim.mission.flags.defectedAtRefusal, false, 'compliant');
+  notOk(sim.defected, 'nobody turned on anybody');
+});
+
+test('the-refusal: cutting him loose turns the escort hostile', () => {
+  // The moment EXEC-7 stops working for OpenAI. It has to be something
+  // the player does, not something that happens to them.
+  const sim = createSim('the-refusal');
+  const prisoner = sim.assets[0];
+  sim.squad.agents.forEach(a => { a.x = prisoner.x; a.z = prisoner.z + 2; a.range = 0; });
+  step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+
+  ok(prisoner.secured, 'he is cut loose');
+  ok(sim.defected, 'and the squad is non-compliant');
+  ok(sim.hostiles.every(h => !h.dormant), 'the escort is awake');
+  gte(sim.hostiles[0].aggroRange, 1, 'and coming');
+});
+
+test('the-refusal: firing on your own side also starts it', () => {
+  const sim = createSim('the-refusal');
+  notOk(sim.defected, 'not yet');
+  const p = new Projectile(sim.hostiles[0].x, sim.hostiles[0].z - 4, 0, 20, null);
+  p.friendly = true;
+  sim.projectiles.push(p);
+  for (let i = 0; i < 20 && !sim.defected; i++) {
+    step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  }
+  ok(sim.defected, 'a round into a loyalist is a decision');
+});
+
+test('the-refusal: the defection branch completes the mission too', () => {
+  const sim = createSim('the-refusal');
+  const prisoner = sim.assets[0];
+  sim.squad.agents.forEach(a => { a.x = prisoner.x; a.z = prisoner.z + 2; });
+  step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  ok(prisoner.secured, 'freed');
+
+  sim.kills = 4; // the escort goes down
+  step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  eq(sim.phase, PHASE.WON, 'the mission closes the other way');
+  eq(sim.mission.flags.defectedAtRefusal, true, 'and records the defection');
+});
+
+test('the-refusal: refusing one route never fails the mission', () => {
+  // Branch objectives are alternatives, not requirements. If taking one
+  // ever failed the other, the mission would lose itself.
+  const sim = createSim('the-refusal');
+  sim.assets[0].dead = true;
+  step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  const free = sim.mission.objectives.find(o => o.id === 'free');
+  notOk(free.status === STATUS.FAILED, 'the untaken route is simply unfinished');
+  eq(sim.failReason, null, 'and nothing was lost');
+});
+
+test('the-refusal: the two endings are different endings', () => {
+  const def = getMissionDef('the-refusal');
+  ok(def.debrief.defect?.length, 'defecting has its own copy');
+  eq(def.debriefKey({ mission: { flags: { defectedAtRefusal: true } } }), 'defect');
+  eq(def.debriefKey({ mission: { flags: { defectedAtRefusal: false } } }), 'win');
+  includes(def.debrief.defect.join(' '), 'Router', 'and the Router picks up the channel');
 });

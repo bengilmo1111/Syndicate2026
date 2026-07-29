@@ -12,6 +12,7 @@ export const OBJECTIVE = Object.freeze({
   HOLD: 'hold',             // stay in a zone for N seconds
   RETRIEVE: 'retrieve',     // reach an asset and keep it alive to extraction
   DECIDE: 'decide',         // a briefing-room choice, no field component
+  SUNSET: 'sunset',         // kill a named non-combatant, on the record
 });
 
 export const STATUS = Object.freeze({
@@ -71,6 +72,14 @@ export function objective(type, opts = {}) {
     // Key into the mission's debrief copy when this objective is what lost it.
     failReason: opts.failReason ?? null,
     status: STATUS.PENDING,
+    /**
+     * Mutually exclusive route through the mission. A mission completes
+     * when every unbranched required objective is done AND every
+     * objective of at least one branch is done. This is how The Refusal
+     * offers "carry out the order" and "refuse it" as the same mission,
+     * and it is the shape Act IV's three endings will need.
+     */
+    branch: opts.branch ?? null,
     // Narrative flags written onto mission.flags when this completes.
     // A hidden objective is how the game notices what the player chose to
     // do when nothing asked them to.
@@ -138,6 +147,9 @@ export function updateMissionStatus(mission, s) {
       case OBJECTIVE.DECIDE:
         obj.progress = s.decided ? obj.target : 0;
         break;
+      case OBJECTIVE.SUNSET:
+        obj.progress = s.assetsLost ?? 0;
+        break;
       default:
         break;
     }
@@ -148,16 +160,41 @@ export function updateMissionStatus(mission, s) {
   }
 }
 
-/** Required objectives only. Optional ones are score, not gating. */
+/**
+ * Required objectives only. Optional ones are score, not gating.
+ *
+ * With branches: every unbranched required objective must complete, and
+ * then any *one* branch must complete in full. Taking one route does not
+ * fail the other — it simply leaves it unfinished.
+ */
 export function isMissionComplete(mission) {
-  return mission.objectives
-    .filter(o => !o.optional)
-    .every(o => o.status === STATUS.COMPLETE);
+  const required = mission.objectives.filter(o => !o.optional);
+  const done = o => o.status === STATUS.COMPLETE;
+
+  if (!required.filter(o => !o.branch).every(done)) return false;
+
+  const branches = [...new Set(required.filter(o => o.branch).map(o => o.branch))];
+  if (!branches.length) return true;
+  return branches.some(b => required.filter(o => o.branch === b).every(done));
 }
 
-/** A failed required objective loses the mission even with the squad alive. */
+/**
+ * A failed required objective loses the mission even with the squad alive.
+ * Branch objectives are exempt: refusing one route is not failing.
+ */
 export function failedObjective(mission) {
-  return mission.objectives.find(o => !o.optional && o.status === STATUS.FAILED) ?? null;
+  return mission.objectives.find(
+    o => !o.optional && !o.branch && o.status === STATUS.FAILED,
+  ) ?? null;
+}
+
+/** Which branch, if any, the player actually took. */
+export function takenBranch(mission) {
+  const required = mission.objectives.filter(o => !o.optional && o.branch);
+  const branches = [...new Set(required.map(o => o.branch))];
+  return branches.find(
+    b => required.filter(o => o.branch === b).every(o => o.status === STATUS.COMPLETE),
+  ) ?? null;
 }
 
 export function activeObjective(mission) {

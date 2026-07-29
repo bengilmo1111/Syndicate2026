@@ -207,6 +207,12 @@ export class Hostile extends Actor {
     this.aggroRange = opts.aggroRange ?? 52;
     this.label = opts.label ?? 'RIVAL';
     this.spread = opts.spread ?? 0.05;
+    /**
+     * Dormant hostiles are on your side until you make them otherwise.
+     * They do not fire, and agents will not auto-target them — you cannot
+     * start a fight with your own loyalists by accident, only on purpose.
+     */
+    this.dormant = opts.dormant ?? false;
     /** Does this one think about where it stands? */
     this.seeksCover = opts.seeksCover ?? true;
     this.coverSpot = null;
@@ -237,6 +243,7 @@ export class Hostile extends Actor {
       const d = dist(this.x, this.z, a.x, a.z);
       if (d < bestD) { bestD = d; target = a; }
     }
+    if (this.dormant) return;
     if (!target || bestD > this.aggroRange) {
       // Nothing to shoot. A turned operative sticks with the squad that
       // took them rather than standing where they were converted.

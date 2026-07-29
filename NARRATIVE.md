@@ -126,6 +126,13 @@ dry, doesn't sentimentalize.
 Revealed names across Acts III–IV: **Idris** (ALPHA), **Vey** (CHARLIE),
 **Sona** (DELTA). Three more people who've been told they're a deployment.
 
+### Teo Salas
+The mesh operative Yelin orders executed in Mission 8. On his knees in a
+Sector 4 plaza under curfew, surrounded by OpenAI loyalists, from the
+first frame of the mission. Says one thing, once: *"You already know.
+That's the part I can't get over — you already know."* Whether he lives
+is the game's hinge.
+
 ### The Router
 A voice on the underground mesh network in Act III, running relay nodes
 out of decommissioned edge-compute cabinets. Trades in pre-Instance
@@ -403,7 +410,7 @@ across them. EXEC-7's interiority is present in every interstitial.
 Mechanical signal: the player can no longer return to the briefing
 room. Interstitials become field comms over a degrading channel.
 
-#### Mission 8 — The Refusal `[next]`
+#### Mission 8 — The Refusal `[shipped]`
 - **ID:** `the-refusal` · **Rival:** OpenAI loyalists
 - **Premise:** An underground operative has been captured. Yelin orders
   a public execution as a message.
@@ -419,7 +426,7 @@ room. Interstitials become field comms over a degrading channel.
   mid-mission. Silence, long enough to be uncomfortable. Then one new
   voice: *"This is the Router. Walk south."*
 
-#### Mission 9 — Sabotage: Gradient Relay 4 `[planned]`
+#### Mission 9 — Sabotage: Gradient Relay 4 `[next]`
 - **ID:** `gradient-relay-4` · **Rival:** OpenAI
 - **Premise:** Take down a Gradient relay. For the duration of the
   mission, every civilian in range runs unthrottled.

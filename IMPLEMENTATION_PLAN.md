@@ -83,8 +83,12 @@ the 2D logic onto a 3D engine instead of losing it.
       `welfare-node-7`
 - [x] Hidden objectives that write narrative flags (`objective.flag`)
 - [x] Per-outcome debrief copy (`def.debriefKey`)
-- [ ] Act III missions: `the-refusal`, `gradient-relay-4`, `run-south`
-      (`NARRATIVE.md` §6 Act III)
+- [~] Act III missions: `the-refusal` shipped; **`gradient-relay-4` is
+      next**, then `run-south` (`NARRATIVE.md` §6 Act III)
+- [x] Branch objectives — one mission, mutually exclusive routes
+      (`objective.branch`, `takenBranch`)
+- [x] Flag-aware gating — a mission can require a *decision*, not just a
+      completion (`def.requiresFlags`)
 - [x] BRAVO's hesitation — Act II's mechanical signal, per-mission via
       `bravoHesitation`
 
@@ -223,6 +227,7 @@ src/
     okafor-contract.js  Act II·5 ELIMINATE a fleeing quarry, on a clock
     calibration-window.js Act II·6 no combat — a room and a choice
     welfare-node-7.js   Act II·7 ELIMINATE + a hidden objective nobody mentions
+    the-refusal.js      Act III·8 the branch point — comply or defect
   render/               READS sim state, never writes to it
     ps1.js              materials, vertex jitter, fog, lights, windows
     cityView.js         city meshes, collapse reconciliation

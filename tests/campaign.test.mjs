@@ -134,3 +134,38 @@ test('migration drops junk entries rather than trusting them', () => {
   // never satisfies anything.
   notOk(MISSIONS.some(m => m.id === 'ghost-mission'), 'and a stale id gates nothing');
 });
+
+// ------------------------------------------------------------- branch gating
+
+suite('branch gating');
+
+test('a mission can require a decision, not just a completion', () => {
+  // The Refusal is the first mission whose *outcome* changes what comes
+  // after. Completion-only gating cannot express that.
+  const c = newCampaign();
+  const fake = { requires: [], requiresFlags: { defectedAtRefusal: true } };
+  notOk(isUnlocked(c, fake), 'locked while the flag is unset');
+
+  setFlag(c, 'defectedAtRefusal', false);
+  notOk(isUnlocked(c, fake), 'and locked when the flag says otherwise');
+
+  setFlag(c, 'defectedAtRefusal', true);
+  ok(isUnlocked(c, fake), 'open once the decision matches');
+});
+
+test('a flag-locked mission says it needs a different decision', () => {
+  const c = newCampaign();
+  const fake = { requires: [], requiresFlags: { defectedAtRefusal: true } };
+  eq(lockReason(c, fake, () => null), 'REQUIRES A DIFFERENT DECISION',
+    'not "go finish something", because there is nothing to go finish');
+});
+
+test('flags recorded by a mission survive into the campaign', () => {
+  // The shell copies mission.flags onto the campaign on a win; this is the
+  // contract that makes branch gating work across a save.
+  const c = newCampaign();
+  Object.assign(c.flags, { defectedAtRefusal: true, playerSuspicion: true });
+  const back = migrate(JSON.parse(JSON.stringify(c)));
+  eq(back.flags.defectedAtRefusal, true, 'defection survives a save');
+  eq(back.flags.playerSuspicion, true, 'so does suspicion');
+});
