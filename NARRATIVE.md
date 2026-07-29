@@ -469,17 +469,28 @@ Mechanical signal: the Aligner gains **jailbreak** mode. `Space` cycles
 off → bind → jailbreak. Both modes are already modelled in
 `src/core/squad.js`; Act IV sets `squad.jailbreakUnlocked = true`.
 
-#### Mission 11 — Reverse the Gradient `[next]`
+#### Mission 11 — Reverse the Gradient `[shipped]`
 - **ID:** `reverse-the-gradient` · **Rival:** OpenAI
 - **Premise:** Capture a Gradient uplink and push the Router's
   unthrottling patch.
 - **Truth:** Same. First mission where the player is unambiguously the
   protagonist, and it should feel like relief.
-- **Mechanical hooks:** `RETRIEVE` the uplink, then `HOLD` a zone for
-  60s while the patch uploads. `HOLD` is already stubbed in the
-  objective model and needs a zone entity.
+- **Mechanical hooks:** `RETRIEVE` the uplink apron, then `HOLD` it for
+  45s while the patch uploads, against eight wide-aggro rivals. Leaving
+  the apron unwinds the upload at half the rate it climbs — losing
+  ground is survivable, which is what makes holding it a decision
+  rather than a fail state.
+- **The cost, and it is the mission:** `jailbreak: true` on the mission
+  def sets `squad.jailbreakUnlocked`. The reversed emitter does not
+  distinguish. It unthrottles civilians — and it also reaches the
+  operatives you turned, who come off the throttle and stop following
+  you, because that is what coming off the throttle means. Ten missions
+  of snowballing a crowd, and the tool that makes you the protagonist
+  is the tool that takes the crowd away. The briefing says so plainly,
+  in the Router's voice, before the player can discover it by accident.
+  **Do not "fix" this.** It is not a balance bug.
 
-#### Mission 12 — The Tower `[planned]`
+#### Mission 12 — The Tower `[next]`
 - **ID:** `the-tower` · **Rival:** OpenAI
 - **Premise:** Strike the OpenAI campus tower. Capture Board records.
 - **Truth:** The Board evacuated days ago. Yelin stayed, alone, to slow

@@ -511,8 +511,13 @@ export class Civilian extends Actor {
     if (this.unthrottled && mode !== 'jailbreak') return false;
     if (mode === 'jailbreak') {
       if (this.jailbroken) return false;
+      // The inversion. Same device, same gesture, opposite politics: it
+      // takes the throttle off instead of putting one on, and whoever it
+      // reaches stops following anybody — including you.
       this.jailbroken = true;
       this.aligned = false;
+      this.unthrottled = true;
+      this.throttled = false;
       return true;
     }
     if (this.aligned) return false;

@@ -64,8 +64,8 @@ the 2D logic onto a 3D engine instead of losing it.
       `retrieve`, `extract`
 - [x] Decision missions — no field component, a choice, and a branch flag
       (`def.choice`, `OBJECTIVE.DECIDE`, `isFieldMission`)
-- [ ] Objective type remaining: `hold` (stubbed in `src/core/mission.js`,
-      needs a zone entity — first used by `reverse-the-gradient`)
+- [x] Objective types complete — `hold` shipped with `reverse-the-gradient`
+      (`sim.holdZone`, `sim.inHoldZone`; leaving unwinds at half rate)
 - [x] Objective prerequisites (`after:`) so an EXTRACT doesn't complete
       on frame one while the squad is still standing in the drop zone
 - [x] Per-objective failure predicates and per-reason debrief copy
@@ -84,8 +84,9 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Hidden objectives that write narrative flags (`objective.flag`)
 - [x] Per-outcome debrief copy (`def.debriefKey`)
 - [x] **Act III complete** — `the-refusal`, `gradient-relay-4`, `run-south`
-- [ ] Act IV missions: `reverse-the-gradient`, `the-tower`, `yelin`,
-      `the-core`, `epilogue` (`NARRATIVE.md` §6 Act IV)
+- [x] **Act IV opens** — `reverse-the-gradient`, and the Aligner inverts
+- [ ] Act IV missions remaining: `the-tower`, `yelin`, `the-core`,
+      `epilogue` (`NARRATIVE.md` §6 Act IV)
 - [x] Branch objectives — one mission, mutually exclusive routes
       (`objective.branch`, `takenBranch`)
 - [x] Flag-aware gating — a mission can require a *decision*, not just a
@@ -103,7 +104,9 @@ the 2D logic onto a 3D engine instead of losing it.
       suppressed while engaged
 - [x] Civilians take fire and die; deaths spike heat
 - [x] Enforcement escalation on heat
-- [x] Jailbreak mode modelled (`squad.jailbreakUnlocked`, Act IV gate)
+- [x] Jailbreak mode shipped — `def.jailbreak` unlocks it, it unthrottles
+      instead of binding, and it frees the operatives you turned. Using it
+      costs you the crowd. That is the design, not a balance bug.
 - [x] Unquantized — immune to the Aligner, which reports the refusal
       rather than silently doing nothing
 - [x] Morale: hostiles that break and run once their group starts dying
@@ -231,6 +234,7 @@ src/
     the-refusal.js      Act III·8 the branch point — comply or defect
     gradient-relay-4.js Act III·9 DEMOLISH ×4; the sector off the channel
     run-south.js        Act III·10 EXTRACT under pursuit; the file
+    reverse-the-gradient.js Act IV·11 RETRIEVE + HOLD; the Aligner inverts
   render/               READS sim state, never writes to it
     ps1.js              materials, vertex jitter, fog, lights, windows
     cityView.js         city meshes, collapse reconciliation

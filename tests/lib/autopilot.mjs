@@ -146,6 +146,9 @@ function goalFor(sim, obj) {
     case OBJECTIVE.EXTRACT:
       return sim.extraction ? { x: sim.extraction.x, z: sim.extraction.z } : null;
 
+    case OBJECTIVE.HOLD:
+      return sim.holdZone ? { x: sim.holdZone.x, z: sim.holdZone.z } : null;
+
     default:
       return null;
   }

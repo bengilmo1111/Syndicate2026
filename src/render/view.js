@@ -93,7 +93,12 @@ export class View {
     this.civilianLayer.sync(sim.civilians, dt);
 
     this.fx.syncSquad(sim.squad);
-    this.fx.setExtractionZone(sim.extraction, sim.assetsSecured >= sim.assets.length);
+    // A mission has an extraction zone or a hold zone, never both.
+    if (sim.holdZone) {
+      this.fx.setObjectiveZone(sim.holdZone, true, sim.inHoldZone);
+    } else {
+      this.fx.setObjectiveZone(sim.extraction, sim.assetsSecured >= sim.assets.length);
+    }
     this.fx.update(dt);
 
     this.rig.follow(sim.squad.selectedCenter() ?? sim.squad.center());

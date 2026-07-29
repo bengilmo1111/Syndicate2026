@@ -148,16 +148,25 @@ export class Fx {
     }
   }
 
-  setExtractionZone(zone, ready) {
+  /**
+   * The one ring on the ground that says "be here".
+   *
+   * `held` marks a zone the squad is currently standing in — an upload
+   * running rather than a place to walk to — and beats harder so the
+   * player can tell at a glance whether the clock is moving.
+   */
+  setObjectiveZone(zone, ready, held = false) {
     this.zoneMesh.visible = !!zone;
     if (!zone) return;
     this.zoneMesh.position.set(zone.x, 0.11, zone.z);
-    const pulse = 0.97 + Math.sin(performance.now() / 300) * 0.03;
+    const rate = held ? 160 : 300;
+    const pulse = 0.97 + Math.sin(performance.now() / rate) * (held ? 0.05 : 0.03);
     this.zoneMesh.scale.setScalar(zone.radius * pulse);
     // Dim until the objective is actually live, so it reads as a marker
     // rather than as somewhere you should already be standing.
-    this.zoneMat.color.setHex(ready ? 0x6fe3d0 : 0x54627a);
-    this.zoneMat.opacity = ready ? 0.55 : 0.25;
+    if (held) this.zoneMat.color.setHex(0xffc857);
+    else this.zoneMat.color.setHex(ready ? 0x6fe3d0 : 0x54627a);
+    this.zoneMat.opacity = held ? 0.6 : (ready ? 0.55 : 0.25);
   }
 
   setCursor(x, z, visible = true) {

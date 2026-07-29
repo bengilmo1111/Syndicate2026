@@ -17,6 +17,7 @@ import { ALIGNER } from '../src/core/squad.js';
 
 const MISSIONS = getAllMissions();
 const FIELD = getFieldMissions();
+const idle = { moveX: 0, moveZ: 0, firing: false, aimPoint: null };
 
 // ------------------------------------------------------------- definitions
 
@@ -582,4 +583,54 @@ test('run-south: the file is the point of the mission', () => {
     includes(def.debrief[key].join(' '), 'MAREN ARDENT', `${key}: the name`);
     includes(def.debrief[key].join(' '), 'ILSE', `${key}: the daughter`);
   }
+});
+
+// ----------------------------------------------------------------- act IV
+
+suite('act IV');
+
+test('reverse-the-gradient: the act unlocks the inversion', () => {
+  const sim = createSim('reverse-the-gradient');
+  ok(sim.squad.jailbreakUnlocked, 'Act IV hands the player the reversed emitter');
+
+  // And it stays an Act IV thing. If this ever passes for mission one the
+  // whole arc collapses into a menu option.
+  notOk(createSim('sector-7').squad.jailbreakUnlocked, 'Act I does not have it');
+});
+
+test('reverse-the-gradient: the upload only runs while you stand in it', () => {
+  const sim = createSim('reverse-the-gradient');
+  const upload = sim.mission.objectives.find(o => o.id === 'upload');
+  const zone = sim.holdZone;
+  ok(zone, 'there is an apron to hold');
+
+  // Objective one first: HOLD is gated behind taking the apron.
+  sim.assets[0].secured = true;
+  sim.squad.agents.forEach(a => { a.x = zone.x + zone.radius + 60; a.z = zone.z; });
+  for (let i = 0; i < 120; i++) step(sim, 1 / 60, idle);
+  notOk(sim.inHoldZone, 'nobody is on the apron');
+  eq(upload.progress, 0, 'and the patch has not started');
+
+  sim.squad.agents.forEach(a => { a.x = zone.x; a.z = zone.z; });
+  for (let i = 0; i < 120; i++) step(sim, 1 / 60, idle);
+  ok(sim.inHoldZone, 'standing on it counts');
+  gte(upload.progress, 1.5, `two seconds of upload (${upload.progress.toFixed(1)}s)`);
+
+  // Walking off unwinds it, at half the rate it climbs. That asymmetry is
+  // what makes losing the apron survivable instead of instantly fatal.
+  const banked = upload.progress;
+  sim.squad.agents.forEach(a => { a.x = zone.x + zone.radius + 60; });
+  for (let i = 0; i < 120; i++) step(sim, 1 / 60, idle);
+  lt(upload.progress, banked, 'off the apron the patch unwinds');
+  gte(upload.progress, banked - 1.1, 'but at half speed, not instantly');
+});
+
+test('reverse-the-gradient: the briefing warns you what it costs', () => {
+  // The player must be told, in the fiction, before the mechanic takes
+  // their crowd away. Finding out by accident reads as a bug.
+  const def = getMissionDef('reverse-the-gradient');
+  const text = def.briefing.join(' ').toLowerCase();
+  ok(text.includes('turned') || text.includes('carrying'),
+    'the briefing says the emitter reaches your own followers');
+  ok(def.jailbreak, 'and the mission is flagged as the one that unlocks it');
 });

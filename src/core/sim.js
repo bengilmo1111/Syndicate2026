@@ -40,7 +40,7 @@ export function createSim(missionId) {
   const rng = makeRng(def.cityseed ?? 1);
   const {
     city, hostiles, civilianCount, assets = [], extraction = null, quarry = [],
-    extras = [], unthrottled = false,
+    extras = [], unthrottled = false, holdZone = null,
   } = def.setup(rng);
 
   const civilians = [];
@@ -67,6 +67,9 @@ export function createSim(missionId) {
   // as a pause before every order executes. Not a bug — the player is
   // meant to notice it before anyone explains it.
   if (def.bravoHesitation) squad.agents[1].hesitation = def.bravoHesitation;
+  // Act IV: the same hardware, reversed. Space now cycles through a mode
+  // that unthrottles people instead of binding them.
+  if (def.jailbreak) squad.jailbreakUnlocked = true;
   for (const a of squad.agents) resolveCollision(city, a);
   for (const a of assets) {
     resolveCollision(city, a);
@@ -101,6 +104,8 @@ export function createSim(missionId) {
     /** Set when the mission is lost for a reason other than a squad wipe. */
     failReason: null,
     unthrottled,
+    holdZone,
+    inHoldZone: false,
     /** Set the moment the squad turns on its own side. */
     defected: false,
     /** The Aligner reports an unquantized target once, not every frame. */
@@ -224,6 +229,11 @@ export function step(sim, dt, intent) {
   }
   sim.assetsSecured = sim.assets.filter(a => a.secured && !a.dead).length;
 
+  // Holding a zone means standing in it while people shoot at you. One
+  // agent is enough to keep the upload running; nobody in it stops it.
+  sim.inHoldZone = !!sim.holdZone
+    && squad.alive.some(a => dist(a.x, a.z, sim.holdZone.x, sim.holdZone.z) <= sim.holdZone.radius);
+
   for (const q of sim.quarry) {
     if (q.pendingLine) {
       say(sim, q.pendingLine.speaker, q.pendingLine.text, 5);
@@ -297,7 +307,7 @@ export function step(sim, dt, intent) {
     assetsSecured: sim.assetsSecured,
     assetsLost: sim.assets.filter(a => a.dead).length,
     squadExtracted: sim.squadExtracted,
-    inZone: sim.squadExtracted,
+    inZone: sim.inHoldZone,
   });
 
   if (squad.allDead) {
