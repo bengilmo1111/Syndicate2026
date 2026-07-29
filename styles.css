@@ -405,6 +405,31 @@ html, body {
 #overlay-body em { color: var(--text-dim); }
 #overlay-body strong { color: var(--accent); }
 
+.overlay-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.choice-button {
+  padding: 13px 18px;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(111, 227, 208, 0.28);
+  cursor: pointer;
+}
+
+.choice-button:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(111, 227, 208, 0.07);
+}
+
 .overlay-actions {
   display: flex;
   flex-wrap: wrap;

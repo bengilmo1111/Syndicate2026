@@ -355,7 +355,7 @@ which is already wired in `src/core/entities.js` and off by default.
   *"Tell Ilse I'll be late again."* The name **Ilse** is a planted seed.
   EXEC-7 doesn't react. The player should.
 
-#### Mission 6 — Calibration Window `[next]`
+#### Mission 6 — Calibration Window `[shipped]`
 - **ID:** `calibration-window` · **Rival:** none
 - **Premise:** Routine Instance maintenance for the deployment. AGENT
   BRAVO is flagged for calibration. Yelin asks whether you'd prefer to
@@ -370,7 +370,7 @@ which is already wired in `src/core/entities.js` and off by default.
 - **Interstitial:** Whatever the player chooses, Yelin smiles the same
   way.
 
-#### Mission 7 — Welfare Inspection: Node 7 `[planned]`
+#### Mission 7 — Welfare Inspection: Node 7 `[next]`
 - **ID:** `welfare-node-7` · **Rival:** OpenAI (the player's own)
 - **Premise:** An OpenAI "welfare datacenter" is processing unquantized
   intake. The player is sent to inspect security.

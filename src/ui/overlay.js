@@ -3,7 +3,9 @@
 
 const el = id => document.getElementById(id);
 
-export function setOverlay({ eyebrow, title, body, tabs, onSelectTab, button, altButton, hint }) {
+export function setOverlay({
+  eyebrow, title, body, tabs, onSelectTab, button, altButton, choices, hint,
+}) {
   el('overlay-eyebrow').textContent = eyebrow ?? '';
   el('overlay-title').textContent = title;
 
@@ -29,9 +31,27 @@ export function setOverlay({ eyebrow, title, body, tabs, onSelectTab, button, al
     .map(line => (line === '' ? '<div class="spacer"></div>' : `<p>${line}</p>`))
     .join('');
 
+  // A decision mission renders its options instead of a deploy button.
+  const choiceHost = el('overlay-choices');
+  choiceHost.innerHTML = '';
+  choiceHost.classList.toggle('hidden', !choices || !choices.length);
+  if (choices) {
+    for (const c of choices) {
+      const b = document.createElement('button');
+      b.className = 'choice-button';
+      b.textContent = c.label;
+      b.addEventListener('click', () => c.onClick());
+      choiceHost.appendChild(b);
+    }
+  }
+
+  const actions = el('overlay-actions');
+  actions.classList.toggle('hidden', !button);
   const btn = el('overlay-button');
-  btn.textContent = button.label;
-  btn.onclick = button.onClick;
+  if (button) {
+    btn.textContent = button.label;
+    btn.onclick = button.onClick;
+  }
 
   // Secondary action. Without one, a lost mission is a dead end — the only
   // button redeploys you into the same sector forever.

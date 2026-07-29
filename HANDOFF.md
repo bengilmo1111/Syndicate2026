@@ -126,6 +126,11 @@ line of sight**, opening firing lanes that didn't exist at mission start.
 - **Quarry** (`okafor-contract`) — a named civilian who flees the squad
   and escapes on a timer. The squad will **not** auto-target her; killing
   a journalist has to be deliberately ordered, and a test enforces it.
+- **Decision missions** — a mission with `def.choice` has no city and no
+  squad on the ground. The shell renders its options instead of a DEPLOY
+  button, the pick writes a narrative flag onto the campaign, and
+  `isFieldMission()` is what keeps `createSim` and the autopilot away from
+  it. `calibration-window` is the first.
 - **BRAVO's hesitation** — Act II's mechanical signal, set per-mission
   via `bravoHesitation` on the mission def
 - **Unquantized** hostiles — `alignable: false`, so the Aligner reports
@@ -190,7 +195,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 105 checks, ~2s, zero dependencies. Covers city
+`node tests/run.mjs` — 110 checks, ~2s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -206,7 +211,7 @@ damage path, making surge cost no heat, making the throttle not slow
 anyone, giving every agent the same weapon, breaking budget conservation,
 and letting the minigun fire cold. It is load-bearing, not decorative.
 
-`node tests/browser.mjs` — 23 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 26 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -223,8 +228,8 @@ is still a human reading a screenshot.
 - No interstitials between missions — gating exists, but the beats
   *between* the briefings (Yelin's notes, the graffiti) don't
 - No interstitials between missions
-- No branch-flag plumbing yet for `bravoCalibrated`, `playerSuspicion`,
-  `defectedAtRefusal`, `yelinFate` (spec'd in `NARRATIVE.md` §9)
+- Branch flags persist, but nothing *reads* them yet — `bravoCalibrated`
+  is recorded and no later mission changes because of it
 - **Followers and escorted assets don't path.** Agents route properly
   now; anyone following them still beelines for the squad centroid and
   slides along whatever they hit. Usually fine because the squad walks
@@ -239,11 +244,7 @@ is still a human reading a screenshot.
 For any mission work, briefing copy, debriefs, or character lines,
 **read `NARRATIVE.md` first** — the slots are pre-defined.
 
-1. **`calibration-window`** (Act II·6) — a no-combat mission that is
-   entirely a conversation with a choice, setting `bravoCalibrated`.
-   Needs a choice screen in the overlay; the campaign already persists
-   flags, so the plumbing exists.
-2. **`welfare-node-7`** (Act II·7) — the forced-upgrade facility, with a
+1. **`welfare-node-7`** (Act II·7) — the forced-upgrade facility, with a
    hidden objective to free detainees that sets `playerSuspicion`.
 3. **Interstitials** — the Yelin notes and street graffiti between
    missions carry most of Act I→II's tonal shift. The subtitle channel
