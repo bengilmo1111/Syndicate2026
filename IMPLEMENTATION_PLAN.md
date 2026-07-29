@@ -62,6 +62,8 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Mission objective model with a typed registry
 - [x] Objective types shipped: `eliminate`, `align`, `demolish`,
       `retrieve`, `extract`
+- [x] Decision missions — no field component, a choice, and a branch flag
+      (`def.choice`, `OBJECTIVE.DECIDE`, `isFieldMission`)
 - [ ] Objective type remaining: `hold` (stubbed in `src/core/mission.js`,
       needs a zone entity — first used by `reverse-the-gradient`)
 - [x] Objective prerequisites (`after:`) so an EXTRACT doesn't complete
@@ -77,8 +79,8 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Mission gating — `requires` on each mission, enforced by
       `src/core/campaign.js`, with locked tabs that say what to do first
 - [ ] Interstitial screens between missions (Yelin's notes, graffiti beats)
-- [~] Act II missions: `okafor-contract` shipped; `calibration-window`
-      and `welfare-node-7` still to do (`NARRATIVE.md` §6 Act II)
+- [~] Act II missions: `okafor-contract` and `calibration-window`
+      shipped; **`welfare-node-7` is next** (`NARRATIVE.md` §6 Act II)
 - [x] BRAVO's hesitation — Act II's mechanical signal, per-mission via
       `bravoHesitation`
 
@@ -215,6 +217,7 @@ src/
     sable-campus.js     Act I·3  RETRIEVE + EXTRACT
     the-bracket.js      Act I·4  ELIMINATE vs Unquantized
     okafor-contract.js  Act II·5 ELIMINATE a fleeing quarry, on a clock
+    calibration-window.js Act II·6 no combat — a room and a choice
   render/               READS sim state, never writes to it
     ps1.js              materials, vertex jitter, fog, lights, windows
     cityView.js         city meshes, collapse reconciliation

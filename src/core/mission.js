@@ -11,6 +11,7 @@ export const OBJECTIVE = Object.freeze({
   EXTRACT: 'extract',       // get the squad into an extraction zone
   HOLD: 'hold',             // stay in a zone for N seconds
   RETRIEVE: 'retrieve',     // reach an asset and keep it alive to extraction
+  DECIDE: 'decide',         // a briefing-room choice, no field component
 });
 
 export const STATUS = Object.freeze({
@@ -37,6 +38,19 @@ export function getMissionDef(id) {
 
 export function getAllMissions() {
   return order.map(id => registry.get(id));
+}
+
+/**
+ * Missions with a field component. A decision mission is a briefing room
+ * and a choice — there is no city to build and nothing to simulate, so
+ * anything that drives `createSim` needs to know the difference.
+ */
+export function isFieldMission(def) {
+  return !def.choice;
+}
+
+export function getFieldMissions() {
+  return getAllMissions().filter(isFieldMission);
 }
 
 export function objective(type, opts = {}) {
@@ -116,6 +130,9 @@ export function updateMissionStatus(mission, s) {
         break;
       case OBJECTIVE.RETRIEVE:
         obj.progress = s.assetsSecured ?? 0;
+        break;
+      case OBJECTIVE.DECIDE:
+        obj.progress = s.decided ? obj.target : 0;
         break;
       default:
         break;

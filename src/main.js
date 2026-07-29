@@ -60,6 +60,10 @@ function showBriefing() {
     app.selectedMissionId = def.id;
   }
 
+  // A decision mission has no field component: no city, no preview, just
+  // the room and the choice.
+  if (def.choice) { showChoice(def); return; }
+
   loadPreview();
   const { done, total } = progress(app.campaign, MISSIONS);
   const record = app.campaign.records[def.id];
@@ -87,6 +91,51 @@ function showBriefing() {
       ? { label: 'WIPE RECORD', onClick: resetCampaign }
       : null,
     hint: CONTROLS_HINT,
+  });
+  showOverlay();
+}
+
+/**
+ * A briefing-room mission. There is nothing to deploy into — the mission
+ * *is* the decision, and the flag it sets is the only thing it leaves
+ * behind.
+ */
+function showChoice(def) {
+  setOverlay({
+    eyebrow: `${def.act} · ${def.sector}`,
+    title: def.name,
+    tabs: MISSIONS.map(m => ({
+      id: m.id,
+      name: m.name.split(' — ')[0],
+      active: m.id === app.selectedMissionId,
+      locked: !isUnlocked(app.campaign, m),
+      done: isComplete(app.campaign, m.id),
+      lockReason: lockReason(app.campaign, m, getMissionDef),
+    })),
+    onSelectTab: (id) => { app.selectedMissionId = id; showBriefing(); },
+    body: def.choice.prompt,
+    choices: def.choice.options.map(o => ({
+      label: o.label,
+      onClick: () => resolveChoice(def, o),
+    })),
+    hint: 'This one does not deploy. Whatever you choose, he smiles the same way.',
+  });
+  showOverlay();
+}
+
+function resolveChoice(def, option) {
+  Object.assign(app.campaign.flags, option.flag ?? {});
+  recordWin(app.campaign, def.id, {});
+  saveCampaign(app.campaign);
+  const next = nextMission(app.campaign, MISSIONS);
+  if (next) app.selectedMissionId = next.id;
+
+  app.phase = PHASE.WON;
+  setOverlay({
+    eyebrow: 'MAINTENANCE CLOSED',
+    title: option.label,
+    body: option.outcome,
+    button: { label: 'RETURN TO BRIEFING', onClick: showBriefing },
   });
   showOverlay();
 }

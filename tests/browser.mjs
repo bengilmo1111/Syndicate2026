@@ -103,7 +103,8 @@ check('a locked tab says what to do first', /REQUIRES/.test(lockedTitle ?? ''), 
 await page.evaluate(() => {
   localStorage.setItem('syndicate2026.campaign', JSON.stringify({
     version: 2,
-    completed: ['sector-7', 'district-12', 'sable-campus', 'the-bracket'],
+    completed: ['sector-7', 'district-12', 'sable-campus', 'the-bracket',
+      'okafor-contract', 'calibration-window'],
     flags: {}, records: {},
   }));
 });
@@ -119,6 +120,23 @@ for (let i = 0; i < missions.length; i++) {
   await page.click(`.mission-tab:nth-child(${i + 1})`);
   await page.waitForTimeout(400);
   const title = await page.textContent('#overlay-title');
+
+  // Decision missions have no field component — they render a choice
+  // instead of a deploy button.
+  if (await page.isVisible('#overlay-choices')) {
+    const options = await page.$$eval('.choice-button', els => els.map(e => e.textContent));
+    check(`${title}: offers a decision instead of deploying`, options.length >= 2,
+      options.join(' / '));
+    await page.click('.choice-button');
+    await page.waitForTimeout(500);
+    const flag = await page.evaluate(() => window.__syndicate.campaign.flags);
+    check('and choosing records a narrative flag', Object.keys(flag).length > 0,
+      JSON.stringify(flag));
+    await page.click('#overlay-button');
+    await page.waitForTimeout(600);
+    continue;
+  }
+
   await page.click('#overlay-button');
   await page.waitForTimeout(1100);
 

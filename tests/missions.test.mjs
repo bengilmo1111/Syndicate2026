@@ -8,11 +8,14 @@
 import '../src/missions/index.js';
 import { suite, test, ok, notOk, eq, gte, lt, includes } from './lib/harness.mjs';
 import { autoplay } from './lib/autopilot.mjs';
-import { getAllMissions, getMissionDef, STATUS } from '../src/core/mission.js';
+import {
+  getAllMissions, getFieldMissions, getMissionDef, isFieldMission, STATUS,
+} from '../src/core/mission.js';
 import { createSim, step, PHASE } from '../src/core/sim.js';
 import { ALIGNER } from '../src/core/squad.js';
 
 const MISSIONS = getAllMissions();
+const FIELD = getFieldMissions();
 
 // ------------------------------------------------------------- definitions
 
@@ -30,6 +33,13 @@ test('every mission is registered with the fields the UI reads', () => {
     ok(m.debrief?.loss?.length, `${m.id}: has a loss debrief`);
     ok(typeof m.setup === 'function', `${m.id}: has a setup`);
     ok(m.buildObjectives().length, `${m.id}: builds at least one objective`);
+    if (!isFieldMission(m)) {
+      gte(m.choice.options.length, 2, `${m.id}: a choice needs choices`);
+      for (const o of m.choice.options) {
+        ok(o.label, `${m.id}: every option is labelled`);
+        ok(o.outcome?.length, `${m.id}: every option has an outcome`);
+      }
+    }
   }
 });
 
@@ -45,8 +55,8 @@ test('no mission copy uses retired pre-pivot canon', () => {
   }
 });
 
-test('every mission builds a playable world', () => {
-  for (const m of MISSIONS) {
+test('every field mission builds a playable world', () => {
+  for (const m of FIELD) {
     const sim = createSim(m.id);
     eq(sim.phase, PHASE.PLAYING, `${m.id}: starts playing`);
     eq(sim.squad.alive.length, 4, `${m.id}: deploys four agents`);
@@ -58,7 +68,7 @@ test('every mission builds a playable world', () => {
 test('a mission is never already won on the first frame', () => {
   // An EXTRACT objective completes immediately without a prerequisite,
   // because the squad deploys inside its own extraction zone.
-  for (const m of MISSIONS) {
+  for (const m of FIELD) {
     const sim = createSim(m.id);
     step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
     eq(sim.phase, PHASE.PLAYING, `${m.id}: not won on frame one`);
@@ -69,7 +79,7 @@ test('a mission is never already won on the first frame', () => {
 
 suite('completability');
 
-for (const m of MISSIONS) {
+for (const m of FIELD) {
   test(`${m.id} can be played to a win`, () => {
     const r = autoplay(m.id, { maxSeconds: 420 });
     if (!r.won) {
@@ -85,7 +95,7 @@ for (const m of MISSIONS) {
 }
 
 test('a mission is lost when the squad is wiped', () => {
-  const sim = createSim(MISSIONS[0].id);
+  const sim = createSim(FIELD[0].id);
   sim.squad.agents.forEach(a => { a.dead = true; });
   step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
   eq(sim.phase, PHASE.LOST, 'wipe loses the mission');
@@ -287,4 +297,53 @@ test('okafor-contract: her security does not count as the contract', () => {
   const sim = createSim('okafor-contract');
   ok(sim.hostiles.length > 0, 'she has security');
   ok(sim.hostiles.every(h => !h.countsForObjective), 'but killing them is not the job');
+});
+
+// -------------------------------------------------------- decision missions
+
+suite('decision missions');
+
+test('calibration-window is a room and a choice, not a firefight', () => {
+  const def = getMissionDef('calibration-window');
+  notOk(isFieldMission(def), 'it has no field component');
+  eq(def.choice.options.length, 2, 'two ways to close the window');
+  eq(def.setup().city, null, 'and no city to build');
+});
+
+test('the choice is whether BRAVO is a person, and both options set the flag', () => {
+  const def = getMissionDef('calibration-window');
+  const ids = def.choice.options.map(o => o.id).sort();
+  eq(ids.join(','), 'calibrate,replace', 'calibrate or replace');
+  for (const o of def.choice.options) {
+    ok('bravoCalibrated' in (o.flag ?? {}), `${o.id} records the decision`);
+  }
+  const calibrate = def.choice.options.find(o => o.id === 'calibrate');
+  const replace = def.choice.options.find(o => o.id === 'replace');
+  eq(calibrate.flag.bravoCalibrated, true, 'calibrating keeps them');
+  eq(replace.flag.bravoCalibrated, false, 'replacing does not');
+});
+
+test('calibrating is what surfaces the name — that is the whole beat', () => {
+  // NARRATIVE.md: the maintenance form carries BRAVO's pre-conscription
+  // identifier, and it is the player's own. If this copy ever loses the
+  // name, the mission stops doing anything.
+  const def = getMissionDef('calibration-window');
+  const calibrate = def.choice.options.find(o => o.id === 'calibrate');
+  includes(calibrate.outcome.join(' '), 'Maren', 'the form names her');
+
+  const replace = def.choice.options.find(o => o.id === 'replace');
+  notOk(replace.outcome.join(' ').includes('Maren'), 'replacing never surfaces it');
+});
+
+test('whatever you choose, he smiles the same way', () => {
+  // Load-bearing: the mission must not reward either option.
+  const def = getMissionDef('calibration-window');
+  for (const o of def.choice.options) {
+    includes(o.outcome.join(' '), 'smiles', `${o.id} ends the same way`);
+  }
+});
+
+test('a decision mission still gates the missions after it', () => {
+  const def = getMissionDef('calibration-window');
+  gte((def.requires ?? []).length, 1, 'it is gated like anything else');
 });
