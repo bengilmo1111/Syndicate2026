@@ -40,7 +40,7 @@ export function createSim(missionId) {
   const rng = makeRng(def.cityseed ?? 1);
   const {
     city, hostiles, civilianCount, assets = [], extraction = null, quarry = [],
-    extras = [],
+    extras = [], unthrottled = false,
   } = def.setup(rng);
 
   const civilians = [];
@@ -51,6 +51,16 @@ export function createSim(missionId) {
   // Assets live in the civilian array so they get collision, damage, and
   // rendering for free. `isAsset` is what tells them apart.
   civilians.push(...assets, ...quarry, ...extras);
+
+  // A sector off the update channel. Not the squad's doing and not
+  // reversible by them — the Aligner simply has nothing to talk to.
+  if (unthrottled) {
+    for (const c of civilians) {
+      if (c.isAsset || c.isQuarry) continue;
+      c.unthrottled = true;
+      c.rollBehaviour(rng);
+    }
+  }
 
   const squad = new Squad(city.deploy.x, city.deploy.z);
   // Act II's mechanical signal: BRAVO's Instance is failing, and it shows
@@ -90,6 +100,7 @@ export function createSim(missionId) {
     throttledCount: 0,
     /** Set when the mission is lost for a reason other than a squad wipe. */
     failReason: null,
+    unthrottled,
     /** Set the moment the squad turns on its own side. */
     defected: false,
     /** The Aligner reports an unquantized target once, not every frame. */

@@ -83,8 +83,8 @@ the 2D logic onto a 3D engine instead of losing it.
       `welfare-node-7`
 - [x] Hidden objectives that write narrative flags (`objective.flag`)
 - [x] Per-outcome debrief copy (`def.debriefKey`)
-- [~] Act III missions: `the-refusal` shipped; **`gradient-relay-4` is
-      next**, then `run-south` (`NARRATIVE.md` §6 Act III)
+- [~] Act III missions: `the-refusal` and `gradient-relay-4` shipped;
+      **`run-south` closes the act** (`NARRATIVE.md` §6 Act III)
 - [x] Branch objectives — one mission, mutually exclusive routes
       (`objective.branch`, `takenBranch`)
 - [x] Flag-aware gating — a mission can require a *decision*, not just a
@@ -228,6 +228,7 @@ src/
     calibration-window.js Act II·6 no combat — a room and a choice
     welfare-node-7.js   Act II·7 ELIMINATE + a hidden objective nobody mentions
     the-refusal.js      Act III·8 the branch point — comply or defect
+    gradient-relay-4.js Act III·9 DEMOLISH ×4; the sector off the channel
   render/               READS sim state, never writes to it
     ps1.js              materials, vertex jitter, fog, lights, windows
     cityView.js         city meshes, collapse reconciliation
