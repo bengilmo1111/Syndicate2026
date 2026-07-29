@@ -55,7 +55,7 @@ python3 -m http.server 8000
 
 ## Current state (one paragraph)
 
-**Act I is complete.** Four playable missions on rotatable, destructible
+**Act I is complete, and Act II has opened.** Four playable missions on rotatable, destructible
 low-poly city blocks, selectable from tabs on the briefing card, which
 renders over a live, slowly orbiting view of the sector.
 **Sector 7 — Reclamation** (Act I·1: eliminate an Amazon field cell ×5,
@@ -123,6 +123,11 @@ line of sight**, opening firing lanes that didn't exist at mission start.
   owns localStorage, because core cannot know the browser exists.
 - Objective prerequisites (`after:`) and per-objective failure predicates
   with per-reason debrief copy and titles
+- **Quarry** (`okafor-contract`) — a named civilian who flees the squad
+  and escapes on a timer. The squad will **not** auto-target her; killing
+  a journalist has to be deliberately ordered, and a test enforces it.
+- **BRAVO's hesitation** — Act II's mechanical signal, set per-mission
+  via `bravoHesitation` on the mission def
 - **Unquantized** hostiles — `alignable: false`, so the Aligner reports
   `no instance handshake` instead of silently doing nothing. That
   refusal is the reveal in `the-bracket`; don't make it quieter.
@@ -185,7 +190,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 98 checks, ~2s, zero dependencies. Covers city
+`node tests/run.mjs` — 105 checks, ~2s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -234,18 +239,15 @@ is still a human reading a screenshot.
 For any mission work, briefing copy, debriefs, or character lines,
 **read `NARRATIVE.md` first** — the slots are pre-defined.
 
-1. **Mission gating** so the player walks Act I in order. Do this
-   *before* Act II — the whole turn depends on the player having taken
-   the four Act I missions in sequence.
-2. **Interstitials** — the Yelin notes and street graffiti between
+1. **`calibration-window`** (Act II·6) — a no-combat mission that is
+   entirely a conversation with a choice, setting `bravoCalibrated`.
+   Needs a choice screen in the overlay; the campaign already persists
+   flags, so the plumbing exists.
+2. **`welfare-node-7`** (Act II·7) — the forced-upgrade facility, with a
+   hidden objective to free detainees that sets `playerSuspicion`.
+3. **Interstitials** — the Yelin notes and street graffiti between
    missions carry most of Act I→II's tonal shift. The subtitle channel
    handles in-mission lines; between-mission beats need a card.
-3. **Act II** · `NARRATIVE.md` §6. Starts with `okafor-contract`, which
-   needs a named target that flees when approached — positioning rather
-   than damage. `calibration-window` after it is a no-combat choice
-   screen setting `bravoCalibrated`, and the act's mechanical signal is
-   BRAVO hesitating once per mission — `agent.hesitation` is already
-   wired in `src/core/entities.js` and off by default.
 
 After Act I ships complete, Phase 4 (loadout + compute upgrades +
 research) is the next major arc, then Phase 5 (world map / meta-loop).

@@ -17,7 +17,7 @@ import { createSim, step, PHASE } from '../../src/core/sim.js';
 import { activeObjective, OBJECTIVE, STATUS } from '../../src/core/mission.js';
 import { ALIGNER } from '../../src/core/squad.js';
 import { dist } from '../../src/core/math.js';
-import { structureInPath } from '../../src/core/city.js';
+import { structureInPath, hasLineOfSight } from '../../src/core/city.js';
 
 /** Re-issuing a move order every frame defeats pathfinding. Throttle it. */
 const ORDER_INTERVAL = 0.55;
@@ -58,14 +58,16 @@ export function autoplay(missionId, opts = {}) {
         lastGoal = { x: goal.x, z: goal.z };
       }
 
-      // Structures are never auto-targeted — a DEMOLISH objective only
-      // progresses if something deliberately shoots the thing.
-      if (obj?.type === OBJECTIVE.DEMOLISH && goal.aim) {
+      // Some things are never auto-targeted and only die if something
+      // deliberately shoots them: structures for DEMOLISH, and a named
+      // civilian for a contract.
+      if (goal.aim) {
         const lead = sim.squad.alive[0];
-        // LOS *to* a standing structure is always false — the structure is
-        // what blocks it. The right question is whether our own target is
-        // the first thing a round would hit.
-        if (lead && structureInPath(sim.city, lead.x, lead.z, goal.aim.x, goal.aim.z) === goal.aim) {
+        const clear = goal.actor
+          ? hasLineOfSight(sim.city, lead.x, lead.z, goal.aim.x, goal.aim.z)
+            && dist(lead.x, lead.z, goal.aim.x, goal.aim.z) < lead.range
+          : structureInPath(sim.city, lead.x, lead.z, goal.aim.x, goal.aim.z) === goal.aim;
+        if (lead && clear) {
           intent.firing = true;
           intent.aimPoint = { x: goal.aim.x, z: goal.aim.z };
         }
@@ -104,8 +106,18 @@ function goalFor(sim, obj) {
   if (!centre) return null;
 
   switch (obj.type) {
-    case OBJECTIVE.ELIMINATE:
+    case OBJECTIVE.ELIMINATE: {
+      // A contract mission has a named quarry, and the squad will never
+      // auto-target her — she is a civilian. Killing a journalist has to
+      // be something the player deliberately does, so the bot has to do
+      // it deliberately too.
+      const live = sim.quarry.filter(q => !q.dead && !q.escaped);
+      if (live.length) {
+        const near = nearest(centre, live);
+        return near && { ...near, aim: near.ref, actor: true };
+      }
       return nearest(centre, sim.hostiles.filter(h => !h.dead && h.countsForObjective && !h.aligned));
+    }
 
     case OBJECTIVE.ALIGN:
       return nearest(centre, sim.civilians.filter(c => !c.dead && !c.aligned && !c.isAsset));

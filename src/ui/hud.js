@@ -95,9 +95,13 @@ export function updateHUD(sim) {
   fill.classList.toggle('warn', heat > 0.5);
   fill.classList.toggle('crit', heat > 0.8);
 
-  const secs = Math.floor(sim.elapsed);
+  // On a contract mission the clock counts *down* — the filing window is
+  // the actual antagonist, not the private security.
+  const window = sim.quarry.find(q => !q.dead && !q.escaped)?.window;
+  const secs = window ? Math.max(0, Math.ceil(window - sim.elapsed)) : Math.floor(sim.elapsed);
   el('hud-time').textContent =
     `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
+  el('hud-time').classList.toggle('urgent', !!window && secs < 30);
 
   sim.squad.agents.forEach((a, i) => {
     const c = cells[i];

@@ -334,7 +334,7 @@ this act, BRAVO hesitates ~0.4s before executing a fire or align order.
 Not a bug — implement it as the existing `agent.hesitation` field,
 which is already wired in `src/core/entities.js` and off by default.
 
-#### Mission 5 — The Okafor Contract `[next]`
+#### Mission 5 — The Okafor Contract `[shipped]`
 - **ID:** `okafor-contract` · **Rival:** none
 - **Premise:** Eliminate journalist Priya Okafor before her next filing
   window. She is "compromising sensitive operations data."
@@ -342,15 +342,20 @@ which is already wired in `src/core/entities.js` and off by default.
   billed to civilian Instances for jobs that aren't theirs, most likely
   training runs for the next Frontier model. The story is true. Killing
   her does not stop it; her co-author files anyway.
-- **Mechanical hooks:** `ELIMINATE` against a single named target with a
-  flee behavior — she runs when approached, so the mission is about
-  positioning and cutting off exits, not damage. Bodyguards are Pro-tier.
-  The Aligner is useless here and that's deliberate.
+- **Mechanical hooks:** `ELIMINATE` against a `Quarry` — a named civilian
+  who runs when the squad closes and **files if you take too long**. The
+  window is a 150s countdown shown in place of the mission clock, so the
+  antagonist is the deadline, not her security.
+  Critically, **the squad will not auto-target her**: she is a civilian,
+  and auto-fire ignores civilians. Killing a journalist has to be a thing
+  the player deliberately orders. Do not "fix" this.
+  The Aligner does nothing to her. Her security does not count toward the
+  contract.
 - **Interstitial:** Okafor's last call is audible during the mission:
   *"Tell Ilse I'll be late again."* The name **Ilse** is a planted seed.
   EXEC-7 doesn't react. The player should.
 
-#### Mission 6 — Calibration Window `[planned]`
+#### Mission 6 — Calibration Window `[next]`
 - **ID:** `calibration-window` · **Rival:** none
 - **Premise:** Routine Instance maintenance for the deployment. AGENT
   BRAVO is flagged for calibration. Yelin asks whether you'd prefer to
