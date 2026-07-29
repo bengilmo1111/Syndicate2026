@@ -176,21 +176,32 @@ export class Squad {
   }
 
   /**
-   * Run the Aligner sweep. Returns the civilians converted this frame so the
-   * caller can raise events (compliance chime, HUD counter, mission progress).
+   * Run the Aligner sweep.
+   *
+   * `converted` feeds mission progress and the HUD. `refused` is targets
+   * inside the field with no Instance the device can talk to — which is
+   * the only way the player ever finds out who they've been sent to kill.
    */
-  runAligner(civilians) {
-    if (!this.alignerEngaged) return [];
+  runAligner(civilians, hostiles = []) {
+    if (!this.alignerEngaged) return { converted: [], refused: [] };
     const mode = this.alignerMode;
     const converted = [];
+    const refused = [];
+
     for (const a of this.alive) {
       for (const c of civilians) {
         if (c.dead) continue;
         if (dist(a.x, a.z, c.x, c.z) > ALIGNER_RADIUS) continue;
         if (c.align(mode)) converted.push(c);
       }
+      for (const h of hostiles) {
+        if (h.dead || h.alignable || h.refusedAligner) continue;
+        if (dist(a.x, a.z, h.x, h.z) > ALIGNER_RADIUS) continue;
+        h.refusedAligner = true;
+        refused.push(h);
+      }
     }
-    return converted;
+    return { converted, refused };
   }
 }
 

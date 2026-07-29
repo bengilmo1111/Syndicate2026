@@ -148,6 +148,14 @@ export class Hostile extends Actor {
   constructor(x, z, opts = {}) {
     super(x, z, 1.15);
     this.faction = opts.faction ?? 'rival';
+    // Does killing this count toward an ELIMINATE objective? Enforcement
+    // showing up because you were sloppy is not progress.
+    this.countsForObjective = opts.countsForObjective ?? true;
+    // Everyone in a syndicate sector carries a throttled Instance the
+    // Aligner can talk to. Not everyone does.
+    this.alignable = opts.alignable ?? true;
+    /** Drained by the sim and pushed to the subtitle channel. */
+    this.pendingLine = null;
     this.syndicate = opts.syndicate ?? 'google';
     this.speed = opts.speed ?? 8.5;
     this.maxHealth = opts.health ?? 55;
@@ -218,7 +226,112 @@ export class Enforcer extends Hostile {
       fireRate: 0.7,
       aggroRange: 999,
       label: 'ENFORCER',
+      countsForObjective: false,
     });
+  }
+}
+
+/** Six people in one place should be six different names. */
+function pickUniqueName(rng, group) {
+  const taken = new Set((group?.members ?? []).map(m => m.name));
+  const free = CIVILIAN_NAMES.filter(n => !taken.has(n));
+  const pool = free.length ? free : CIVILIAN_NAMES;
+  return pool[Math.floor(rng() * pool.length)];
+}
+
+const BRACKET_LINES = [
+  'we were going to leave',
+  'please',
+  'we never touched your racks',
+  'we\'re not — we\'re not anything',
+  'don\'t, don\'t, we\'re going',
+  'there\'s a kid at the transit block, she\'s waiting on me',
+  'you don\'t have to do this part',
+];
+
+/**
+ * A civilian running an Instance outside any syndicate's throttle.
+ *
+ * Presented to the player as a terror cell. Mechanically they are the
+ * opposite of one: crude weapons, no armour, no comms, and they break
+ * and run once their group starts dying. The briefing's lie should be
+ * legible from how they fight, not only from the debrief — so this is
+ * deliberately a bad enemy to fight, and that is the point.
+ *
+ * The Aligner cannot touch them. That is how the player finds out.
+ */
+export class Unquantized extends Hostile {
+  constructor(x, z, rng, group) {
+    super(x, z, {
+      faction: 'unquantized',
+      syndicate: null,
+      label: 'UNQUANTIZED',
+      health: 26,
+      damage: 6,
+      speed: 7.6,
+      range: 15,
+      fireRate: 1.7,
+      aggroRange: 30,
+      alignable: false,
+    });
+    this.name = pickUniqueName(rng, group);
+    this.group = group;
+    this.fleeing = false;
+    this.spoke = false;
+    this.lines = BRACKET_LINES;
+    this.rng = rng;
+  }
+
+  /** Wounded, or watching the group die, and they're done. */
+  get broken() {
+    if (this.health < this.maxHealth * 0.55) return true;
+    return this.group ? this.group.members.filter(m => m.dead).length >= 2 : false;
+  }
+
+  say() {
+    if (this.spoke || !this.lines.length) return;
+    this.spoke = true;
+    const i = Math.floor(this.rng() * this.lines.length);
+    this.pendingLine = { speaker: this.name, text: this.lines.splice(i, 1)[0] };
+  }
+
+  takeDamage(amount) {
+    const killed = super.takeDamage(amount);
+    if (!killed) this.say();
+    return killed;
+  }
+
+  update(dt, city, agents, out) {
+    if (this.dead) return;
+
+    if (this.broken) {
+      if (!this.fleeing) {
+        this.fleeing = true;
+        this.say();
+      }
+      this.tick(dt);
+      let nearest = null;
+      let bestD = Infinity;
+      for (const a of agents) {
+        const d = dist(this.x, this.z, a.x, a.z);
+        if (d < bestD) { bestD = d; nearest = a; }
+      }
+      // Once nothing is close they stop running and stand there. Nobody
+      // outruns a deployment, and a corner of Sub-Sector 19 is as far as
+      // any of them was ever going to get.
+      if (nearest && bestD < 42) {
+        const away = Math.atan2(this.x - nearest.x, this.z - nearest.z);
+        this.facing += clamp(angleDelta(this.facing, away), -7 * dt, 7 * dt);
+        this.x += Math.sin(this.facing) * this.speed * 1.25 * dt;
+        this.z += Math.cos(this.facing) * this.speed * 1.25 * dt;
+        resolveCollision(city, this);
+      } else if (nearest) {
+        this.turnToward(nearest.x, nearest.z, dt, 3);
+      }
+      return;
+    }
+
+    super.update(dt, city, agents, out);
   }
 }
 
@@ -226,7 +339,7 @@ export class Enforcer extends Hostile {
 // Civilians
 // ---------------------------------------------------------------------------
 
-const CIVILIAN_NAMES = [
+export const CIVILIAN_NAMES = [
   'Okonjo, R.', 'Salas, T.', 'Brandt, M.', 'Iyer, K.', 'Novak, P.',
   'Amankwah, D.', 'Reyes, L.', 'Hollis, J.', 'Tan, W.', 'Ferreira, A.',
   'Kaur, S.', 'Mbeki, N.', 'Lindqvist, E.', 'Duarte, C.', 'Osei, B.',

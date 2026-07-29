@@ -47,13 +47,17 @@ python3 -m http.server 8000
 
 ## Current state (one paragraph)
 
-Three playable missions on rotatable, destructible low-poly city blocks,
-selectable from tabs on the briefing card, which renders over a live,
-slowly orbiting view of the sector. **Sector 7 — Reclamation** (Act I·1:
-eliminate an Amazon field cell ×5, then collapse their relay pylon),
-**District 12 — Provisioning Vote** (Act I·2: align 18 residents, no
-rivals on the map) and **Sable Campus — Asset Retrieval** (Act I·3:
-reach Dr. Vasht on an Anthropic campus and escort her to extraction).
+**Act I is complete.** Four playable missions on rotatable, destructible
+low-poly city blocks, selectable from tabs on the briefing card, which
+renders over a live, slowly orbiting view of the sector.
+**Sector 7 — Reclamation** (Act I·1: eliminate an Amazon field cell ×5,
+then collapse their relay pylon), **District 12 — Provisioning Vote**
+(Act I·2: align 18 residents, no rivals on the map), **Sable Campus —
+Asset Retrieval** (Act I·3: reach Dr. Vasht on an Anthropic campus and
+escort her to extraction) and **The Bracket — Terror Cell** (Act I·4:
+the briefing's first lie — six unquantized civilians in a derelict
+sub-sector, who break and run once two are down, and on whom the Aligner
+returns no handshake).
 Four agents deploy on a street intersection inside the block. WASD moves
 the selection in formation, camera-relative. 1–4 select, Shift+N adds, Q
 selects all. Right-click issues a formation-preserving move order —
@@ -87,6 +91,17 @@ line of sight**, opening firing lanes that didn't exist at mission start.
   on screen. Act II leans on this heavily; it's in now.
 - Objective prerequisites (`after:`) and per-objective failure predicates
   with per-reason debrief copy and titles
+- **Unquantized** hostiles — `alignable: false`, so the Aligner reports
+  `no instance handshake` instead of silently doing nothing. That
+  refusal is the reveal in `the-bracket`; don't make it quieter.
+- **Morale** — `Unquantized.broken` breaks the group once two are dead
+  or one is badly hurt; the survivors run, then stop and stand still
+  once nothing is within 42m
+- Hostiles can queue a subtitle line via `pendingLine`, which the sim
+  drains. `src/core/` still can't reach the DOM.
+- `derelict` city option — a fraction of street cover starts collapsed
+- `countsForObjective` on hostiles, so enforcement drawn by your own
+  sloppiness never counts as ELIMINATE progress
 - Hold left-click focus fire; release for auto-fire on nearest visible target
 - Line of sight — standing structures block both shots and target selection
 - **Collapse-to-cover**: destructibles drop to rubble; rubble blocks
@@ -125,8 +140,10 @@ expensive.
 - Objective type `hold` is declared in `src/core/mission.js` but not
   implemented — needs a zone entity. First used by
   `reverse-the-gradient` (Act IV).
-- No mission gating — all three missions are always available, arc order
-  isn't enforced
+- **No mission gating** — all four missions are always available and arc
+  order isn't enforced. This matters more now that Act I is complete:
+  the Act I→II turn only lands if the player walked Act I in order.
+  Do this before writing Act II.
 - No interstitials between missions
 - No branch-flag plumbing yet for `bravoCalibrated`, `playerSuspicion`,
   `defectedAtRefusal`, `yelinFate` (spec'd in `NARRATIVE.md` §9)
@@ -144,17 +161,18 @@ expensive.
 For any mission work, briefing copy, debriefs, or character lines,
 **read `NARRATIVE.md` first** — the slots are pre-defined.
 
-1. **Mission 4 — `the-bracket` (Terror Cell)** · `NARRATIVE.md` §6
-   Act I·4, and the mission that closes Act I. Introduces the
-   **unquantized** as an enemy type — weak, poorly armed, and immune to
-   the Aligner, which is how the player works out that the briefing lied.
-   The Aligner already returns false on an unalignable target
-   (`Asset.align()` does exactly this), so the immunity is a small
-   subclass, not a new system. Use the subtitle channel for the
-   mid-fight lines — they're the point of the mission.
-2. **Mission gating** so the player walks Act I in order.
-3. **Interstitials** — the Yelin notes and street graffiti between
-   missions carry most of Act I→II's tonal shift.
+1. **Mission gating** so the player walks Act I in order. Do this
+   *before* Act II — the whole turn depends on the player having taken
+   the four Act I missions in sequence.
+2. **Interstitials** — the Yelin notes and street graffiti between
+   missions carry most of Act I→II's tonal shift. The subtitle channel
+   handles in-mission lines; between-mission beats need a card.
+3. **Act II** · `NARRATIVE.md` §6. Starts with `okafor-contract`, which
+   needs a named target that flees when approached — positioning rather
+   than damage. `calibration-window` after it is a no-combat choice
+   screen setting `bravoCalibrated`, and the act's mechanical signal is
+   BRAVO hesitating once per mission — `agent.hesitation` is already
+   wired in `src/core/entities.js` and off by default.
 
 After Act I ships complete, Phase 4 (loadout + compute upgrades +
 research) is the next major arc, then Phase 5 (world map / meta-loop).

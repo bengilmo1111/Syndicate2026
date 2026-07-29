@@ -18,6 +18,7 @@ const HOSTILE_COLORS = {
 };
 
 const ENFORCER_COLOR = 0xffe066;
+const UNQUANTIZED_COLOR = 0x9c8f7d;
 
 function humanoid(bodyColor, headColor, scale = 1) {
   const g = new THREE.Group();
@@ -112,17 +113,24 @@ export class AgentView extends ActorView {
 
 export class HostileView extends ActorView {
   constructor(hostile) {
-    const color = hostile.faction === 'enforcer'
-      ? ENFORCER_COLOR
-      : (HOSTILE_COLORS[hostile.syndicate] ?? 0xff5f7e);
-    super(humanoid(color, 0x20242e, 1.05));
+    // The unquantized wear no syndicate. They read as street, because
+    // that is what they are — the silhouette should say so before the
+    // Aligner does.
+    const unq = hostile.faction === 'unquantized';
+    const color = unq
+      ? UNQUANTIZED_COLOR
+      : hostile.faction === 'enforcer'
+        ? ENFORCER_COLOR
+        : (HOSTILE_COLORS[hostile.syndicate] ?? 0xff5f7e);
+    super(humanoid(color, unq ? 0x8d8377 : 0x20242e, unq ? 0.86 : 1.05));
     this.baseColor = color;
     this.hostile = hostile;
 
     this.gunMat = solid(0x15171e);
     const gun = new THREE.Mesh(BOX, this.gunMat);
-    gun.scale.set(0.2, 0.2, 1.2);
-    gun.position.set(0.42, 1.6, 0.7);
+    // Improvised, and short. Nothing about the loadout says trained.
+    gun.scale.set(unq ? 0.16 : 0.2, unq ? 0.16 : 0.2, unq ? 0.65 : 1.2);
+    gun.position.set(0.42, 1.6, unq ? 0.5 : 0.7);
     this.group.add(gun);
 
     this.muzzleMat = glow(0xffd0a0);
