@@ -44,15 +44,29 @@ export function isComplete(campaign, id) {
  */
 export function isUnlocked(campaign, def) {
   const needs = def.requires ?? [];
-  return needs.every(id => isComplete(campaign, id));
+  if (!needs.every(id => isComplete(campaign, id))) return false;
+
+  // Some missions depend on *how* an earlier one went, not just that it
+  // happened. The Refusal is the first: what follows it differs depending
+  // on whether the player carried out the order.
+  const flags = def.requiresFlags ?? null;
+  if (flags) {
+    for (const [key, want] of Object.entries(flags)) {
+      if ((campaign.flags[key] ?? false) !== want) return false;
+    }
+  }
+  return true;
 }
 
 /** Why a mission is locked, in the player's language. */
 export function lockReason(campaign, def, lookup) {
   const missing = (def.requires ?? []).filter(id => !isComplete(campaign, id));
-  if (!missing.length) return null;
-  const names = missing.map(id => lookup(id)?.name ?? id);
-  return `REQUIRES ${names.join(' · ')}`;
+  if (missing.length) {
+    const names = missing.map(id => lookup(id)?.name ?? id);
+    return `REQUIRES ${names.join(' · ')}`;
+  }
+  if (!isUnlocked(campaign, def)) return 'REQUIRES A DIFFERENT DECISION';
+  return null;
 }
 
 /** Record a win. Idempotent — replaying a mission keeps the better record. */

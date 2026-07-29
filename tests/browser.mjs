@@ -104,7 +104,7 @@ await page.evaluate(() => {
   localStorage.setItem('syndicate2026.campaign', JSON.stringify({
     version: 2,
     completed: ['sector-7', 'district-12', 'sable-campus', 'the-bracket',
-      'okafor-contract', 'calibration-window', 'welfare-node-7'],
+      'okafor-contract', 'calibration-window', 'welfare-node-7', 'the-refusal'],
     flags: {}, records: {},
   }));
 });

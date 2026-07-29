@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~2s, 69 checks, no dependencies
+node tests/run.mjs        # the gate — ~4s, 127 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -55,31 +55,32 @@ python3 -m http.server 8000
 
 ## Current state (one paragraph)
 
-**Acts I and II are complete** — seven missions. Four playable missions on rotatable, destructible
-low-poly city blocks, selectable from tabs on the briefing card, which
+**Acts I and II are complete and Act III has opened — eight missions**,
+gated into a chain and selectable from tabs on the briefing card, which
 renders over a live, slowly orbiting view of the sector.
-**Sector 7 — Reclamation** (Act I·1: eliminate an Amazon field cell ×5,
-then collapse their relay pylon), **District 12 — Provisioning Vote**
-(Act I·2: align 18 residents, no rivals on the map), **Sable Campus —
-Asset Retrieval** (Act I·3: reach Dr. Vasht on an Anthropic campus and
-escort her to extraction) and **The Bracket — Terror Cell** (Act I·4:
-the briefing's first lie — six unquantized civilians in a derelict
-sub-sector, who break and run once two are down, and on whom the Aligner
-returns no handshake).
+
+- **Act I** — `sector-7` (eliminate an Amazon cell, collapse their relay
+  pylon), `district-12` (align 18 residents, nothing armed on the map),
+  `sable-campus` (escort Dr. Vasht to extraction; losing her loses the
+  mission), `the-bracket` (the briefing's first lie — unquantized
+  civilians who break and run, on whom the Aligner returns no handshake).
+- **Act II** — `okafor-contract` (a named civilian who flees and files on
+  a 150s clock; the squad will not auto-target her), `calibration-window`
+  (no field component — a room and a choice), `welfare-node-7` (a hidden
+  objective nobody mentions, which sets `playerSuspicion`).
+- **Act III** — `the-refusal` (the branch point: carry out the order, or
+  cut the prisoner loose and turn on your own escort).
+
 Four agents deploy on a street intersection inside the block. WASD moves
 the selection in formation, camera-relative. 1–4 select, Shift+N adds, Q
-selects all. Right-click issues a formation-preserving move order —
-**routed by A\* over the street grid**, so a click across the block walks
-the avenues instead of grinding into a wall. Hold left-click to focus
-fire; release for auto-fire on the nearest hostile **with line of
-sight**. Space engages the Aligner, which suppresses fire entirely and
-converts civilians within 13.5m into followers. Civilians carry a visible
-compute tier (Free/Plus/Pro/Frontier) that sets their speed and reaction
-time, plus a name and a job. They panic, take fire, and die; killing one
-spikes HEAT by 15, and crossing 60 spawns a pair of enforcers at the map
-edge. Street cover is destructible: shoot a kiosk or depot enough and it
-collapses into rubble that still blocks movement but **no longer blocks
-line of sight**, opening firing lanes that didn't exist at mission start.
+selects all. Right-click issues a formation-preserving move order
+**routed by A\* over the street grid**. Hold left-click to focus fire;
+release for auto-fire on the nearest hostile **with line of sight** —
+never on a civilian, which is what makes the contract missions mean
+something. Space engages the Aligner; C/V/B move compute between
+LATENCY / PRECISION / RESILIENCE and G surges by throttling the street.
+Cover is directional and rubble shelters you from shots it no longer
+blocks. Hostiles reposition to cover and are suppressed by near-misses.
 
 ## What works
 
@@ -126,6 +127,15 @@ line of sight**, opening firing lanes that didn't exist at mission start.
 - **Quarry** (`okafor-contract`) — a named civilian who flees the squad
   and escapes on a timer. The squad will **not** auto-target her; killing
   a journalist has to be deliberately ordered, and a test enforces it.
+- **Branch objectives** — `objective.branch` groups mutually exclusive
+  routes. A mission completes when every unbranched objective plus *any
+  one* branch completes, and taking one route never fails the other.
+  The Refusal is the first; Act IV's three endings will use the same shape.
+- **Flag-aware gating** — `def.requiresFlags` means a mission can require
+  a *decision*, not just a completion.
+- **Dormant hostiles** — loyalists who are on your side until you free
+  their prisoner or shoot one of them. They never fire first and the
+  squad will not auto-target them, so defecting cannot happen by accident.
 - **Hidden objectives** — an objective can be `hidden` and `optional` and
   carry a `flag`, so the game notices what the player did when nothing
   asked them to. `welfare-node-7`'s holding block is the first, and it
@@ -202,7 +212,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 116 checks, ~2s, zero dependencies. Covers city
+`node tests/run.mjs` — 127 checks, ~2s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -218,7 +228,7 @@ damage path, making surge cost no heat, making the throttle not slow
 anyone, giving every agent the same weapon, breaking budget conservation,
 and letting the minigun fire cold. It is load-bearing, not decorative.
 
-`node tests/browser.mjs` — 27 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 28 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -235,8 +245,9 @@ is still a human reading a screenshot.
 - No interstitials between missions — gating exists, but the beats
   *between* the briefings (Yelin's notes, the graffiti) don't
 - No interstitials between missions
-- Branch flags persist, but nothing *reads* them yet — `bravoCalibrated`
-  is recorded and no later mission changes because of it
+- `bravoCalibrated` and `playerSuspicion` are recorded but nothing reads
+  them yet. `defectedAtRefusal` has gating support but no mission uses it
+  — Act III·9 onward should.
 - **Followers and escorted assets don't path.** Agents route properly
   now; anyone following them still beelines for the squad centroid and
   slides along whatever they hit. Usually fine because the squad walks
