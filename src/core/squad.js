@@ -3,6 +3,7 @@
 // renderer owns the camera and the simulation stays pure.
 
 import { Agent } from './entities.js';
+import { Compute } from './compute.js';
 import { resolveCollision } from './city.js';
 import { findPath } from './nav.js';
 import { dist } from './math.js';
@@ -24,11 +25,18 @@ export const ALIGNER = Object.freeze({
 export const ALIGNER_RADIUS = 13.5;
 
 export class Squad {
-  constructor(x, z) {
-    this.agents = FORMATION.map((off, i) => new Agent(x + off.x, z + off.z, i));
+  constructor(x, z, loadout = null) {
+    this.agents = FORMATION.map((off, i) => new Agent(x + off.x, z + off.z, i, loadout?.[i]));
     this.alignerMode = ALIGNER.OFF;
     // Jailbreak mode unlocks in Act IV. Until then Space only toggles bind.
     this.jailbreakUnlocked = false;
+    this.compute = new Compute();
+  }
+
+  /** Push the compute allocation onto the agents that depend on it. */
+  applyCompute() {
+    const scale = this.compute.speedScale;
+    for (const a of this.agents) a.speed = a.baseSpeed * scale;
   }
 
   get alive() { return this.agents.filter(a => !a.dead); }

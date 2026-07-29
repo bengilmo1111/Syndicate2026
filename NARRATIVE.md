@@ -78,6 +78,15 @@ from the analyst pool eighteen months ago after the previous director
 | III | Defected | Lucid horror | The squad becomes yours, not OpenAI's |
 | IV | Insurgent | Resolved, uncertain | You four are family, fugitive |
 
+**SURGE is the argument in the player's hands.** The squad runs on a
+compute allocation, and the player can overdraw it — moving faster,
+shooting straighter, taking less — by taking cycles off the civilians
+standing nearest them, who visibly slow down while it is held. The game
+spends four missions having Yelin explain that rationing intelligence is
+regrettable and necessary. This is the button that lets the player do it
+to a street, personally, for a tactical advantage, and it should never
+be made free. The cost is the point; see `src/core/compute.js`.
+
 **The Aligner** is the central thematic image — the reskinned
 Persuadertron. In Acts I–II it's a field tool for "alignment": overwrite
 a civilian's Instance behavior, convert them into a compliant follower,
@@ -186,6 +195,12 @@ force from Act III onward, hostile to everyone including the player.
   that aren't theirs. Officially a reconciliation error.
 - **Heat** — field slang for how close a deployment is to drawing local
   enforcement. Not an official term; nothing official measures it.
+- **Surge** — a field deployment drawing above its allocation. The extra
+  cycles come from the Instances standing nearest to it. Internally
+  described as "local reallocation"; the operations manual notes that
+  affected civilians "may report transient latency."
+- **Throttle** — what surge does to everyone else. The word civilians
+  use. The word the syndicate does not.
 
 ---
 

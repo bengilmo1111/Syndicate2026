@@ -57,9 +57,11 @@ the job stops looking like the job. Full arc in `NARRATIVE.md`.
    collapse into rubble that changes what you can shoot through.
 4. **Cold tactical pacing.** Positional, lethal combat. Cover and line
    of sight matter more than reflexes.
-5. **Compute as the strategic resource.** Missions fund and seize compute
-   capacity; capacity unlocks weapons, cybernetics, and Instance tiers.
-   The meta-loop is a resource war, not a tech tree for its own sake.
+5. **Compute as the resource, strategically and tactically.** Missions
+   fund and seize capacity; capacity unlocks weapons, cybernetics, and
+   Instance tiers. Moment to moment, the squad runs on an allocation the
+   player splits three ways and can overdraw — by throttling the street.
+   The meta-loop is a resource war, and so is the firefight.
 
 ## In Scope (full game target)
 
@@ -88,6 +90,10 @@ following now ship:
 - [x] Four agents on a low-poly city block with a constrained orbit/tilt
       camera (not free-fly — constrained the way the PS1 game was)
 - [x] Click-to-fire, auto-fire on nearest target with line of sight
+- [x] Differentiated weapons: sidearm, SMG, rail rifle, minigun, with
+      spread, spin-up and penetration
+- [x] Directional cover, including rubble as cover after a collapse
+- [x] Squad compute allocation with SURGE
 - [x] Two hand-built missions proving the loop: move, fire, convert,
       collapse a structure
 - [x] Mission briefing card in the OpenAI field-ops framing
@@ -110,6 +116,10 @@ following now ship:
 - **Left click** — focus fire at the cursor; release for auto-fire
 - **Right click** — issue a formation-preserving move order
 - **Space** — cycle the Aligner (off → bind → jailbreak once unlocked)
+- **C / V / B** — shift a compute point into latency / precision / resilience
+- **G** — SURGE: overdraw the allocation. Faster, straighter, tougher —
+  taken from the Instances of everyone standing nearby, who slow down
+  while you hold it, and it climbs heat the whole time
 - **Tab** — objectives panel
 - **Z / X** — rotate the city · **R / F** — tilt · **Wheel** — zoom ·
   **Middle-drag** — free orbit

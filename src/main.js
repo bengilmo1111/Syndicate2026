@@ -119,6 +119,14 @@ window.addEventListener('keydown', (e) => {
     squad.cycleAligner();
   } else if (k === 'tab') {
     toggleObjectivePanel();
+  } else if (k === 'c') {
+    squad.compute.shiftInto('latency');
+  } else if (k === 'v') {
+    squad.compute.shiftInto('precision');
+  } else if (k === 'b') {
+    squad.compute.shiftInto('resilience');
+  } else if (k === 'g') {
+    squad.compute.toggleSurge();
   }
 });
 

@@ -27,13 +27,15 @@ vendored in `vendor/`.
 | Left click | focus fire — release for auto-fire |
 | Right click | move order, routed through the streets |
 | `Space` | the Aligner |
+| `C` / `V` / `B` | shift compute into latency / precision / resilience |
+| `G` | surge — faster, straighter, tougher, taken from the street |
 | `Tab` | objectives |
 | `Z`/`X`, `R`/`F`, wheel, middle-drag | rotate, tilt, zoom, orbit |
 
 ## Tests
 
 ```sh
-node tests/run.mjs        # simulation + every mission played to a win, ~1s
+node tests/run.mjs        # simulation + every mission played to a win, ~2s
 node tests/browser.mjs    # real browser pass (needs Playwright)
 ```
 

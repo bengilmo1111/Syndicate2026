@@ -7,8 +7,10 @@ import { makeRng, dist } from './math.js';
 import { Civilian, Enforcer } from './entities.js';
 import { Squad, ALIGNER, ALIGNER_RADIUS } from './squad.js';
 import {
-  randomStreetPoint, resolveCollision, damageStructure, structureInPath, STREET,
+  randomStreetPoint, resolveCollision, damageStructure, structureInPath,
+  coverAgainst, STREET,
 } from './city.js';
+import { SURGE_RADIUS, SURGE_HEAT_PER_SECOND, THROTTLED_SPEED } from './compute.js';
 import {
   getMissionDef, buildMission, updateMissionStatus, isMissionComplete,
   failedObjective, OBJECTIVE,
@@ -74,6 +76,8 @@ export function createSim(missionId) {
     heat: 0,
     enforcerWaves: 0,
     alertTimer: 0,
+    /** Civilians currently having cycles taken off them by SURGE. */
+    throttledCount: 0,
     /** Set when the mission is lost for a reason other than a squad wipe. */
     failReason: null,
     /** The Aligner reports an unquantized target once, not every frame. */
@@ -99,10 +103,13 @@ export function step(sim, dt, intent) {
 
   const { city, squad } = sim;
 
+  squad.applyCompute();
   squad.tick(dt);
   if (!squad.drive(dt, intent.moveX, intent.moveZ, city)) {
     squad.followOrders(dt, city);
   }
+
+  applySurge(sim, dt);
 
   const center = squad.center();
 
@@ -125,16 +132,24 @@ export function step(sim, dt, intent) {
   // entirely, which is what makes a no-casualty run possible.
   if (!squad.alignerEngaged) {
     for (const a of squad.alive) {
+      const manual = intent.firing && intent.aimPoint;
+      const target = manual ? null : a.pickTarget(city, sim.hostiles, squad.compute);
+      // Spin-up winds while there is something worth firing at, so a
+      // minigun agent is useless the instant they arrive and lethal once
+      // they've committed to the corner.
+      a.tickSpin(dt, !!(manual || target));
+
       if (!a.canFire()) continue;
       let shot = null;
-      if (intent.firing && intent.aimPoint) {
-        shot = a.fireAt(intent.aimPoint.x, intent.aimPoint.z);
-      } else {
-        const target = a.pickTarget(city, sim.hostiles);
-        if (target) shot = a.fireAt(target.x, target.z);
+      if (manual) {
+        shot = a.fireAt(intent.aimPoint.x, intent.aimPoint.z, squad.compute, sim.rng);
+      } else if (target) {
+        shot = a.fireAt(target.x, target.z, squad.compute, sim.rng);
       }
       if (shot) spawnProjectile(sim, shot);
     }
+  } else {
+    for (const a of squad.alive) a.tickSpin(dt, false);
   }
 
   for (const h of sim.hostiles) {
@@ -297,19 +312,19 @@ function resolveProjectile(sim, p) {
 
   for (const t of targets) {
     if (!p.hits(t)) continue;
-    p.dead = true;
-    const killed = t.takeDamage(p.damage);
-    sim.events.push({ type: 'hit', x: p.x, z: p.z, actor: t, killed });
-    return;
+    const killed = t.takeDamage(damageAgainst(sim, p, t));
+    const spent = p.consumeHit(t);
+    sim.events.push({ type: 'hit', x: p.x, z: p.z, actor: t, killed, spent });
+    if (spent) { p.dead = true; return; }
   }
 
   // Friendly fire on bystanders. Never intentional, always expensive.
   for (const c of sim.civilians) {
     if (c.aligned || !p.hits(c)) continue;
-    p.dead = true;
-    const killed = c.takeDamage(p.damage);
+    const killed = c.takeDamage(damageAgainst(sim, p, c));
     c.scare(5);
-    sim.events.push({ type: 'hit', x: p.x, z: p.z, actor: c, killed, civilian: true });
+    const spent = p.consumeHit(c);
+    sim.events.push({ type: 'hit', x: p.x, z: p.z, actor: c, killed, civilian: true, spent });
     if (killed) {
       sim.civilianDeaths += 1;
       sim.heat += HEAT.CIVILIAN_KILL;
@@ -317,10 +332,55 @@ function resolveProjectile(sim, p) {
         if (!other.dead && dist(other.x, other.z, c.x, c.z) < 22) other.scare(6);
       }
     }
-    return;
+    if (spent) { p.dead = true; return; }
   }
 
   if (Math.abs(p.x) > sim.city.halfW + 6 || Math.abs(p.z) > sim.city.halfD + 6) p.dead = true;
+}
+
+/**
+ * Damage after cover and, for the squad, the RESILIENCE channel.
+ *
+ * Cover is measured against the direction the round came from, so the same
+ * wall that saves you from the north does nothing about the agent who
+ * walked around it. That asymmetry is the entire reason to move.
+ */
+function damageAgainst(sim, projectile, target) {
+  const cover = coverAgainst(
+    sim.city, target.x, target.z, projectile.prevX, projectile.prevZ,
+  );
+  let damage = projectile.damage * (1 - cover);
+  if (!projectile.friendly && sim.squad.agents.includes(target)) {
+    damage *= sim.squad.compute.damageTakenScale;
+  }
+  return damage;
+}
+
+/**
+ * SURGE: the squad runs faster, straighter and tougher by taking cycles
+ * off every Instance nearby. Civilians in the field visibly slow down and
+ * heat climbs the whole time it is held.
+ *
+ * The player spends four missions being told that rationing intelligence
+ * is regrettable and necessary. This is the button that lets them do it to
+ * a street, personally, for a tactical advantage.
+ */
+function applySurge(sim, dt) {
+  const surging = sim.squad.compute.surging;
+  const centre = sim.squad.center();
+
+  for (const c of sim.civilians) c.throttled = false;
+  if (!surging || !centre) return;
+
+  let throttled = 0;
+  for (const c of sim.civilians) {
+    if (c.dead) continue;
+    if (dist(c.x, c.z, centre.x, centre.z) > SURGE_RADIUS) continue;
+    c.throttled = true;
+    throttled += 1;
+  }
+  sim.throttledCount = throttled;
+  sim.heat += SURGE_HEAT_PER_SECOND * dt;
 }
 
 function spawnEnforcers(sim, count) {

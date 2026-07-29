@@ -90,11 +90,28 @@ the 2D logic onto a 3D engine instead of losing it.
 - [ ] Panic contagion and crowd flow through streets
 - [ ] Followers take cover instead of clumping on the squad centroid
 
+## Phase 3.5 — Tactical depth (DONE)
+- [x] Weapon definitions with real trade-offs (`src/core/weapons.js`):
+      damage, fire rate, range, spread, projectile speed, penetration,
+      spin-up
+- [x] Per-agent loadout — the default deployment is four different roles
+- [x] Directional cover (`coverAgainst`): a wall along your flank shelters
+      you, the same wall head-on does not, and standing in the open is
+      cover from nowhere
+- [x] Rubble as cover — completes collapse-to-cover: a collapse opens the
+      firing lane *and* leaves cover sitting in it
+- [x] Squad compute allocation, three channels over a fixed budget
+      (`src/core/compute.js`)
+- [x] SURGE: overdraw the allocation by throttling nearby civilians.
+      Costs heat continuously and visibly slows the street.
+- [ ] Stances (hold / advance / engage-at-will) — the obvious next layer
+- [ ] Suppression: near-misses degrade an enemy's accuracy
+
 ## Phase 4 — Loadout and progression
 - [ ] Pre-mission loadout screen: assign weapons per agent
-- [ ] Weapon definitions: sidearm, SMG, minigun, incendiary, rail rifle,
-      laser, plasma
-- [ ] Per-weapon stats: damage, fire rate, range, spread, ammo, recoil
+- [x] Weapon definitions: sidearm, SMG, rail rifle, minigun
+- [ ] Remaining roster: incendiary, laser, plasma
+- [x] Per-weapon stats: damage, fire rate, range, spread, penetration
 - [ ] Compute upgrade slots: latency / throughput / context window /
       attention range (3 tiers each)
 - [ ] Compute + funds currency persisted in localStorage
@@ -142,6 +159,7 @@ vendor/
 tests/
   run.mjs               the gate: `node tests/run.mjs`
   core.test.mjs         city, nav, ballistics, aligner, morale, objectives
+  depth.test.mjs        weapons, cover, compute allocation, surge
   missions.test.mjs     definitions, completability, per-mission story beats
   browser.mjs           optional Playwright pass over the real page
   lib/harness.mjs       zero-dependency registry + assertions
@@ -152,6 +170,8 @@ src/
     math.js             clamp/lerp, seeded RNG, segment-box, circle-box
     city.js             city generation, collision, line of sight, damage
     nav.js              A* over the street-intersection graph
+    weapons.js          weapon table and the default loadout
+    compute.js          squad allocation, SURGE and its cost
     entities.js         Agent, Hostile, Enforcer, Civilian, Asset, Projectile
     squad.js            selection, formation, move orders, the Aligner
     mission.js          objective model, prerequisites, mission registry
@@ -178,7 +198,7 @@ src/
 ### The gate — automated
 
 ```
-node tests/run.mjs        # ~1s, no dependencies. MUST pass before you push.
+node tests/run.mjs        # ~2s, 69 checks, no deps. MUST pass before you push.
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
 

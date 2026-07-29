@@ -26,3 +26,6 @@ __pycache__/
 
 # Git artifacts
 .git/
+
+# Screenshots written by `node tests/browser.mjs --shots`
+tests/shots/

@@ -204,7 +204,16 @@ export class CivilianView extends ActorView {
       return;
     }
 
-    if (c.jailbroken) {
+    if (c.throttled) {
+      // Visibly dimmer while the squad is taking their cycles. The player
+      // should be able to see the cost of SURGE on the street, not just
+      // read it on a panel.
+      this.ring.visible = true;
+      this.ringMat.color.setHex(0xffce4f);
+      this.ringMat.opacity = 0.35;
+      this.bodyMat.color.setHex(0x4a4436);
+      this.badgeMat.color.setHex(0x6b5c33);
+    } else if (c.jailbroken) {
       this.ring.visible = true;
       this.ringMat.color.setHex(0xffc857);
       this.bodyMat.color.setHex(0xc9a45c);

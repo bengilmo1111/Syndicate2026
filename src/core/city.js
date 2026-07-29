@@ -296,6 +296,67 @@ export function randomStreetPoint(city, rng, pad = 1.6) {
   return { x: 0, z: city.halfD - STREET };
 }
 
+/** How much protection cover gives. Never total — cover is not immunity. */
+export const COVER = Object.freeze({
+  HARD: 0.55,   // flank pressed against a standing facade
+  RUBBLE: 0.4,  // crouched behind a collapsed structure
+  NONE: 0,
+});
+
+/** How far from a target we look for something to shelter behind. */
+const COVER_REACH = 2.0;
+
+const inside = (s, x, z) =>
+  x >= s.x - s.w / 2 && x <= s.x + s.w / 2 && z >= s.z - s.d / 2 && z <= s.z + s.d / 2;
+
+/**
+ * Cover the target has *against a shot from this direction*.
+ *
+ * Two distinct cases, because a standing building and its rubble protect
+ * you in completely different ways:
+ *
+ * 1. **Rubble between you and the shooter.** Collapsed structures no longer
+ *    block line of sight, so the round arrives — but it arrives over a pile
+ *    of masonry you are crouched behind. This is what completes
+ *    collapse-to-cover: bringing a building down opens the firing lane AND
+ *    leaves cover sitting in it, exactly like the PS1 game.
+ *
+ * 2. **A standing wall along your flank.** Sampled *perpendicular* to the
+ *    incoming shot, not between — because anything between you and the
+ *    shooter has already blocked the round outright, so testing there
+ *    could never affect a shot that connects.
+ *
+ *    This is what makes position matter. Pressed against a north wall, you
+ *    are sheltered from the east and west, squarely exposed from the south,
+ *    and simply cannot be hit from the north. Flanking is the answer, and
+ *    standing in the open is a mistake.
+ */
+export function coverAgainst(city, targetX, targetZ, fromX, fromZ) {
+  const toShooter = Math.atan2(fromX - targetX, fromZ - targetZ);
+
+  // 1. Low cover directly in the line of fire.
+  const bx = targetX + Math.sin(toShooter) * COVER_REACH;
+  const bz = targetZ + Math.cos(toShooter) * COVER_REACH;
+
+  // 2. Flank cover, perpendicular to the line of fire.
+  const side = toShooter + Math.PI / 2;
+  const lx = Math.sin(side) * COVER_REACH;
+  const lz = Math.cos(side) * COVER_REACH;
+
+  let best = COVER.NONE;
+  for (const s of city.structures) {
+    if (s.collapsed) {
+      if (inside(s, bx, bz) && COVER.RUBBLE > best) best = COVER.RUBBLE;
+      continue;
+    }
+    if (COVER.HARD <= best) continue;
+    if (inside(s, targetX + lx, targetZ + lz) || inside(s, targetX - lx, targetZ - lz)) {
+      best = COVER.HARD;
+    }
+  }
+  return best;
+}
+
 /** Damage a destructible. Returns true on the frame it collapses. */
 export function damageStructure(structure, amount) {
   if (!structure.destructible || structure.collapsed) return false;

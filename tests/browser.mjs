@@ -156,6 +156,35 @@ const alignerOn = await page.evaluate(() => ({
 check('Space engages the Aligner and the HUD says so', alignerOn.mode === 'bind' && alignerOn.badge);
 await page.keyboard.press(' ');
 
+// --- compute allocation: keys move points, and surge visibly costs the street
+const alloc0 = await page.evaluate(() => ({ ...window.__syndicate.sim.squad.compute.alloc }));
+await page.keyboard.press('v');
+await page.keyboard.press('v');
+const alloc1 = await page.evaluate(() => ({ ...window.__syndicate.sim.squad.compute.alloc }));
+check('C/V/B move compute between channels',
+  alloc1.precision === alloc0.precision + 2,
+  `precision ${alloc0.precision} -> ${alloc1.precision}`);
+check('and the budget is conserved',
+  Object.values(alloc1).reduce((a, b) => a + b, 0) === Object.values(alloc0).reduce((a, b) => a + b, 0));
+
+await page.keyboard.press('g');
+await page.waitForTimeout(700);
+const surge = await page.evaluate(() => ({
+  on: window.__syndicate.sim.squad.compute.surging,
+  badge: document.getElementById('compute-surge').classList.contains('active'),
+  throttled: window.__syndicate.sim.throttledCount,
+  heat: window.__syndicate.sim.heat,
+  foot: document.getElementById('compute-throttle').textContent,
+}));
+check('G surges, the HUD says so, and it throttles the street',
+  surge.on && surge.badge && surge.throttled > 0 && surge.heat > 0,
+  `${surge.throttled} throttled · heat ${surge.heat.toFixed(1)} · "${surge.foot}"`);
+await page.keyboard.press('g');
+
+check('agents carry different weapons',
+  new Set(await page.evaluate(() =>
+    window.__syndicate.sim.squad.agents.map(a => a.weapon.id))).size === 4);
+
 await page.keyboard.press('Tab');
 await page.waitForTimeout(300);
 const panel = await page.evaluate(() => ({

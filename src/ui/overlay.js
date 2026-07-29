@@ -53,5 +53,7 @@ export const CONTROLS_HINT = [
   '<b>WASD</b> move (camera-relative) · <b>Right-click</b> move order',
   '<b>Left-click</b> focus fire — release for auto-fire',
   '<b>Space</b> Aligner · <b>Tab</b> objectives',
+  '<b>C / V / B</b> shift compute into latency / precision / resilience',
+  '<b>G</b> surge — faster, straighter, tougher. Taken from the street.',
   '<b>Z / X</b> rotate city · <b>R / F</b> tilt · <b>Wheel</b> zoom · <b>Middle-drag</b> orbit',
 ].join('<br>');

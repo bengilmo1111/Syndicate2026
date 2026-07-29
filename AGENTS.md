@@ -19,13 +19,13 @@ build step, no npm dependencies, deployed to Vercel from `main`.
 **`node tests/run.mjs` must pass before you push. No exceptions.**
 
 ```
-node tests/run.mjs            # ~1s, 48 checks, no dependencies
+node tests/run.mjs            # ~2s, 69 checks, no dependencies
 node tests/run.mjs nav        # filter by suite or test name
 node tests/browser.mjs        # optional: real browser, needs Playwright
 ```
 
 `src/core/` imports no Three.js and no DOM, so Node runs the entire
-simulation directly. That is what makes a one-second test loop possible,
+simulation directly. That is what makes a two-second test loop possible,
 and it is the main reason the layer boundary below is non-negotiable.
 
 The suite includes an **autopilot** (`tests/lib/autopilot.mjs`) that plays
@@ -39,6 +39,11 @@ shipped uncompletable and were caught by hand instead:
   faster than the player could close to range
 
 Neither would survive `node tests/run.mjs` today. Keep it that way.
+
+**Mutation-test anything load-bearing you add.** Break it deliberately and
+confirm the suite goes red. A test that cannot fail is worse than no test,
+because it reads like coverage. Twelve such regressions have been confirmed
+to fail this suite; the list is in `HANDOFF.md`.
 
 `node tests/browser.mjs` covers what Node cannot see: the page booting,
 modules resolving over HTTP, WebGL rendering each mission, keyboard and
@@ -56,8 +61,8 @@ src/ui/     →  DOM only.
 ```
 
 This is why the 2D prototype's squad, mission, and heat logic survived the
-whole engine swap to 3D, and it is why the tests run in a second instead of
-a minute. If you find yourself importing `three` into `src/core/`, stop —
+whole engine swap to 3D, and it is why the tests run in seconds instead of
+minutes. If you find yourself importing `three` into `src/core/`, stop —
 you are about to make the next change expensive.
 
 Entities that need to reach a presentation-layer feature go through data,

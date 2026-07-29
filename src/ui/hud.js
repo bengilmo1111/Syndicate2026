@@ -3,6 +3,7 @@
 import { AGENT_NAMES } from '../core/entities.js';
 import { activeObjective, objectiveText, STATUS } from '../core/mission.js';
 import { heatRatio } from '../core/sim.js';
+import { CHANNELS, BUDGET } from '../core/compute.js';
 import { AGENT_COLORS } from '../render/actorView.js';
 
 const el = id => document.getElementById(id);
@@ -19,7 +20,7 @@ function buildSquadStrip() {
     cell.innerHTML = `
       <div class="agent-key">${i + 1}</div>
       <div class="agent-body">
-        <div class="agent-name">${name}</div>
+        <div class="agent-name">${name}<span class="agent-weapon"></span></div>
         <div class="agent-bar"><div class="agent-bar-fill"></div></div>
         <div class="agent-tier">PRO</div>
       </div>`;
@@ -30,9 +31,52 @@ function buildSquadStrip() {
       root: cell,
       fill: cell.querySelector('.agent-bar-fill'),
       tier: cell.querySelector('.agent-tier'),
+      weapon: cell.querySelector('.agent-weapon'),
     };
   });
   squadBuilt = true;
+}
+
+const CHANNEL_KEYS = { latency: 'C', precision: 'V', resilience: 'B' };
+let computeBuilt = false;
+let channelRows = {};
+
+function buildComputePanel() {
+  const host = el('compute-channels');
+  host.innerHTML = '';
+  channelRows = {};
+  for (const channel of CHANNELS) {
+    const row = document.createElement('div');
+    row.className = 'compute-row';
+    row.innerHTML = `
+      <span class="compute-key">${CHANNEL_KEYS[channel]}</span>
+      <span class="compute-name">${channel.toUpperCase()}</span>
+      <span class="compute-pips"></span>`;
+    host.appendChild(row);
+    channelRows[channel] = row.querySelector('.compute-pips');
+  }
+  computeBuilt = true;
+}
+
+function renderCompute(sim) {
+  if (!computeBuilt) buildComputePanel();
+  const c = sim.squad.compute;
+
+  for (const channel of CHANNELS) {
+    const n = c.alloc[channel];
+    channelRows[channel].innerHTML = Array.from({ length: BUDGET }, (_, i) =>
+      `<i class="${i < n ? 'on' : ''}"></i>`).join('');
+  }
+
+  el('hud-compute').classList.toggle('surging', c.surging);
+  el('compute-surge').classList.toggle('active', c.surging);
+
+  // Name the cost while it is being paid. The number is people.
+  const foot = el('compute-throttle');
+  foot.classList.toggle('hidden', !c.surging);
+  if (c.surging) {
+    foot.textContent = `THROTTLING ${sim.throttledCount} INSTANCE${sim.throttledCount === 1 ? '' : 'S'}`;
+  }
 }
 
 export function updateHUD(sim) {
@@ -60,8 +104,15 @@ export function updateHUD(sim) {
     c.root.classList.toggle('selected', a.selected && !a.dead);
     c.root.classList.toggle('kia', a.dead);
     c.fill.style.width = `${Math.round((a.health / a.maxHealth) * 100)}%`;
-    c.tier.textContent = a.dead ? 'KIA' : a.tier.toUpperCase();
+    c.tier.textContent = a.dead ? 'KIA' : a.weapon.name;
+    // Spin-up is worth showing: a minigun agent who has not committed yet
+    // is not a minigun agent.
+    const spinning = a.weapon.spinUp && a.spin > 0 && a.spin < a.weapon.spinUp;
+    c.weapon.textContent = spinning ? ' ⟳' : '';
+    c.root.classList.toggle('spinning', !!spinning);
   });
+
+  renderCompute(sim);
 
   const mode = el('hud-mode');
   if (sim.squad.alignerEngaged) {
