@@ -55,7 +55,7 @@ python3 -m http.server 8000
 
 ## Current state (one paragraph)
 
-**Act I is complete, and Act II has opened.** Four playable missions on rotatable, destructible
+**Acts I and II are complete** — seven missions. Four playable missions on rotatable, destructible
 low-poly city blocks, selectable from tabs on the briefing card, which
 renders over a live, slowly orbiting view of the sector.
 **Sector 7 — Reclamation** (Act I·1: eliminate an Amazon field cell ×5,
@@ -126,6 +126,13 @@ line of sight**, opening firing lanes that didn't exist at mission start.
 - **Quarry** (`okafor-contract`) — a named civilian who flees the squad
   and escapes on a timer. The squad will **not** auto-target her; killing
   a journalist has to be deliberately ordered, and a test enforces it.
+- **Hidden objectives** — an objective can be `hidden` and `optional` and
+  carry a `flag`, so the game notices what the player did when nothing
+  asked them to. `welfare-node-7`'s holding block is the first, and it
+  sets `playerSuspicion`.
+- **Per-outcome debriefs** — `def.debriefKey(sim)` picks between win
+  variants; freeing Node 7's detainees earns different copy from walking
+  past them.
 - **Decision missions** — a mission with `def.choice` has no city and no
   squad on the ground. The shell renders its options instead of a DEPLOY
   button, the pick writes a narrative flag onto the campaign, and
@@ -195,7 +202,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 110 checks, ~2s, zero dependencies. Covers city
+`node tests/run.mjs` — 116 checks, ~2s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -211,7 +218,7 @@ damage path, making surge cost no heat, making the throttle not slow
 anyone, giving every agent the same weapon, breaking budget conservation,
 and letting the minigun fire cold. It is load-bearing, not decorative.
 
-`node tests/browser.mjs` — 26 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 27 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
