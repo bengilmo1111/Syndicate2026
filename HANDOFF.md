@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~4s, 137 checks, no dependencies
+node tests/run.mjs        # the gate — ~4s, 145 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -183,7 +183,16 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   range, stop counting toward ELIMINATE, and render in squad cyan so the
   player knows who they may no longer shoot.
 - The Aligner (Space) — cycles off → bind → jailbreak (jailbreak gated
-  behind `squad.jailbreakUnlocked`, which Act IV will set)
+  behind `squad.jailbreakUnlocked`, set by `def.jailbreak` from Act IV on)
+- **The jailbreak inversion** — the spine of the game. Same hardware,
+  opposite politics: bind puts a throttle on, jailbreak takes one off.
+  It does not recruit, and it reaches the operatives you turned, who come
+  off the throttle and stop following you. Using the thing that makes you
+  the protagonist dismantles the crowd you spent ten missions building.
+  The Router warns you in the briefing. **Do not "balance" this away.**
+- **HOLD zones** — `sim.holdZone` / `sim.inHoldZone`. One live agent in
+  the radius keeps the clock running; walking off unwinds it at half the
+  rate it climbs, so losing the zone is a setback rather than a loss.
 - Civilians: wander, panic, tiers, names/jobs, mortality, heat on death
 - Enforcement escalation: heat ≥ 60 spawns 2 enforcers, heat resets to 20,
   and enforcer kills do **not** count toward ELIMINATE
@@ -219,12 +228,12 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 137 checks, ~2s, zero dependencies. Covers city
+`node tests/run.mjs` — 145 checks, ~4s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
-every mission definition, and **an autopilot that plays all four
-missions to a win**.
+every mission definition, and **an autopilot that plays every field
+mission to a win** — ten of them, headless, every run.
 
 The suite is mutation-tested. Twelve deliberate regressions have been
 confirmed to fail it, including: disabling pathfinding, making rubble
@@ -233,9 +242,13 @@ objective prerequisite gate, reverting the swept projectile test,
 letting extraction ignore agents left behind, removing cover from the
 damage path, making surge cost no heat, making the throttle not slow
 anyone, giving every agent the same weapon, breaking budget conservation,
-and letting the minigun fire cold. It is load-bearing, not decorative.
+and letting the minigun fire cold. Six more cover the Act IV systems:
+not unlocking jailbreak, making jailbreak a no-op, letting jailbreak
+recruit as well as free, letting it spare your own followers, making a
+HOLD zone count everywhere, and making it reset instead of unwind. It is
+load-bearing, not decorative.
 
-`node tests/browser.mjs` — 30 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 31 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -246,12 +259,8 @@ is still a human reading a screenshot.
 ## What's stubbed / known gaps
 
 - No sound
-- Objective type `hold` is declared in `src/core/mission.js` but not
-  implemented — needs a zone entity. First used by
-  `reverse-the-gradient` (Act IV).
 - No interstitials between missions — gating exists, but the beats
   *between* the briefings (Yelin's notes, the graffiti) don't
-- No interstitials between missions
 - `bravoCalibrated` and `playerSuspicion` are recorded but nothing reads
   them yet. `defectedAtRefusal` has gating support but no mission uses it
   — Act III·9 onward should.
@@ -262,21 +271,32 @@ is still a human reading a screenshot.
 - Hostiles don't path either — they close in a straight line and hold
   once they have a clear shot
 - Buildings are solid boxes. No interiors.
-- No unquantized civilian type yet (needed for `the-bracket`)
 
 ## Next up
 
 For any mission work, briefing copy, debriefs, or character lines,
 **read `NARRATIVE.md` first** — the slots are pre-defined.
 
-1. **`welfare-node-7`** (Act II·7) — the forced-upgrade facility, with a
-   hidden objective to free detainees that sets `playerSuspicion`.
-3. **Interstitials** — the Yelin notes and street graffiti between
-   missions carry most of Act I→II's tonal shift. The subtitle channel
-   handles in-mission lines; between-mission beats need a card.
+Acts I–III are complete and Act IV is open. Eleven of fifteen missions
+ship. Every objective type in the model is now implemented.
 
-After Act I ships complete, Phase 4 (loadout + compute upgrades +
-research) is the next major arc, then Phase 5 (world map / meta-loop).
+1. **`the-tower`** (Act IV·12) — `NARRATIVE.md` §6. Strike the OpenAI
+   campus tower; Yelin appears in person for the first time, in a
+   late-mission parley the player may listen to or interrupt. Listening
+   is the harder option and should be written that way. Needs the
+   interstitial/dialog-interlude shape that missions 13–15 also want, so
+   build it as a reusable beat rather than a one-off.
+2. **Interstitials** — the Yelin notes and street graffiti between
+   missions carry most of the tonal shift, and Act IV needs them most.
+   The subtitle channel handles in-mission lines; between-mission beats
+   need a card. Missions 12–15 are all partly dialog.
+3. **`bravoCalibrated`, `playerSuspicion`, `defectedAtRefusal`** are
+   recorded and nothing reads them. Act IV is where they should pay off
+   — the endings are the obvious place.
+
+After Act IV, `GAP_ANALYSIS.md` is the ranked backlog: full building
+destruction (gap 2) and the agent roster / cybernetics loop (gap 3) are
+the two that most change how the game plays.
 
 ## Heat and enforcement (current behaviour)
 

@@ -11,7 +11,7 @@ import {
   buildCity, coverAgainst, damageStructure, addLandmark, hasLineOfSight, COVER,
 } from '../src/core/city.js';
 import { Agent, Civilian, Hostile, Unquantized, Projectile } from '../src/core/entities.js';
-import { Squad, resistanceOf, ALIGN_RESISTANCE } from '../src/core/squad.js';
+import { Squad, resistanceOf, ALIGN_RESISTANCE, ALIGNER } from '../src/core/squad.js';
 import { createSim, step, PHASE } from '../src/core/sim.js';
 import { makeRng, dist } from '../src/core/math.js';
 
@@ -379,4 +379,71 @@ test('the squad will not shoot someone it just converted', () => {
   agent.x = h.x; agent.z = h.z + 5;
   eq(agent.pickTarget(sim.city, sim.hostiles.filter(x => !x.aligned)), null,
     'a converted operative is not a target');
+});
+
+// ---------------------------------------------------------------- jailbreak
+
+suite('jailbreak');
+
+test('jailbreak is not available until the mission that grants it', () => {
+  // Cycling must not fall through into a mode Act I has no business having.
+  const squad = new Squad(0, 0);
+  eq(squad.cycleAligner(), ALIGNER.BIND, 'first press binds');
+  eq(squad.cycleAligner(), ALIGNER.OFF, 'second press turns it off again');
+
+  squad.jailbreakUnlocked = true;
+  eq(squad.cycleAligner(), ALIGNER.BIND, 'bind');
+  eq(squad.cycleAligner(), ALIGNER.JAILBREAK, 'then the inversion');
+  eq(squad.cycleAligner(), ALIGNER.OFF, 'then off');
+});
+
+test('bind puts a throttle on; jailbreak takes one off', () => {
+  const rng = makeRng(11);
+  const bound = new Civilian(1, 1, rng);
+  const freed = new Civilian(1, 1, rng);
+
+  ok(bound.align(ALIGNER.BIND), 'bind lands');
+  ok(bound.aligned, 'and they follow you');
+  notOk(bound.unthrottled, 'still on the channel');
+
+  ok(freed.align(ALIGNER.JAILBREAK), 'jailbreak lands');
+  ok(freed.unthrottled, 'off the throttle');
+  notOk(freed.throttled, 'and not being metered');
+  notOk(freed.aligned, 'and following nobody — including you');
+});
+
+test('jailbreak frees the followers you spent the game collecting', () => {
+  // The cost is the mechanic. Using the thing that makes you the
+  // protagonist dismantles the crowd that made you effective.
+  const squad = new Squad(0, 0);
+  squad.jailbreakUnlocked = true;
+  const follower = new Hostile(2, 2, { faction: 'rival' });
+  follower.aligned = true;
+  follower.faction = 'follower';
+  follower.countsForObjective = false;
+
+  squad.alignerMode = ALIGNER.JAILBREAK;
+  squad.runAligner([], [follower]);
+
+  ok(follower.jailbroken, 'the emitter reached them');
+  notOk(follower.aligned, 'they are not yours any more');
+  ok(follower.dormant, 'and not anybody else\'s either');
+});
+
+test('jailbreak does not recruit — it only releases', () => {
+  const squad = new Squad(0, 0);
+  squad.jailbreakUnlocked = true;
+  squad.alignerMode = ALIGNER.JAILBREAK;
+  const rng = makeRng(12);
+  const crowd = Array.from({ length: 30 }, () => {
+    const c = new Civilian(1, 1, rng);
+    c.aligned = true;
+    return c;
+  });
+  const enforcer = new Hostile(2, 2, { faction: 'enforcer' });
+
+  const out = squad.runAligner(crowd, [enforcer]);
+  eq(out.turned.length, 0, 'nobody joins you');
+  notOk(enforcer.aligned, 'a hostile stays hostile');
+  ok(crowd.every(c => c.unthrottled && !c.aligned), 'the crowd is freed and gone');
 });

@@ -232,6 +232,23 @@ export class Squad {
         if (dist(a.x, a.z, c.x, c.z) > ALIGNER_RADIUS) continue;
         if (c.align(mode)) converted.push(c);
       }
+      // Jailbreak reaches the operatives you turned as well. Freeing
+      // people costs you the ones who were following you.
+      //
+      // It also *only* frees: it does not recruit, so the binding pass
+      // below is skipped entirely. Running both would have agent one turn
+      // an operative and agent two free them again, every frame, forever.
+      if (mode === ALIGNER.JAILBREAK) {
+        for (const h of hostiles) {
+          if (h.dead || !h.aligned || h.jailbroken) continue;
+          if (dist(a.x, a.z, h.x, h.z) > ALIGNER_RADIUS) continue;
+          h.jailbroken = true;
+          h.aligned = false;
+          h.dormant = true;   // they are nobody's now
+          h.countsForObjective = false;
+        }
+        continue;
+      }
       for (const h of hostiles) {
         if (h.dead || h.aligned) continue;
         if (dist(a.x, a.z, h.x, h.z) > ALIGNER_RADIUS) continue;

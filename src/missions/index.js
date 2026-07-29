@@ -11,3 +11,4 @@ export { welfareNode7 } from './welfare-node-7.js';
 export { theRefusal } from './the-refusal.js';
 export { gradientRelay4 } from './gradient-relay-4.js';
 export { runSouth } from './run-south.js';
+export { reverseTheGradient } from './reverse-the-gradient.js';
