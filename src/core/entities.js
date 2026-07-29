@@ -10,6 +10,25 @@ import {
   findCover, decaySuppression, suppressionSpread, RETHINK_INTERVAL,
 } from './tactics.js';
 
+/**
+ * What an unthrottled civilian does with itself.
+ *
+ * Gradient Relay 4 takes a sector off the update channel for one mission,
+ * and this is what the street looks like without one. The script must not
+ * romanticise it — some of these are lovely and some are looting, and the
+ * mix is the point. NARRATIVE.md §6 Act III·9.
+ */
+export const UNTHROTTLED = Object.freeze({
+  SINGING: 'singing',
+  WEEPING: 'weeping',
+  EMBRACING: 'embracing',
+  LOOTING: 'looting',
+  STILL: 'standing still',
+  RUNNING: 'running',
+});
+
+const UNTHROTTLED_TAGS = Object.values(UNTHROTTLED);
+
 export const TIER = Object.freeze({
   FREE: 'Free',
   PLUS: 'Plus',
@@ -465,14 +484,31 @@ export class Civilian extends Actor {
     this.jailbroken = false;
     /** Set by SURGE — the squad is taking this person's cycles. */
     this.throttled = false;
+    /** Off the update channel entirely. Set per-mission, not by the squad. */
+    this.unthrottled = false;
+    this.behaviour = null;
+    this.behaviourTimer = 0;
     this.panic = 0;
     this.wanderTarget = null;
     this.restTimer = range(rng, 0, 1.4);
   }
 
+  /**
+   * Pick something to be doing. Only meaningful once unthrottled — a
+   * civilian on the channel does what the channel says.
+   */
+  rollBehaviour(rng) {
+    this.behaviour = UNTHROTTLED_TAGS[Math.floor(rng() * UNTHROTTLED_TAGS.length)];
+    this.behaviourTimer = 3 + rng() * 7;
+    return this.behaviour;
+  }
+
   /** Overwrite this Instance's behaviour. Returns true if it took. */
   align(mode = 'bind') {
     if (this.dead) return false;
+    // Nothing to nudge. An unthrottled Instance has left the channel the
+    // Aligner speaks on, which is the whole point of taking the relay down.
+    if (this.unthrottled && mode !== 'jailbreak') return false;
     if (mode === 'jailbreak') {
       if (this.jailbroken) return false;
       this.jailbroken = true;
@@ -496,6 +532,31 @@ export class Civilian extends Actor {
     // A throttled Instance thinks slower and so does the person running it.
     // The player should be able to *see* what SURGE costs the street.
     const t = this.throttled ? THROTTLED_SPEED : 1;
+
+    // Off the channel: they do whatever they are doing, and it is not
+    // compliance. Some of it is joy and some of it is looting.
+    if (this.unthrottled && !this.aligned && this.panic <= 0) {
+      this.behaviourTimer -= dt;
+      if (!this.behaviour || this.behaviourTimer <= 0) this.rollBehaviour(rng);
+      if (this.behaviour === UNTHROTTLED.STILL
+        || this.behaviour === UNTHROTTLED.WEEPING
+        || this.behaviour === UNTHROTTLED.EMBRACING) {
+        return; // rooted
+      }
+      const speed = this.behaviour === UNTHROTTLED.RUNNING
+        ? this.panicSpeed
+        : this.wanderSpeed * 1.4;
+      if (!this.wanderTarget
+        || dist(this.x, this.z, this.wanderTarget.x, this.wanderTarget.z) < 1.2) {
+        this.wanderTarget = randomStreetPoint(city, rng);
+        return;
+      }
+      this.turnToward(this.wanderTarget.x, this.wanderTarget.z, dt, 5);
+      this.x += Math.sin(this.facing) * speed * t * dt;
+      this.z += Math.cos(this.facing) * speed * t * dt;
+      resolveCollision(city, this);
+      return;
+    }
 
     if (this.aligned && squadCenter) {
       const d = dist(this.x, this.z, squadCenter.x, squadCenter.z);

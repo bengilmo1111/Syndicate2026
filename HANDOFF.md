@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~4s, 127 checks, no dependencies
+node tests/run.mjs        # the gate — ~4s, 131 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -55,7 +55,7 @@ python3 -m http.server 8000
 
 ## Current state (one paragraph)
 
-**Acts I and II are complete and Act III has opened — eight missions**,
+**Acts I and II are complete and Act III is two-thirds done — nine missions**,
 gated into a chain and selectable from tabs on the briefing card, which
 renders over a live, slowly orbiting view of the sector.
 
@@ -69,7 +69,9 @@ renders over a live, slowly orbiting view of the sector.
   (no field component — a room and a choice), `welfare-node-7` (a hidden
   objective nobody mentions, which sets `playerSuspicion`).
 - **Act III** — `the-refusal` (the branch point: carry out the order, or
-  cut the prisoner loose and turn on your own escort).
+  cut the prisoner loose and turn on your own escort), `gradient-relay-4`
+  (drop four generator nodes; the sector is off the update channel and
+  the Aligner has nothing to talk to).
 
 Four agents deploy on a street intersection inside the block. WASD moves
 the selection in formation, camera-relative. 1–4 select, Shift+N adds, Q
@@ -133,6 +135,10 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   The Refusal is the first; Act IV's three endings will use the same shape.
 - **Flag-aware gating** — `def.requiresFlags` means a mission can require
   a *decision*, not just a completion.
+- **Unthrottled civilians** — a mission can set `unthrottled: true` and
+  the whole street comes off the update channel: six behaviour tags
+  rolled every few seconds, and the Aligner returns *nothing* rather than
+  refusing. `gradient-relay-4` is the first.
 - **Dormant hostiles** — loyalists who are on your side until you free
   their prisoner or shoot one of them. They never fire first and the
   squad will not auto-target them, so defecting cannot happen by accident.
@@ -212,7 +218,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 127 checks, ~2s, zero dependencies. Covers city
+`node tests/run.mjs` — 131 checks, ~2s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -228,7 +234,7 @@ damage path, making surge cost no heat, making the throttle not slow
 anyone, giving every agent the same weapon, breaking budget conservation,
 and letting the minigun fire cold. It is load-bearing, not decorative.
 
-`node tests/browser.mjs` — 28 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 29 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.

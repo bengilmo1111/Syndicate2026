@@ -492,3 +492,44 @@ test('the-refusal: the two endings are different endings', () => {
   eq(def.debriefKey({ mission: { flags: { defectedAtRefusal: false } } }), 'win');
   includes(def.debrief.defect.join(' '), 'Router', 'and the Router picks up the channel');
 });
+
+test('gradient-relay-4: the sector is off the channel, and the Aligner has nothing to say', () => {
+  // The first time the player's signature tool simply does not work. Not
+  // refused like the unquantized — there is no channel left to speak on.
+  const sim = createSim('gradient-relay-4');
+  const crowd = sim.civilians.filter(c => !c.isAsset && !c.isQuarry);
+  ok(crowd.every(c => c.unthrottled), 'everyone is unthrottled');
+  ok(crowd.every(c => !c.align('bind')), 'and none of them can be aligned');
+
+  sim.squad.cycleAligner();
+  const near = crowd[0];
+  sim.squad.agents.forEach(a => { a.x = near.x; a.z = near.z + 2; });
+  for (let i = 0; i < 60; i++) {
+    step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  }
+  eq(sim.alignedCount, 0, 'standing in the middle of them converts nobody');
+});
+
+test('gradient-relay-4: the street is doing several different things at once', () => {
+  // Load-bearing tone. Uniformly joyful is propaganda; uniformly ugly is
+  // Yelin's slide deck. The mix is the argument.
+  const sim = createSim('gradient-relay-4');
+  const kinds = new Set(
+    sim.civilians.filter(c => c.unthrottled).map(c => c.behaviour),
+  );
+  gte(kinds.size, 4, `${kinds.size} distinct behaviours on the street`);
+  ok(kinds.has('looting') || kinds.has('running'), 'not all of it is lovely');
+  ok(kinds.has('singing') || kinds.has('embracing'), 'and not all of it is ugly');
+});
+
+test('gradient-relay-4: four nodes, and all four are required', () => {
+  const sim = createSim('gradient-relay-4');
+  eq(sim.city.landmarks.length, 4, 'four generator nodes');
+  ok(sim.city.landmarks.every(l => l.destructible), 'all of them can come down');
+
+  const obj = sim.mission.objectives[0];
+  eq(obj.target, 4, 'the objective wants all four');
+  sim.city.landmarks.slice(0, 3).forEach(l => { l.collapsed = true; });
+  step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  eq(sim.phase, PHASE.PLAYING, 'three is not enough');
+});

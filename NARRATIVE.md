@@ -426,7 +426,7 @@ room. Interstitials become field comms over a degrading channel.
   mid-mission. Silence, long enough to be uncomfortable. Then one new
   voice: *"This is the Router. Walk south."*
 
-#### Mission 9 — Sabotage: Gradient Relay 4 `[next]`
+#### Mission 9 — Sabotage: Gradient Relay 4 `[shipped]`
 - **ID:** `gradient-relay-4` · **Rival:** OpenAI
 - **Premise:** Take down a Gradient relay. For the duration of the
   mission, every civilian in range runs unthrottled.
@@ -441,7 +441,7 @@ room. Interstitials become field comms over a degrading channel.
 - **Interstitial:** The Router, calm: *"This is the city you were
   employed to manage. Look at it. This is the part they don't bill for."*
 
-#### Mission 10 — Run South `[planned]`
+#### Mission 10 — Run South `[next]`
 - **ID:** `run-south` · **Rival:** all of them
 - **Premise:** Every OpenAI and Google asset in Austin is hunting the
   squad. Reach the Router's safehouse alive.
