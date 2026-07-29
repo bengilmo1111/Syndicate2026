@@ -1,0 +1,41 @@
+name: verify
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 22.7+ detects ES module syntax without a package.json,
+          # which is what lets this repo stay dependency-free.
+          node-version: '22'
+
+      - name: Simulation and mission tests
+        run: node tests/run.mjs
+
+  browser:
+    runs-on: ubuntu-latest
+    # Optional layer. It needs Playwright, which the project does not
+    # otherwise depend on, so a failure here should not block a docs change.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm init -y >/dev/null
+          npm i --no-audit --no-fund playwright
+          npx playwright install --with-deps chromium
+
+      - name: Browser integration
+        run: node tests/browser.mjs

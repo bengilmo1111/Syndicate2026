@@ -569,12 +569,15 @@ The console at the end of Mission 14 offers three actions.
 
 ## 9 · How this document drives the build
 
-1. Read `HANDOFF.md` for current state.
+1. Read `AGENTS.md` for the rules, then `HANDOFF.md` for current state.
 2. Read `IMPLEMENTATION_PLAN.md` for the next unchecked step.
 3. For any narrative copy, use this file's cast, lexicon, and mission
    slots as canon. Mission slots are pre-defined — pick the matching
    slot rather than inventing parallel fiction. If old-canon terms show
-   up in code or docs, replace them.
+   up in code or docs, replace them. A test enforces the floor of this:
+   `tests/missions.test.mjs` fails if retired pre-pivot vocabulary
+   (EuroCorp, Veridian, Halcyon, the CHIP, Persuadertron, unstrung)
+   reappears in mission copy.
 4. New characters or terms get added to §3 / §4 in the same commit.
 5. Branch flags live on `mission.flags`. Implement them as the missions
    that need them land; don't pre-stub them all.

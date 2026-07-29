@@ -1,15 +1,18 @@
 # Handoff — Syndicate 2026
 
-This file is the single source of truth for "what is the world like right
-now" when a session opens this repo. Read this **first**. Update it
-**last**, in the same commit as your code change.
+This file describes **what the world is like right now**. Read
+[`AGENTS.md`](./AGENTS.md) first for the rules; read this second for the
+state. Update it **last**, in the same commit as your code change.
 
-> **If you are about to write any story material** — briefings, debriefs,
-> mission copy, character lines, civilian VO, UI flavor text — **stop and
-> read [`NARRATIVE.md`](./NARRATIVE.md) first.** It is canonical for the
-> four-act arc, cast, lexicon, and per-mission slot notes. All fifteen
-> mission slots are pre-defined in §6; pick the matching slot rather than
-> inventing parallel fiction.
+> **Before you push: `node tests/run.mjs` must pass.** ~1s, no
+> dependencies. It plays every mission to a win headlessly, so a mission
+> you break — or ship uncompletable — fails the suite.
+
+> **Writing any story material** — briefings, debriefs, character lines,
+> civilian VO, UI flavor text — means reading
+> [`NARRATIVE.md`](./NARRATIVE.md) first. All fifteen mission slots are
+> pre-defined in §6; pick the matching slot rather than inventing parallel
+> fiction.
 
 ---
 
@@ -35,10 +38,15 @@ selection, mission model, heat escalation) were all ported into
   in `git log --graph`. Don't squash.
 - `vercel.json` serves the repo root as a static site. No env vars.
 
-## How to test locally
+## How to test
 
-Static site, no build step — but **ES modules need a real server**,
-`file://` won't work:
+```
+node tests/run.mjs        # the gate — ~1s, 48 checks, no dependencies
+node tests/run.mjs nav    # filter to one suite while iterating
+node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
+```
+
+To play it, serve the directory — **ES modules won't load over `file://`**:
 
 ```
 python3 -m http.server 8000
@@ -133,6 +141,27 @@ the engine swap intact. If you find yourself importing `three` into
 `src/core/`, stop and reconsider — you're about to make the next swap
 expensive.
 
+## Test coverage
+
+`node tests/run.mjs` — 48 checks, ~1s, zero dependencies. Covers city
+generation invariants, navigation, collapse-to-cover, ballistics, the
+Aligner (including the unquantized refusal), morale, the objective model,
+heat and enforcement, every mission definition, and **an autopilot that
+plays all four missions to a win**.
+
+The suite has been mutation-tested: disabling pathfinding, making rubble
+block sight again, making the unquantized alignable, removing the
+objective prerequisite gate, reverting the swept projectile test, and
+letting extraction ignore agents left behind all produce failures. It is
+load-bearing, not decorative.
+
+`node tests/browser.mjs` — 14 checks in real Chromium. Boot, module
+resolution over HTTP, WebGL render of every mission, keyboard and mouse
+wiring, frame rate, clean console.
+
+**Not covered:** nothing asserts the game *looks* right. Visual judgement
+is still a human reading a screenshot.
+
 ## What's stubbed / known gaps
 
 - No persistence (no localStorage save yet)
@@ -193,6 +222,8 @@ research) is the next major arc, then Phase 5 (world map / meta-loop).
 
 ## Files of note
 
+- `AGENTS.md` — the working contract. Read first.
+- `README.md` — what this is, how to run it, for humans arriving cold.
 - `PRD.md` — vision, scope, engine rationale. Update before scope changes.
 - `NARRATIVE.md` — story canon. Fifteen mission slots in §6.
 - `IMPLEMENTATION_PLAN.md` — roadmap and file map. Tick boxes as you go.
@@ -202,11 +233,10 @@ research) is the next major arc, then Phase 5 (world map / meta-loop).
 
 ## Working agreement
 
-- One logical change per commit. Conventional-style messages
-  (`feat:`, `fix:`, `docs:`, `refactor:`).
-- Update `IMPLEMENTATION_PLAN.md` checkboxes in the same commit as the code.
-- Update this file when "current state" or "next up" goes stale.
-- If you change a control or add a binding, update the hint text in
-  `src/ui/overlay.js` **and** the controls list in `PRD.md`.
-- Verify before pushing — the checklist is at the bottom of
-  `IMPLEMENTATION_PLAN.md`. Zero console errors is the bar.
+Lives in [`AGENTS.md`](./AGENTS.md) — the layer rule, the test gate, the
+content rules, and the git conventions are stated once there rather than
+restated in every document.
+
+The only thing this file asks of you: when "current state", "what works",
+"known gaps", or "next up" above goes stale, fix it in the same commit
+that made it stale.
