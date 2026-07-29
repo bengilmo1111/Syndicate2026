@@ -114,7 +114,9 @@ following now ship:
 - **Q** or **`** — select the whole deployment
 - **WASD** — move selected agents, camera-relative, formation preserved
 - **Left click** — focus fire at the cursor; release for auto-fire
-- **Right click** — issue a formation-preserving move order
+- **Right click** — issue a move order. The squad's shape is preserved up
+  to a formation's width; past that it regroups on the point, because an
+  uncapped offset means a scattered squad is ordered to stay where it is
 - **Space** — cycle the Aligner (off → bind → jailbreak once unlocked)
 - **C / V / B** — shift a compute point into latency / precision / resilience
 - **G** — SURGE: overdraw the allocation. Faster, straighter, tougher —
@@ -123,6 +125,8 @@ following now ship:
 - **Tab** — objectives panel
 - **Z / X** — rotate the city · **R / F** — tilt · **Wheel** — zoom ·
   **Middle-drag** — free orbit
+- **Alt + Enter** — fullscreen, or the **⛶ VIEW** panel at the top right.
+  Available from the briefing card as well as in the field
 
 > Note: an earlier draft of this document bound both "select all" and
 > "rotate camera" to **Q**. Camera rotation moved to **Z / X** so the

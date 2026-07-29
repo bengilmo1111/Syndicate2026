@@ -11,7 +11,9 @@ import {
   buildCity, coverAgainst, damageStructure, addLandmark, hasLineOfSight, COVER,
 } from '../src/core/city.js';
 import { Agent, Civilian, Hostile, Unquantized, Projectile } from '../src/core/entities.js';
-import { Squad, resistanceOf, ALIGN_RESISTANCE, ALIGNER } from '../src/core/squad.js';
+import {
+  Squad, resistanceOf, ALIGN_RESISTANCE, ALIGNER, MAX_SPREAD,
+} from '../src/core/squad.js';
 import { createSim, step, PHASE } from '../src/core/sim.js';
 import { makeRng, dist } from '../src/core/math.js';
 
@@ -446,4 +448,48 @@ test('jailbreak does not recruit — it only releases', () => {
   eq(out.turned.length, 0, 'nobody joins you');
   notOk(enforcer.aligned, 'a hostile stays hostile');
   ok(crowd.every(c => c.unthrottled && !c.aligned), 'the crowd is freed and gone');
+});
+
+// ---------------------------------------------------------------- squad control
+
+suite('squad control');
+
+test('an order to a point brings a scattered squad to that point', () => {
+  // A firefight spreads the squad tens of metres. Before the offset was
+  // capped, "go there" resolved to each agent's own current position and
+  // the order silently did nothing. The autopilot found this on the-tower
+  // by standing in a ring around the objective for six minutes.
+  const city = buildCity({ seed: 5, cols: 6, rows: 6, density: 0 });
+  const squad = new Squad(city.deploy.x, city.deploy.z);
+  const point = { x: city.deploy.x, z: city.deploy.z };
+
+  squad.agents[0].x = point.x + 30; squad.agents[0].z = point.z;
+  squad.agents[1].x = point.x - 30; squad.agents[1].z = point.z;
+  squad.agents[2].x = point.x; squad.agents[2].z = point.z + 30;
+  squad.agents[3].x = point.x; squad.agents[3].z = point.z - 30;
+
+  squad.issueMove(point, city);
+  for (const a of squad.agents) {
+    const goal = a.finalGoal;
+    lt(dist(goal.x, goal.z, point.x, point.z), MAX_SPREAD + 0.01,
+      'the goal is at the point, not back where the agent was standing');
+  }
+
+  for (let i = 0; i < 60 * 12; i++) squad.followOrders(1 / 60, city);
+  for (const a of squad.agents) {
+    lt(dist(a.x, a.z, point.x, point.z), 8, 'and the agent actually gets there');
+  }
+});
+
+test('a tight squad still arrives in formation', () => {
+  // The cap must not flatten the diamond into a pile — the shape is how
+  // the player reads which agent is which at a glance.
+  const city = buildCity({ seed: 5, cols: 6, rows: 6, density: 0 });
+  const squad = new Squad(city.deploy.x, city.deploy.z);
+  const point = { x: city.deploy.x + 20, z: city.deploy.z };
+  squad.issueMove(point, city);
+  const goals = squad.agents.map(a => a.finalGoal);
+  const spread = Math.max(...goals.map(g => dist(g.x, g.z, point.x, point.z)));
+  ok(spread > 1.5, `the formation survives (${spread.toFixed(1)}m)`);
+  lt(spread, MAX_SPREAD + 0.01, 'but stays within a formation of the order');
 });

@@ -490,17 +490,32 @@ off → bind → jailbreak. Both modes are already modelled in
   in the Router's voice, before the player can discover it by accident.
   **Do not "fix" this.** It is not a balance bug.
 
-#### Mission 12 — The Tower `[next]`
+#### Mission 12 — The Tower `[shipped]`
 - **ID:** `the-tower` · **Rival:** OpenAI
 - **Premise:** Strike the OpenAI campus tower. Capture Board records.
 - **Truth:** The Board evacuated days ago. Yelin stayed, alone, to slow
   the player down. First time Yelin appears in person.
-- **Mechanical hooks:** `ELIMINATE` Yelin's guard, plus a late-mission
-  parley interstitial where Yelin addresses the player directly. The
-  player may listen or interrupt. Listening is the harder option and
-  should be written that way.
+- **Mechanical hooks:** `ELIMINATE` the twelve-strong personal guard,
+  then `RETRIEVE` the minutes. The guard are not conscripts and not
+  throttled — they chose this, and the copy says so.
+- **The parley.** Two thirds through the guard, Yelin opens a channel and
+  the field freezes. The player may **let him talk** or **cut the
+  channel**. Listening is the harder option and is written that way: four
+  Board Security arrive up the north stairwell while he speaks, and they
+  earn no objective progress, so the cost is pure. He does not pretend not
+  to notice them.
+- **What the minutes say:** no conspiracy. A costing exercise. Someone
+  modelled unthrottled intelligence at scale, did not like the number,
+  and proposed a ceiling; it carried nine to two. The banality is the
+  point and must survive any rewrite.
+- **Writing note:** Yelin's argument here is the warm-up for Mission 13,
+  not the main event. It has to be good enough that cutting him off feels
+  like a choice rather than a mercy. The debrief branches on it
+  (`win` vs `heard`), and the Router's response to having been listened
+  to is neither approval nor anger — it is *"nobody has been making the
+  other one."*
 
-#### Mission 13 — Yelin `[planned]`
+#### Mission 13 — Yelin `[next]`
 - **ID:** `yelin` · **Rival:** Yelin
 - **Premise:** Yelin is at the top of the tower. Confront them.
 - **Truth:** Yelin has no exit and will not surrender. They also will

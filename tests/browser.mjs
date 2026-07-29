@@ -104,7 +104,8 @@ await page.evaluate(() => {
   localStorage.setItem('syndicate2026.campaign', JSON.stringify({
     version: 2,
     completed: ['sector-7', 'district-12', 'sable-campus', 'the-bracket',
-      'okafor-contract', 'calibration-window', 'welfare-node-7', 'the-refusal', 'gradient-relay-4', 'run-south'],
+      'okafor-contract', 'calibration-window', 'welfare-node-7', 'the-refusal', 'gradient-relay-4', 'run-south',
+      'reverse-the-gradient'],
     flags: {}, records: {},
   }));
 });
@@ -243,6 +244,74 @@ await page.waitForTimeout(600);
 await page.keyboard.up('z');
 check('camera rotation does not disturb the simulation',
   (await page.evaluate(() => window.__syndicate.sim.city.seed)) === yaw0);
+
+// --- mid-mission dialog. The sim freezes the field and the overlay has to
+// --- come back up over a live mission and then get out of the way again.
+await page.evaluate(() => {
+  const app = window.__syndicate;
+  app.sim.interludeDefs = [{
+    id: 'browser-probe',
+    speaker: 'CHANNEL TEST',
+    blocking: true,
+    lines: ['A line that has to appear on the card.'],
+    when: () => true,
+    options: [
+      { id: 'reply', label: 'ANSWER', lines: ['And a reply that has to appear too.'] },
+      { id: 'quiet', label: 'SAY NOTHING' },
+    ],
+  }];
+  app.sim.interludesSeen = new Set();
+});
+await page.waitForTimeout(500);
+const parleyBody = await page.textContent('#overlay-body');
+check('a mid-mission beat raises a card over the live mission',
+  await page.isVisible('#overlay-choices')
+    && parleyBody.includes('has to appear on the card'),
+  await page.textContent('#overlay-title'));
+
+const frozen = await page.evaluate(() => window.__syndicate.sim.elapsed);
+await page.waitForTimeout(700);
+check('and the field is frozen while it is up',
+  (await page.evaluate(() => window.__syndicate.sim.elapsed)) === frozen);
+
+await page.click('.choice-button');
+await page.waitForTimeout(400);
+check('answering shows the reply',
+  (await page.textContent('#overlay-body')).includes('reply that has to appear'));
+
+await page.click('#overlay-button');
+await page.waitForTimeout(700);
+check('and dismissing it returns to the floor',
+  await page.evaluate(() => window.__syndicate.phase === 'playing'
+    && window.__syndicate.sim.elapsed > 0 && !window.__syndicate.sim.interlude)
+    && !(await page.isVisible('#overlay-choices')));
+
+// --- fullscreen. Headless Chromium will not actually go fullscreen, so
+// --- what is checkable is that the control exists, is wired, and that
+// --- neither the button nor the shortcut throws.
+check('there is a fullscreen control', await page.isVisible('#hud-fullscreen'),
+  await page.textContent('#hud-fullscreen-label'));
+
+const errsBefore = consoleErrors.length;
+await page.click('#hud-fullscreen');
+await page.waitForTimeout(400);
+await page.keyboard.press('Alt+Enter');
+await page.waitForTimeout(400);
+check('and neither the button nor Alt+Enter throws',
+  consoleErrors.length === errsBefore
+    && await page.evaluate(() => window.__syndicate.phase === 'playing'),
+  `${consoleErrors.length - errsBefore} errors`);
+
+check('the controls card documents it',
+  (await page.evaluate(() => {
+    const app = window.__syndicate;
+    app.sim.squad.agents.forEach(a => { a.dead = true; });
+    return true;
+  })) && (await page.waitForTimeout(700), (await page.textContent('#overlay-hint')).includes('fullscreen')));
+await page.click('#overlay-alt-button');
+await page.waitForTimeout(600);
+await page.click('#overlay-button');
+await page.waitForTimeout(900);
 
 // --- frame rate, on a software rasterizer. Hardware has headroom on this.
 const fps = await page.evaluate(() => new Promise(res => {

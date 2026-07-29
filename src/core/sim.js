@@ -12,6 +12,7 @@ import {
 } from './city.js';
 import { SURGE_RADIUS, SURGE_HEAT_PER_SECOND, THROTTLED_SPEED } from './compute.js';
 import { applySuppression, decaySuppression } from './tactics.js';
+import { pumpInterludes } from './interlude.js';
 import {
   getMissionDef, buildMission, updateMissionStatus, isMissionComplete,
   failedObjective, OBJECTIVE,
@@ -112,6 +113,14 @@ export function createSim(missionId) {
     alignerRefusalSeen: false,
     /** Current subtitle line, or null. Drained by the HUD. */
     dialogue: null,
+    /** Mid-mission dialog beats — see `src/core/interlude.js`. */
+    interludeDefs: def.interludes ?? [],
+    /** The beat currently on screen waiting to be answered, or null. */
+    interlude: null,
+    /** Beats that have already fired, so a condition can't re-trigger. */
+    interludesSeen: new Set(),
+    /** interlude id → chosen option id. Debriefs and later missions read this. */
+    interludeAnswers: {},
     /** Renderer sets this from the mouse each frame; sim uses it for aiming. */
     cursor: { x: 0, z: 0 },
   };
@@ -127,6 +136,11 @@ export function createSim(missionId) {
  */
 export function step(sim, dt, intent) {
   if (sim.phase !== PHASE.PLAYING) return;
+
+  // A blocking interlude freezes the field. Yelin gets to finish the
+  // sentence; the guards do not get to shoot you while he does.
+  if (pumpInterludes(sim)) return;
+
   sim.elapsed += dt;
 
   const { city, squad } = sim;

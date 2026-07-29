@@ -16,6 +16,7 @@
 import { createSim, step, PHASE } from '../../src/core/sim.js';
 import { activeObjective, OBJECTIVE, STATUS } from '../../src/core/mission.js';
 import { ALIGNER } from '../../src/core/squad.js';
+import { answerInterlude } from '../../src/core/interlude.js';
 import { dist } from '../../src/core/math.js';
 import { structureInPath, hasLineOfSight } from '../../src/core/city.js';
 
@@ -27,6 +28,11 @@ export function autoplay(missionId, opts = {}) {
     dt = 1 / 60,
     maxSeconds = 420,
     trace = false,
+    // How the bot answers mid-mission dialog. A blocking interlude that
+    // nobody answers is a hang, and a hang is exactly the failure mode
+    // this file exists to catch — so the default is "answer something".
+    answers = {},
+    answerWith = 'first',
   } = opts;
 
   const sim = createSim(missionId);
@@ -36,6 +42,17 @@ export function autoplay(missionId, opts = {}) {
   let elapsed = 0;
 
   while (sim.phase === PHASE.PLAYING && elapsed < maxSeconds) {
+    // Mid-mission dialog blocks the field until somebody answers. Answer
+    // it before doing anything else, or the loop spins to the time limit
+    // with the squad frozen mid-stride.
+    if (sim.interlude) {
+      const opts_ = sim.interlude.options;
+      const wanted = answers[sim.interlude.id]
+        ?? (answerWith === 'last' ? opts_[opts_.length - 1].id : opts_[0].id);
+      answerInterlude(sim, wanted);
+      continue;
+    }
+
     orderTimer -= dt;
     const obj = activeObjective(sim.mission);
     const goal = goalFor(sim, obj);
@@ -92,6 +109,7 @@ export function autoplay(missionId, opts = {}) {
     kills: sim.kills,
     aligned: sim.alignedCount,
     civilianDeaths: sim.civilianDeaths,
+    interludeAnswers: sim.interludeAnswers,
     objectives: sim.mission.objectives.map(o => ({
       label: o.label, status: o.status, progress: o.progress, target: o.target,
     })),

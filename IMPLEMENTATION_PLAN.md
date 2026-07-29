@@ -85,8 +85,12 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Per-outcome debrief copy (`def.debriefKey`)
 - [x] **Act III complete** — `the-refusal`, `gradient-relay-4`, `run-south`
 - [x] **Act IV opens** — `reverse-the-gradient`, and the Aligner inverts
-- [ ] Act IV missions remaining: `the-tower`, `yelin`, `the-core`,
-      `epilogue` (`NARRATIVE.md` §6 Act IV)
+- [x] **Mid-mission dialog** (`src/core/interlude.js`) — a beat fires on a
+      condition, freezes the field, and the answer writes a flag and can
+      change the field. First used by `the-tower`'s parley; missions 13–15
+      are all partly dialog and use the same shape.
+- [ ] Act IV missions remaining: `yelin`, `the-core`, `epilogue`
+      (`NARRATIVE.md` §6 Act IV)
 - [x] Branch objectives — one mission, mutually exclusive routes
       (`objective.branch`, `takenBranch`)
 - [x] Flag-aware gating — a mission can require a *decision*, not just a
@@ -222,6 +226,7 @@ src/
     mission.js          objective model, prerequisites, mission registry
     campaign.js         completions, gating, records, branch flags
     tactics.js          hostile cover-seeking, repositioning, suppression
+    interlude.js        mid-mission dialog beats — freeze, ask, record
     sim.js              the simulation — owns all mutable game state
   missions/             one file per mission, self-registering
     sector-7.js         Act I·1  ELIMINATE + DEMOLISH
@@ -235,6 +240,7 @@ src/
     gradient-relay-4.js Act III·9 DEMOLISH ×4; the sector off the channel
     run-south.js        Act III·10 EXTRACT under pursuit; the file
     reverse-the-gradient.js Act IV·11 RETRIEVE + HOLD; the Aligner inverts
+    the-tower.js        Act IV·12 ELIMINATE + RETRIEVE; the parley
   render/               READS sim state, never writes to it
     ps1.js              materials, vertex jitter, fog, lights, windows
     cityView.js         city meshes, collapse reconciliation

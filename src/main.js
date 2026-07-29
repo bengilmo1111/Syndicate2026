@@ -5,6 +5,7 @@
 import './missions/index.js';
 import { getAllMissions, getMissionDef } from './core/mission.js';
 import { createSim, step, PHASE } from './core/sim.js';
+import { answerInterlude } from './core/interlude.js';
 import {
   isUnlocked, isComplete, lockReason, recordWin, nextMission, progress,
 } from './core/campaign.js';
@@ -202,6 +203,88 @@ function showDebrief(won) {
   showOverlay();
 }
 
+/**
+ * A mid-mission dialog beat. The field is already frozen by the sim; this
+ * puts the card up and hands the answer back.
+ *
+ * The reply is shown as a second card rather than dumped into the
+ * subtitle channel — Yelin's argument is four paragraphs and the player
+ * is meant to read it, not catch it going past.
+ */
+function showInterlude(beat) {
+  app.phase = PHASE.BRIEFING;
+  setOverlay({
+    eyebrow: 'CHANNEL OPEN',
+    title: beat.speaker,
+    body: beat.lines,
+    choices: beat.options.map(o => ({
+      label: o.label,
+      onClick: () => {
+        const chosen = answerInterlude(app.sim, o.id);
+        if (chosen?.lines?.length) showInterludeReply(chosen);
+        else resumeMission();
+      },
+    })),
+    hint: CONTROLS_HINT,
+  });
+  showOverlay();
+}
+
+function showInterludeReply(option) {
+  setOverlay({
+    eyebrow: 'CHANNEL OPEN',
+    title: option.label,
+    body: option.lines,
+    button: { label: 'BACK TO THE FLOOR', onClick: resumeMission },
+    hint: CONTROLS_HINT,
+  });
+  showOverlay();
+}
+
+function resumeMission() {
+  app.phase = PHASE.PLAYING;
+  hideOverlay();
+}
+
+// ---------------------------------------------------------------------------
+// Fullscreen
+// ---------------------------------------------------------------------------
+
+const shell = document.getElementById('game-shell');
+const fsButton = document.getElementById('hud-fullscreen');
+const fsLabel = document.getElementById('hud-fullscreen-label');
+
+/**
+ * Take the shell fullscreen, not the canvas — fullscreening the canvas
+ * alone leaves the HUD and every overlay card behind on the page.
+ *
+ * The renderer resizes off the `resize` event, which the browser fires on
+ * entering and leaving, so there is nothing to drive by hand here.
+ */
+function toggleFullscreen() {
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.();
+  } else {
+    // Rejected when the gesture isn't trusted, or when the browser or an
+    // embedding iframe forbids it. A fullscreen button that silently does
+    // nothing is better than an unhandled rejection in the console.
+    shell.requestFullscreen?.().catch(() => {});
+  }
+}
+
+document.addEventListener('fullscreenchange', () => {
+  const on = !!document.fullscreenElement;
+  fsLabel.textContent = on ? '⤢ EXIT' : '⛶ FULL';
+  fsButton.title = on ? 'Exit fullscreen (Alt+Enter or Esc)' : 'Fullscreen (Alt+Enter)';
+  view.resize();
+});
+
+fsButton.addEventListener('click', toggleFullscreen);
+
+// Fullscreen is unavailable in some embeds. Don't advertise a control
+// that cannot work.
+if (!shell.requestFullscreen) fsButton.classList.add('hidden');
+
 // ---------------------------------------------------------------------------
 // Input
 // ---------------------------------------------------------------------------
@@ -212,6 +295,14 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   keys.add(k);
   if (MOVE_KEYS.has(k) || k === ' ' || k === 'tab') e.preventDefault();
+
+  // Works from the briefing card too — the player should be able to go
+  // fullscreen before deploying, not only mid-firefight.
+  if (k === 'enter' && e.altKey) {
+    e.preventDefault();
+    toggleFullscreen();
+    return;
+  }
 
   if (app.phase !== PHASE.PLAYING || !app.sim) return;
   const squad = app.sim.squad;
@@ -339,6 +430,7 @@ function frame(now) {
       updateHUD(app.sim);
       if (app.sim.phase === PHASE.WON) showDebrief(true);
       else if (app.sim.phase === PHASE.LOST) showDebrief(false);
+      else if (app.sim.interlude) showInterlude(app.sim.interlude);
     }
 
     view.render(app.sim, dt);

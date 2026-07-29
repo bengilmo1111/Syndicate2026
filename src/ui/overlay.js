@@ -81,4 +81,5 @@ export const CONTROLS_HINT = [
   '<b>C / V / B</b> shift compute into latency / precision / resilience',
   '<b>G</b> surge — faster, straighter, tougher. Taken from the street.',
   '<b>Z / X</b> rotate city · <b>R / F</b> tilt · <b>Wheel</b> zoom · <b>Middle-drag</b> orbit',
+  '<b>Alt+Enter</b> fullscreen — or the <b>⛶ VIEW</b> panel, top right',
 ].join('<br>');
