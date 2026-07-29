@@ -50,6 +50,7 @@ registered mission to completion — a mission that can't be won fails CI.
 - [`NARRATIVE.md`](./NARRATIVE.md) — story canon and all fifteen mission slots
 - [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) — roadmap
 - [`PRD.md`](./PRD.md) — vision, scope, engine rationale
+- [`GAP_ANALYSIS.md`](./GAP_ANALYSIS.md) — how this compares to the 1996 original
 
 ## A note on the company names
 
