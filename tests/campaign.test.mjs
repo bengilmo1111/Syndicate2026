@@ -26,6 +26,7 @@ test('a fresh campaign opens exactly one mission', () => {
 
 test('Act I is a chain — each mission opens the next and nothing else', () => {
   const c = newCampaign();
+  // Act I only — later acts chain off it and are checked separately.
   const order = ['sector-7', 'district-12', 'sable-campus', 'the-bracket'];
   for (let i = 0; i < order.length; i++) {
     const open = MISSIONS.filter(m => isUnlocked(c, m) && !isComplete(c, m.id));
@@ -33,8 +34,9 @@ test('Act I is a chain — each mission opens the next and nothing else', () => 
     eq(open[0].id, order[i], `step ${i}: it is ${order[i]}`);
     recordWin(c, order[i], {});
   }
-  eq(progress(c, MISSIONS).done, order.length, 'the act is complete');
-  eq(nextMission(c, MISSIONS), null, 'and nothing is left');
+  eq(progress(c, MISSIONS).done, order.length, 'Act I is complete');
+  const next = nextMission(c, MISSIONS);
+  if (next) eq(next.act, 'ACT II', 'and the next thing open is Act II');
 });
 
 test('every mission after the first declares a prerequisite', () => {

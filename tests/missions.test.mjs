@@ -214,3 +214,77 @@ test('firing near civilians raises heat; enforcement arrives and does not count'
   ok(enforcers.every(e => !e.countsForObjective), 'enforcement kills are not progress');
   eq(sim.hostiles.filter(h => h.countsForObjective).length, before, 'the objective pool is unchanged');
 });
+
+// ------------------------------------------------------------------- act II
+
+suite('act II');
+
+test('okafor-contract: the squad will not engage her on its own', () => {
+  // The mission's whole point is that killing a journalist has to be
+  // something the player deliberately orders. If auto-fire ever picks her
+  // up, the moral weight of the mission evaporates.
+  const sim = createSim('okafor-contract');
+  const okafor = sim.quarry[0];
+  const agent = sim.squad.agents[0];
+  agent.x = okafor.x; agent.z = okafor.z + 4;
+  agent.range = 100;
+  eq(agent.pickTarget(sim.city, sim.hostiles), null, 'she is not an auto-target');
+
+  const before = okafor.health;
+  for (let i = 0; i < 60 * 5; i++) {
+    step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  }
+  eq(okafor.health, before, 'and standing next to her does not kill her');
+});
+
+test('okafor-contract: she runs when the squad closes', () => {
+  const sim = createSim('okafor-contract');
+  const okafor = sim.quarry[0];
+  const start = { x: okafor.x, z: okafor.z };
+  sim.squad.agents.forEach(a => { a.x = okafor.x; a.z = okafor.z + 6; a.range = 0; });
+  for (let i = 0; i < 60 * 3; i++) {
+    step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  }
+  gte(Math.hypot(okafor.x - start.x, okafor.z - start.z), 5, 'she moved away');
+});
+
+test('okafor-contract: the filing window is a real deadline', () => {
+  // The clock is the antagonist, not the private security.
+  const sim = createSim('okafor-contract');
+  const okafor = sim.quarry[0];
+  gte(okafor.window, 30, 'there is a window');
+  sim.elapsed = okafor.window + 1;
+  step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  ok(okafor.escaped, 'past the window she files');
+  eq(sim.phase, PHASE.LOST, 'and the contract is lost');
+  eq(sim.failReason, 'escaped', 'for the right reason');
+  ok(getMissionDef('okafor-contract').debrief.escaped?.length, 'with copy for it');
+});
+
+test('act II turns on BRAVO\'s hesitation, and Act I does not', () => {
+  // The player should notice the pause before anyone explains it. If this
+  // ever fires in Act I the reveal has no shape.
+  const actI = createSim('sector-7');
+  eq(actI.squad.agents[1].hesitation, 0, 'Act I: BRAVO is fine');
+
+  const actII = createSim('okafor-contract');
+  ok(actII.squad.agents[1].hesitation > 0, 'Act II: BRAVO hesitates');
+  eq(actII.squad.agents[0].hesitation, 0, 'and only BRAVO');
+  eq(actII.squad.agents[2].hesitation, 0, 'only BRAVO');
+  eq(actII.squad.agents[3].hesitation, 0, 'only BRAVO');
+});
+
+test('a hesitating agent actually pauses after firing', () => {
+  const sim = createSim('okafor-contract');
+  const bravo = sim.squad.agents[1];
+  ok(bravo.canFire(), 'ready');
+  bravo.fireAt(bravo.x, bravo.z + 10, null, () => 0.5);
+  ok(bravo.hesitationTimer > 0, 'and then it stalls');
+  notOk(bravo.canFire(), 'unable to fire through the stall');
+});
+
+test('okafor-contract: her security does not count as the contract', () => {
+  const sim = createSim('okafor-contract');
+  ok(sim.hostiles.length > 0, 'she has security');
+  ok(sim.hostiles.every(h => !h.countsForObjective), 'but killing them is not the job');
+});

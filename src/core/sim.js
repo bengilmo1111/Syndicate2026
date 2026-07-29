@@ -38,7 +38,9 @@ export const PHASE = Object.freeze({
 export function createSim(missionId) {
   const def = getMissionDef(missionId);
   const rng = makeRng(def.cityseed ?? 1);
-  const { city, hostiles, civilianCount, assets = [], extraction = null } = def.setup(rng);
+  const {
+    city, hostiles, civilianCount, assets = [], extraction = null, quarry = [],
+  } = def.setup(rng);
 
   const civilians = [];
   for (let i = 0; i < civilianCount; i++) {
@@ -47,9 +49,13 @@ export function createSim(missionId) {
   }
   // Assets live in the civilian array so they get collision, damage, and
   // rendering for free. `isAsset` is what tells them apart.
-  civilians.push(...assets);
+  civilians.push(...assets, ...quarry);
 
   const squad = new Squad(city.deploy.x, city.deploy.z);
+  // Act II's mechanical signal: BRAVO's Instance is failing, and it shows
+  // as a pause before every order executes. Not a bug — the player is
+  // meant to notice it before anyone explains it.
+  if (def.bravoHesitation) squad.agents[1].hesitation = def.bravoHesitation;
   for (const a of squad.agents) resolveCollision(city, a);
   for (const a of assets) {
     resolveCollision(city, a);
@@ -64,6 +70,7 @@ export function createSim(missionId) {
     hostiles,
     civilians,
     assets,
+    quarry,
     extraction,
     projectiles: [],
     mission: buildMission(missionId),
@@ -77,6 +84,7 @@ export function createSim(missionId) {
     heat: 0,
     enforcerWaves: 0,
     alertTimer: 0,
+    quarryDown: 0,
     /** Civilians currently having cycles taken off them by SURGE. */
     throttledCount: 0,
     /** Set when the mission is lost for a reason other than a squad wipe. */
@@ -198,6 +206,20 @@ export function step(sim, dt, intent) {
     }
   }
   sim.assetsSecured = sim.assets.filter(a => a.secured && !a.dead).length;
+
+  for (const q of sim.quarry) {
+    if (q.pendingLine) {
+      say(sim, q.pendingLine.speaker, q.pendingLine.text, 5);
+      q.pendingLine = null;
+    }
+  }
+  for (const q of sim.quarry) {
+    if (!q.dead && !q.escaped && sim.elapsed >= q.window) {
+      q.escaped = true;
+      say(sim, q.name, 'filed.', 6);
+    }
+  }
+  sim.quarryDown = sim.quarry.filter(q => q.dead).length;
   sim.squadExtracted = checkExtraction(sim);
 
   if (sim.dialogue) {
@@ -250,8 +272,9 @@ export function step(sim, dt, intent) {
   // --- Objectives -----------------------------------------------------
   updateMissionStatus(sim.mission, {
     dt,
-    kills: sim.kills,
+    kills: sim.quarry.length ? sim.quarryDown : sim.kills,
     aligned: sim.alignedCount,
+    quarry: sim.quarry,
     landmarks: city.landmarks,
     assets: sim.assets,
     assetsSecured: sim.assetsSecured,

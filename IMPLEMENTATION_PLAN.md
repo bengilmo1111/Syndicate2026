@@ -77,8 +77,10 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Mission gating — `requires` on each mission, enforced by
       `src/core/campaign.js`, with locked tabs that say what to do first
 - [ ] Interstitial screens between missions (Yelin's notes, graffiti beats)
-- [ ] Act II missions: `okafor-contract`, `calibration-window`,
-      `welfare-node-7` (`NARRATIVE.md` §6 Act II)
+- [~] Act II missions: `okafor-contract` shipped; `calibration-window`
+      and `welfare-node-7` still to do (`NARRATIVE.md` §6 Act II)
+- [x] BRAVO's hesitation — Act II's mechanical signal, per-mission via
+      `bravoHesitation`
 
 ## Phase 3 — The Aligner and the street
 > `GAP_ANALYSIS.md` gap 5 is now largely closed: the Aligner has
@@ -212,6 +214,7 @@ src/
     district-12.js      Act I·2  ALIGN
     sable-campus.js     Act I·3  RETRIEVE + EXTRACT
     the-bracket.js      Act I·4  ELIMINATE vs Unquantized
+    okafor-contract.js  Act II·5 ELIMINATE a fleeing quarry, on a clock
   render/               READS sim state, never writes to it
     ps1.js              materials, vertex jitter, fog, lights, windows
     cityView.js         city meshes, collapse reconciliation

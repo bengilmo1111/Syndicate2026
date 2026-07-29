@@ -605,6 +605,62 @@ export class Asset extends Civilian {
   }
 }
 
+/**
+ * A named person the mission wants dead, who has no intention of fighting.
+ *
+ * She runs the moment the squad is close, and if she clears the block the
+ * mission is lost. That makes the Okafor contract a positioning problem
+ * rather than a damage one: the Aligner does nothing to her, and a bigger
+ * gun does not help you catch someone. You have to cut the block off.
+ */
+export class Quarry extends Civilian {
+  constructor(x, z, rng, opts = {}) {
+    super(x, z, rng);
+    this.isQuarry = true;
+    this.name = opts.name ?? 'TARGET';
+    this.job = opts.job ?? '';
+    this.tier = opts.tier ?? TIER.PRO;
+    this.maxHealth = opts.health ?? 60;
+    this.health = this.maxHealth;
+    this.fleeFrom = opts.fleeFrom ?? 26;
+    this.fleeSpeed = (opts.fleeSpeed ?? 9.2);
+    /**
+     * Seconds before she files. Escape is a clock, not a map edge —
+     * "before her next filing window" is the fiction, and a deadline is
+     * something the player can feel closing. A geographic exit would just
+     * mean shepherding her away from the border.
+     */
+    this.window = opts.window ?? 150;
+    this.escaped = false;
+    this.spoke = false;
+    this.line = opts.line ?? null;
+    this.pendingLine = null;
+  }
+
+  /** Cannot be converted — the contract is not a compliance report. */
+  align() { return false; }
+
+  update(dt, city, squadCenter, rng) {
+    if (this.dead || this.escaped) return;
+    this.tick(dt);
+
+    const d = squadCenter ? dist(this.x, this.z, squadCenter.x, squadCenter.z) : Infinity;
+    if (d < this.fleeFrom) {
+      if (!this.spoke && this.line) {
+        this.spoke = true;
+        this.pendingLine = { speaker: this.name, text: this.line };
+      }
+      const away = Math.atan2(this.x - squadCenter.x, this.z - squadCenter.z);
+      this.facing += clamp(angleDelta(this.facing, away), -9 * dt, 9 * dt);
+      this.x += Math.sin(this.facing) * this.fleeSpeed * dt;
+      this.z += Math.cos(this.facing) * this.fleeSpeed * dt;
+      resolveCollision(city, this);
+      return;
+    }
+    super.update(dt, city, null, rng);
+  }
+}
+
 function weightedTier(rng) {
   const r = rng();
   if (r < 0.58) return TIER.FREE;

@@ -455,3 +455,5 @@ html, body {
   #objective-panel { display: none; }
   .overlay-card { padding: 20px; }
 }
+
+#hud-time.urgent { color: var(--crit); }
