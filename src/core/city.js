@@ -303,8 +303,16 @@ export const COVER = Object.freeze({
   NONE: 0,
 });
 
-/** How far from a target we look for something to shelter behind. */
-const COVER_REACH = 2.0;
+/**
+ * How far from a target we look for something to shelter behind.
+ *
+ * Collision holds an actor ~1.15m off a facade, so this is really a band:
+ * at 2.0 it was 0.85m wide and you had to nudge into it, at 2.8 it is
+ * 1.65m and "press against that wall" is something you can do on purpose.
+ * Still directional — a wide band along a street does nothing about fire
+ * crossing it.
+ */
+const COVER_REACH = 2.8;
 
 const inside = (s, x, z) =>
   x >= s.x - s.w / 2 && x <= s.x + s.w / 2 && z >= s.z - s.d / 2 && z <= s.z + s.d / 2;

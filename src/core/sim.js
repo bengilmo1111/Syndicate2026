@@ -3,7 +3,7 @@
 // a normalised intent object; the renderer reads the resulting state and
 // drains `events` for one-shot effects.
 
-import { makeRng, dist } from './math.js';
+import { makeRng, dist, segmentPointDistance } from './math.js';
 import { Civilian, Enforcer } from './entities.js';
 import { Squad, ALIGNER, ALIGNER_RADIUS } from './squad.js';
 import {
@@ -11,6 +11,7 @@ import {
   coverAgainst, STREET,
 } from './city.js';
 import { SURGE_RADIUS, SURGE_HEAT_PER_SECOND, THROTTLED_SPEED } from './compute.js';
+import { applySuppression, decaySuppression } from './tactics.js';
 import {
   getMissionDef, buildMission, updateMissionStatus, isMissionComplete,
   failedObjective, OBJECTIVE,
@@ -105,6 +106,7 @@ export function step(sim, dt, intent) {
 
   squad.applyCompute();
   squad.tick(dt);
+  for (const a of squad.agents) decaySuppression(a, dt);
   if (!squad.drive(dt, intent.moveX, intent.moveZ, city)) {
     squad.followOrders(dt, city);
   }
@@ -292,8 +294,19 @@ function spawnProjectile(sim, shot) {
   }
 }
 
+/** Rounds that go close by without connecting still cost you your aim. */
+function suppressNearMisses(sim, p) {
+  const pool = p.friendly ? sim.hostiles : sim.squad.alive;
+  for (const t of pool) {
+    if (t.dead) continue;
+    const d = segmentPointDistance(p.prevX, p.prevZ, p.x, p.z, t.x, t.z);
+    if (d < 3.2 && d > t.radius) applySuppression(t, 0.35);
+  }
+}
+
 function resolveProjectile(sim, p) {
   if (p.dead) return;
+  suppressNearMisses(sim, p);
 
   // Structures first: a shot that clips a wall never reaches what's behind it.
   const hitStruct = structureInPath(sim.city, p.prevX, p.prevZ, p.x, p.z);

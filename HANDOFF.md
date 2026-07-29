@@ -143,7 +143,15 @@ line of sight**, opening firing lanes that didn't exist at mission start.
 - Civilians: wander, panic, tiers, names/jobs, mortality, heat on death
 - Enforcement escalation: heat ≥ 60 spawns 2 enforcers, heat resets to 20,
   and enforcer kills do **not** count toward ELIMINATE
-- Hostile AI: closes distance, holds position once it has a clear shot
+- **Hostile tactics** (`src/core/tactics.js`) — hostiles reposition to
+  facades that shelter them from the direction they are being shot from,
+  hold once they have cover and a shot, and move *or* fire but never
+  both. The unquantized deliberately do not: they are untrained, and The
+  Bracket's point is that they don't fight like the cell the briefing
+  described.
+- **Suppression** — rounds passing within 3.2m widen the target's spread
+  and make them reconsider their position. This is what makes volume of
+  fire worth something and why the minigun exists.
 - Typed mission model, self-registering mission files
 - Objective panel (Tab), HUD with objective/kills/aligned/losses/heat/time
 - Constrained orbit camera: Z/X yaw, R/F tilt, wheel zoom, middle-drag
@@ -167,7 +175,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 81 checks, ~2s, zero dependencies. Covers city
+`node tests/run.mjs` — 93 checks, ~2s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,

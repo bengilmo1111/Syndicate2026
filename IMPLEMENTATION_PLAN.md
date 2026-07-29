@@ -112,11 +112,13 @@ the 2D logic onto a 3D engine instead of losing it.
       (`src/core/compute.js`)
 - [x] SURGE: overdraw the allocation by throttling nearby civilians.
       Costs heat continuously and visibly slows the street.
-- [ ] **Enemy cover-seeking and flanking** (`GAP_ANALYSIS.md` gap 7).
-      We built directional cover and only the player uses it, so our best
-      tactical system is half-idle. Cheapest big win available.
+- [x] **Enemy cover-seeking and flanking** (`GAP_ANALYSIS.md` gap 7) —
+      `src/core/tactics.js`. Hostiles reposition to facades that shelter
+      them from the direction they are being shot from.
+- [x] Suppression: near-misses widen the target's spread and make them
+      reconsider their position
 - [ ] Stances (hold / advance / engage-at-will) — the obvious next layer
-- [ ] Suppression: near-misses degrade an enemy's accuracy
+- [ ] Hostiles retreat when badly hurt rather than dying in place
 
 ## Phase 4 — Loadout and progression
 - [ ] Pre-mission loadout screen: assign weapons per agent
@@ -181,6 +183,7 @@ vendor/
 tests/
   run.mjs               the gate: `node tests/run.mjs`
   campaign.test.mjs     gating, prerequisite graph, records, save migration
+  tactics.test.mjs      cover-seeking, suppression, tactics in a live fight
   core.test.mjs         city, nav, ballistics, aligner, morale, objectives
   depth.test.mjs        weapons, cover, compute allocation, surge
   missions.test.mjs     definitions, completability, per-mission story beats
@@ -199,6 +202,7 @@ src/
     squad.js            selection, formation, move orders, the Aligner
     mission.js          objective model, prerequisites, mission registry
     campaign.js         completions, gating, records, branch flags
+    tactics.js          hostile cover-seeking, repositioning, suppression
     sim.js              the simulation — owns all mutable game state
   missions/             one file per mission, self-registering
     sector-7.js         Act I·1  ELIMINATE + DEMOLISH

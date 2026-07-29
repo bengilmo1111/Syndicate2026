@@ -160,16 +160,15 @@ cities rather than dioramas.
 buy most of the atmosphere for a fraction of the work, and is worth
 doing first as a separate item.
 
-### 7. Enemy AI has no tactics
-Hostiles close to range and hold. They don't use cover, flank, retreat,
-or coordinate. We built directional cover and only the player uses it,
-which makes our best tactical system half-idle.
+### 7. Enemy AI has no tactics — **partially closed**
+Hostiles now reposition to cover and are suppressed by near-misses
+(`src/core/tactics.js`). Still missing: retreating when badly hurt, and
+any coordination between them — they each solve their own problem.
 
 Note this was a criticism of the *original* too. It is a gap we should
 not inherit just because our reference did.
 
-*Where:* Phase 3.5. Cheapest big win on this list — cover already exists;
-the AI just needs to consult it.
+*Where:* Phase 3.5, partially done.
 
 ### 8. No in-mission resource pressure
 No ammo, no shields, no reason to disengage. Firefights have no economy,
