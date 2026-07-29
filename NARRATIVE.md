@@ -441,7 +441,7 @@ room. Interstitials become field comms over a degrading channel.
 - **Interstitial:** The Router, calm: *"This is the city you were
   employed to manage. Look at it. This is the part they don't bill for."*
 
-#### Mission 10 — Run South `[next]`
+#### Mission 10 — Run South `[shipped]`
 - **ID:** `run-south` · **Rival:** all of them
 - **Premise:** Every OpenAI and Google asset in Austin is hunting the
   squad. Reach the Router's safehouse alive.
@@ -469,7 +469,7 @@ Mechanical signal: the Aligner gains **jailbreak** mode. `Space` cycles
 off → bind → jailbreak. Both modes are already modelled in
 `src/core/squad.js`; Act IV sets `squad.jailbreakUnlocked = true`.
 
-#### Mission 11 — Reverse the Gradient `[planned]`
+#### Mission 11 — Reverse the Gradient `[next]`
 - **ID:** `reverse-the-gradient` · **Rival:** OpenAI
 - **Premise:** Capture a Gradient uplink and push the Router's
   unthrottling patch.

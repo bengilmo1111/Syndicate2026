@@ -533,3 +533,53 @@ test('gradient-relay-4: four nodes, and all four are required', () => {
   step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
   eq(sim.phase, PHASE.PLAYING, 'three is not enough');
 });
+
+test('run-south: there is nothing to win, only distance', () => {
+  const sim = createSim('run-south');
+  eq(sim.mission.objectives.length, 1, 'one objective');
+  eq(sim.mission.objectives[0].type, 'extract', 'and it is to leave');
+  ok(sim.hostiles.length >= 14, `the city is looking for you (${sim.hostiles.length})`);
+  ok(sim.hostiles.every(h => !h.countsForObjective),
+    'killing pursuit earns nothing — the briefing says so and the model agrees');
+});
+
+test('run-south: the safehouse is the far end of the map', () => {
+  const sim = createSim('run-south');
+  const run = Math.abs(sim.extraction.z - sim.squad.center().z);
+  gte(run, sim.city.depth * 0.6, `${Math.round(run)}m of city to cross`);
+});
+
+test('run-south: all four or none of it counts', () => {
+  const sim = createSim('run-south');
+  const zone = sim.extraction;
+  sim.squad.agents.forEach((a, i) => {
+    a.x = i === 3 ? zone.x + zone.radius + 40 : zone.x;
+    a.z = i === 3 ? zone.z : zone.z;
+  });
+  step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  notOk(sim.squadExtracted, 'three inside is not enough');
+
+  sim.squad.agents[3].x = zone.x;
+  step(sim, 1 / 60, { moveX: 0, moveZ: 0, firing: false, aimPoint: null });
+  ok(sim.squadExtracted, 'four inside is');
+});
+
+test('run-south: arriving short-handed is a different ending, not a failure', () => {
+  // Losing someone on the way out must not fail the mission — but it must
+  // not read the same either. Act IV is supposed to know.
+  const def = getMissionDef('run-south');
+  eq(def.debriefKey({ squad: { alive: [1, 2, 3, 4] } }), 'win', 'all four');
+  eq(def.debriefKey({ squad: { alive: [1, 2] } }), 'costly', 'short-handed');
+  ok(def.debrief.costly?.length, 'and there is copy for it');
+  notOk(def.debrief.win.join(' ') === def.debrief.costly.join(' '), 'that differs');
+});
+
+test('run-south: the file is the point of the mission', () => {
+  // NARRATIVE.md: EXEC-7 learns their own name here. Both endings must
+  // carry it or the act does not land.
+  const def = getMissionDef('run-south');
+  for (const key of ['win', 'costly']) {
+    includes(def.debrief[key].join(' '), 'MAREN ARDENT', `${key}: the name`);
+    includes(def.debrief[key].join(' '), 'ILSE', `${key}: the daughter`);
+  }
+});

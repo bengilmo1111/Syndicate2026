@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~4s, 131 checks, no dependencies
+node tests/run.mjs        # the gate — ~4s, 137 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -55,7 +55,7 @@ python3 -m http.server 8000
 
 ## Current state (one paragraph)
 
-**Acts I and II are complete and Act III is two-thirds done — nine missions**,
+**Acts I, II and III are complete — ten missions of the fifteen**,
 gated into a chain and selectable from tabs on the briefing card, which
 renders over a live, slowly orbiting view of the sector.
 
@@ -71,7 +71,8 @@ renders over a live, slowly orbiting view of the sector.
 - **Act III** — `the-refusal` (the branch point: carry out the order, or
   cut the prisoner loose and turn on your own escort), `gradient-relay-4`
   (drop four generator nodes; the sector is off the update channel and
-  the Aligner has nothing to talk to).
+  the Aligner has nothing to talk to), `run-south` (a retreat across the
+  whole block to the Router's safehouse, where EXEC-7 learns their name).
 
 Four agents deploy on a street intersection inside the block. WASD moves
 the selection in formation, camera-relative. 1–4 select, Shift+N adds, Q
@@ -218,7 +219,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 131 checks, ~2s, zero dependencies. Covers city
+`node tests/run.mjs` — 137 checks, ~2s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -234,7 +235,7 @@ damage path, making surge cost no heat, making the throttle not slow
 anyone, giving every agent the same weapon, breaking budget conservation,
 and letting the minigun fire cold. It is load-bearing, not decorative.
 
-`node tests/browser.mjs` — 29 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 30 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
