@@ -20,6 +20,7 @@ export const theBracket = registerMission({
   sector: 'Austin · Sub-Sector 19 · Decommissioned Overpass',
   act: 'ACT I',
   rival: 'none',
+  requires: ['sable-campus'],
   cityseed: 20410729,
 
   briefing: [

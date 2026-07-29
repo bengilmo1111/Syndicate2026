@@ -115,6 +115,12 @@ line of sight**, opening firing lanes that didn't exist at mission start.
   must be inside; leaving someone behind doesn't count
 - **Subtitle channel** — `say(sim, speaker, text, seconds)` puts a line
   on screen. Act II leans on this heavily; it's in now.
+- **Campaign gating and persistence** — `requires` on each mission,
+  enforced by `src/core/campaign.js`; locked tabs say what to do first.
+  Completions, per-mission records and narrative flags persist in
+  localStorage, and the briefing resumes on the next unfinished mission.
+  `src/core/campaign.js` is pure and serialisable; `src/ui/storage.js`
+  owns localStorage, because core cannot know the browser exists.
 - Objective prerequisites (`after:`) and per-objective failure predicates
   with per-reason debrief copy and titles
 - **Unquantized** hostiles — `alignable: false`, so the Aligner reports
@@ -161,7 +167,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 69 checks, ~2s, zero dependencies. Covers city
+`node tests/run.mjs` — 81 checks, ~2s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -177,7 +183,7 @@ damage path, making surge cost no heat, making the throttle not slow
 anyone, giving every agent the same weapon, breaking budget conservation,
 and letting the minigun fire cold. It is load-bearing, not decorative.
 
-`node tests/browser.mjs` — 18 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 23 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -187,15 +193,12 @@ is still a human reading a screenshot.
 
 ## What's stubbed / known gaps
 
-- No persistence (no localStorage save yet)
 - No sound
 - Objective type `hold` is declared in `src/core/mission.js` but not
   implemented — needs a zone entity. First used by
   `reverse-the-gradient` (Act IV).
-- **No mission gating** — all four missions are always available and arc
-  order isn't enforced. This matters more now that Act I is complete:
-  the Act I→II turn only lands if the player walked Act I in order.
-  Do this before writing Act II.
+- No interstitials between missions — gating exists, but the beats
+  *between* the briefings (Yelin's notes, the graffiti) don't
 - No interstitials between missions
 - No branch-flag plumbing yet for `bravoCalibrated`, `playerSuspicion`,
   `defectedAtRefusal`, `yelinFate` (spec'd in `NARRATIVE.md` §9)

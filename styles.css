@@ -392,8 +392,11 @@ html, body {
   cursor: pointer;
 }
 
-.mission-tab:hover { color: var(--text); border-color: var(--line); }
+.mission-tab:hover:not(:disabled) { color: var(--text); border-color: var(--line); }
 .mission-tab.active { color: var(--accent); border-color: var(--accent); background: rgba(111, 227, 208, 0.08); }
+.mission-tab.done { color: var(--accent-dim); }
+.mission-tab.locked { color: #4a5260; border-color: rgba(255, 255, 255, 0.06); cursor: not-allowed; }
+.mission-tab:disabled { pointer-events: auto; }
 
 #overlay-body { font-size: 13px; line-height: 1.62; color: var(--text); }
 #overlay-body p { margin: 0 0 6px; }

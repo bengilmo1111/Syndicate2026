@@ -14,6 +14,7 @@ export const district12 = registerMission({
   sector: 'Austin · District 12 · Residential Metering',
   act: 'ACT I',
   rival: 'google',
+  requires: ['sector-7'],
   cityseed: 20410512,
 
   briefing: [

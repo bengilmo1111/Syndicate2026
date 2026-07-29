@@ -85,8 +85,33 @@ await page.waitForTimeout(1500);
 
 check('the page boots and shows a briefing', !!(await page.textContent('#overlay-title')));
 
+const tabs0 = await page.$$eval('.mission-tab',
+  els => els.map(e => ({ text: e.textContent, locked: e.disabled })));
+check('every mission has a briefing tab', tabs0.length >= 4,
+  tabs0.map(t => t.text).join(', '));
+
+// A cold save must gate everything past the first mission — the Act I→II
+// turn only lands if the player walked Act I in order.
+check('a fresh campaign locks everything past mission one',
+  !tabs0[0].locked && tabs0.slice(1).every(t => t.locked),
+  `${tabs0.filter(t => t.locked).length} of ${tabs0.length} locked`);
+
+const lockedTitle = await page.getAttribute('.mission-tab:nth-child(2)', 'title');
+check('a locked tab says what to do first', /REQUIRES/.test(lockedTitle ?? ''), lockedTitle);
+
+// Unlock everything for the render sweep below.
+await page.evaluate(() => {
+  localStorage.setItem('syndicate2026.campaign', JSON.stringify({
+    version: 2,
+    completed: ['sector-7', 'district-12', 'sable-campus', 'the-bracket'],
+    flags: {}, records: {},
+  }));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(1200);
 const missions = await page.$$eval('.mission-tab', els => els.map(e => e.textContent));
-check('every mission has a briefing tab', missions.length >= 4, missions.join(', '));
+check('a completed campaign unlocks every mission',
+  await page.$$eval('.mission-tab', els => els.every(e => !e.disabled)));
 
 // Deploy and render each mission in turn — this is what catches a renderer
 // crash on a city shape the sim tests never build a mesh for.
@@ -213,6 +238,24 @@ const fps = await page.evaluate(() => new Promise(res => {
   requestAnimationFrame(tick);
 }));
 check('renders at a usable rate under software rasterization', fps > 20, `${fps} fps`);
+
+// Progress survives a reload — the whole point of persistence.
+await page.evaluate(() => { window.__syndicate.campaign.completed = ['sector-7']; });
+await page.evaluate(() => {
+  localStorage.setItem('syndicate2026.campaign', JSON.stringify({
+    version: 2, completed: ['sector-7'], flags: {}, records: {},
+  }));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(1200);
+const resumed = await page.$$eval('.mission-tab',
+  els => els.map(e => ({ done: e.classList.contains('done'), locked: e.disabled })));
+check('progress survives a reload and opens the next mission',
+  resumed[0].done && !resumed[1].locked && resumed[2].locked,
+  `first done, second open, third still locked`);
+check('the briefing resumes on the next unfinished mission',
+  /DISTRICT 12/.test(await page.textContent('#overlay-title')),
+  await page.textContent('#overlay-title'));
 
 check('the console stayed clean', consoleErrors.length === 0,
   consoleErrors.length ? consoleErrors[0].slice(0, 160) : '0 errors');

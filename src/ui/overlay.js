@@ -13,9 +13,14 @@ export function setOverlay({ eyebrow, title, body, tabs, onSelectTab, button, al
   if (tabs) {
     for (const t of tabs) {
       const b = document.createElement('button');
-      b.className = `mission-tab${t.active ? ' active' : ''}`;
-      b.textContent = t.name;
-      b.addEventListener('click', () => onSelectTab(t.id));
+      b.className = 'mission-tab';
+      if (t.active) b.classList.add('active');
+      if (t.locked) b.classList.add('locked');
+      if (t.done) b.classList.add('done');
+      b.textContent = t.locked ? `▮ ${t.name}` : (t.done ? `■ ${t.name}` : t.name);
+      b.disabled = !!t.locked;
+      if (t.locked) b.title = t.lockReason ?? 'LOCKED';
+      else b.addEventListener('click', () => onSelectTab(t.id));
       tabBar.appendChild(b);
     }
   }

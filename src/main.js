@@ -5,18 +5,29 @@
 import './missions/index.js';
 import { getAllMissions, getMissionDef } from './core/mission.js';
 import { createSim, step, PHASE } from './core/sim.js';
+import {
+  isUnlocked, isComplete, lockReason, recordWin, nextMission, progress,
+} from './core/campaign.js';
 import { View } from './render/view.js';
 import { updateHUD, toggleObjectivePanel } from './ui/hud.js';
 import { setOverlay, showOverlay, hideOverlay, CONTROLS_HINT } from './ui/overlay.js';
+import { loadCampaign, saveCampaign, clearCampaign } from './ui/storage.js';
 
 const canvas = document.getElementById('game-canvas');
 const view = new View(canvas);
 
+const MISSIONS = getAllMissions();
+
 const app = {
   sim: null,
   phase: PHASE.BRIEFING,
-  selectedMissionId: getAllMissions()[0].id,
+  campaign: loadCampaign(),
+  selectedMissionId: null,
 };
+
+// Open on the furthest point the player actually reached, not on mission
+// one — a returning player should not have to click past what they finished.
+app.selectedMissionId = (nextMission(app.campaign, MISSIONS) ?? MISSIONS[0]).id;
 
 const keys = new Set();
 const pointer = { nx: 0.5, ny: 0.5, firing: false, orbiting: false, lastX: 0, lastY: 0 };
@@ -40,20 +51,50 @@ function loadPreview() {
 
 function showBriefing() {
   app.phase = PHASE.BRIEFING;
+
+  // Never sit on a locked mission — a stale selection from a cleared save
+  // would otherwise strand the player on a briefing they cannot deploy.
+  let def = getMissionDef(app.selectedMissionId);
+  if (!isUnlocked(app.campaign, def)) {
+    def = nextMission(app.campaign, MISSIONS) ?? MISSIONS[0];
+    app.selectedMissionId = def.id;
+  }
+
   loadPreview();
-  const def = getMissionDef(app.selectedMissionId);
+  const { done, total } = progress(app.campaign, MISSIONS);
+  const record = app.campaign.records[def.id];
+
+  const body = [...def.briefing];
+  if (record) {
+    body.push('', `<em>PREVIOUS DEPLOYMENT — ${record.elapsed}s · ${record.kills} down · ${record.aligned} aligned · ${record.civilianDeaths} civilian losses</em>`);
+  }
+
   setOverlay({
-    eyebrow: `${def.act} · ${def.sector}`,
+    eyebrow: `${def.act} · ${def.sector} · DEPLOYMENT ${done}/${total} CLOSED`,
     title: def.name,
-    tabs: getAllMissions().map(m => ({
-      id: m.id, name: m.name.split(' — ')[0], active: m.id === app.selectedMissionId,
+    tabs: MISSIONS.map(m => ({
+      id: m.id,
+      name: m.name.split(' — ')[0],
+      active: m.id === app.selectedMissionId,
+      locked: !isUnlocked(app.campaign, m),
+      done: isComplete(app.campaign, m.id),
+      lockReason: lockReason(app.campaign, m, getMissionDef),
     })),
     onSelectTab: (id) => { app.selectedMissionId = id; showBriefing(); },
-    body: def.briefing,
-    button: { label: 'DEPLOY', onClick: startMission },
+    body,
+    button: { label: isComplete(app.campaign, def.id) ? 'REDEPLOY' : 'DEPLOY', onClick: startMission },
+    altButton: app.campaign.completed.length
+      ? { label: 'WIPE RECORD', onClick: resetCampaign }
+      : null,
     hint: CONTROLS_HINT,
   });
   showOverlay();
+}
+
+function resetCampaign() {
+  app.campaign = clearCampaign();
+  app.selectedMissionId = MISSIONS[0].id;
+  showBriefing();
 }
 
 function startMission() {
@@ -72,6 +113,20 @@ function startMission() {
 function showDebrief(won) {
   app.phase = won ? PHASE.WON : PHASE.LOST;
   const def = getMissionDef(app.sim.mission.id);
+
+  if (won) {
+    recordWin(app.campaign, def.id, {
+      elapsed: app.sim.elapsed,
+      kills: app.sim.kills,
+      aligned: app.sim.alignedCount,
+      civilianDeaths: app.sim.civilianDeaths,
+    });
+    Object.assign(app.campaign.flags, app.sim.mission.flags);
+    saveCampaign(app.campaign);
+    // Roll the selection forward so RETURN TO BRIEFING lands on what's next.
+    const next = nextMission(app.campaign, MISSIONS);
+    if (next) app.selectedMissionId = next.id;
+  }
   // A mission can be lost specifically — the escorted asset died, the
   // target got away — and the debrief should say which.
   const lines = won
