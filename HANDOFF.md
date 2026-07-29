@@ -247,6 +247,8 @@ research) is the next major arc, then Phase 5 (world map / meta-loop).
 
 - `AGENTS.md` — the working contract. Read first.
 - `README.md` — what this is, how to run it, for humans arriving cold.
+- `GAP_ANALYSIS.md` — this build vs the 1996 original, system by system,
+  with the major gaps ranked. Where unscheduled work gets argued for.
 - `PRD.md` — vision, scope, engine rationale. Update before scope changes.
 - `NARRATIVE.md` — story canon. Fifteen mission slots in §6.
 - `IMPLEMENTATION_PLAN.md` — roadmap and file map. Tick boxes as you go.

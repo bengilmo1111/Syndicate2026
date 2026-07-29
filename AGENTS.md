@@ -80,6 +80,7 @@ drains it into the subtitle channel. Do it that way.
 | Before writing *any* story copy | **`NARRATIVE.md`** — canon. Non-optional. |
 | To pick up the next task | **`IMPLEMENTATION_PLAN.md`** — roadmap with checkboxes |
 | Before changing scope | **`PRD.md`** — vision, pillars, engine rationale |
+| Before proposing a big new system | **`GAP_ANALYSIS.md`** — the 1996 original vs this build, gaps ranked |
 
 **Any** briefing, debrief, character line, civilian dialogue, or UI flavor
 text means reading `NARRATIVE.md` first. All fifteen mission slots are

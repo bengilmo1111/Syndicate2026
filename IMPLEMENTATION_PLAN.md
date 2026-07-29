@@ -14,6 +14,10 @@ as the work it describes.
 > For this document specifically: pick the *next* unchecked step from the
 > in-progress phase, don't skip ahead, and tick the box in the same commit
 > as the code.
+>
+> [`GAP_ANALYSIS.md`](./GAP_ANALYSIS.md) compares this build against the
+> 1996 original system by system, and is where unscheduled work is argued
+> for before it lands in a phase here.
 
 ---
 
@@ -78,6 +82,11 @@ the 2D logic onto a 3D engine instead of losing it.
       `welfare-node-7` (`NARRATIVE.md` §6 Act II)
 
 ## Phase 3 — The Aligner and the street
+> `GAP_ANALYSIS.md` gap 5: the original's Persuadertron had per-target
+> strength thresholds that your *existing followers* counted toward, and
+> followers picked up dropped weapons and fought. Ours is a radius that
+> increments a counter. Closing that is cheap and deepens the signature
+> mechanic before Act IV inverts it.
 - [x] Civilians with wander AI, tiers, names, and jobs
 - [x] Aligner: radius conversion, followers trail the squad, fire
       suppressed while engaged
@@ -104,6 +113,9 @@ the 2D logic onto a 3D engine instead of losing it.
       (`src/core/compute.js`)
 - [x] SURGE: overdraw the allocation by throttling nearby civilians.
       Costs heat continuously and visibly slows the street.
+- [ ] **Enemy cover-seeking and flanking** (`GAP_ANALYSIS.md` gap 7).
+      We built directional cover and only the player uses it, so our best
+      tactical system is half-idle. Cheapest big win available.
 - [ ] Stances (hold / advance / engage-at-will) — the obvious next layer
 - [ ] Suppression: near-misses degrade an enemy's accuracy
 
@@ -118,8 +130,13 @@ the 2D logic onto a 3D engine instead of losing it.
 - [ ] Research screen with timer-based unlocks
 
 ## Phase 5 — World map and meta-loop
+> The single biggest gap against the original — the entire strategic half
+> is absent (`GAP_ANALYSIS.md` gap 1). Steal the tax mechanic specifically:
+> raising a sector's rate funds research and raises rebellion risk, which
+> is the same argument SURGE makes at the tactical scale.
 - [ ] World map screen with datacenter nodes
 - [ ] Per-sector compute income while held
+- [ ] Per-sector rate-limit setting: income traded against unrest
 - [ ] Mission selection from the world map
 - [ ] Rival syndicate AI that contests held sectors
 - [ ] Save / load syndicate state across sessions
@@ -139,6 +156,11 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Particle effects: tracers, impact sparks, collapse debris
 - [x] Camera follow with smoothing; screen shake on collapse
 - [ ] Sound: weapons, ambient city, mission stingers (CC0 or original)
+- [ ] **Full building destruction** (`GAP_ANALYSIS.md` gap 2) — levelling
+      a block is the original's headline feature. Collapse-to-cover
+      already works; this is scope, not design.
+- [ ] Camera occlusion — fade structures between camera and squad. Not a
+      problem yet at 22m towers; will be immediately once they grow.
 - [ ] Building interiors — currently every structure is a solid box
 - [x] Pathfinding — A* over the street-intersection graph (`src/core/nav.js`)
 - [ ] Followers and escorted assets path too; they still beeline for the
