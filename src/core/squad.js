@@ -24,6 +24,31 @@ export const ALIGNER = Object.freeze({
 
 export const ALIGNER_RADIUS = 13.5;
 
+/**
+ * How much alignment pressure a target resists.
+ *
+ * Straight from the original: converting a crowd is how you *earn* the
+ * ability to convert an operative, because your existing followers count
+ * toward the threshold. That snowball is what turns the Aligner from a
+ * mission-objective device into a strategy — and it is why the Act IV
+ * jailbreak inversion lands, since by then the player has spent hours
+ * building crowds with it.
+ */
+export const ALIGN_RESISTANCE = Object.freeze({
+  civilian: 0,
+  enforcer: 6,
+  rival: 12,
+  asset: Infinity,      // she is not being converted, she is being taken
+  unquantized: Infinity, // no throttle to talk to
+});
+
+export function resistanceOf(target) {
+  if (target.isAsset) return ALIGN_RESISTANCE.asset;
+  if (target.alignable === false) return ALIGN_RESISTANCE.unquantized;
+  if (target.faction) return ALIGN_RESISTANCE[target.faction] ?? ALIGN_RESISTANCE.rival;
+  return ALIGN_RESISTANCE.civilian;
+}
+
 export class Squad {
   constructor(x, z, loadout = null) {
     this.agents = FORMATION.map((off, i) => new Agent(x + off.x, z + off.z, i, loadout?.[i]));
@@ -191,10 +216,15 @@ export class Squad {
    * the only way the player ever finds out who they've been sent to kill.
    */
   runAligner(civilians, hostiles = []) {
-    if (!this.alignerEngaged) return { converted: [], refused: [] };
+    if (!this.alignerEngaged) return { converted: [], refused: [], turned: [] };
     const mode = this.alignerMode;
     const converted = [];
     const refused = [];
+    const turned = [];
+
+    // Every follower already carrying your alignment adds to the field.
+    // This is the snowball: a crowd is the tool you use on an operative.
+    const strength = civilians.filter(c => c.aligned && !c.dead).length;
 
     for (const a of this.alive) {
       for (const c of civilians) {
@@ -203,13 +233,27 @@ export class Squad {
         if (c.align(mode)) converted.push(c);
       }
       for (const h of hostiles) {
-        if (h.dead || h.alignable || h.refusedAligner) continue;
+        if (h.dead || h.aligned) continue;
         if (dist(a.x, a.z, h.x, h.z) > ALIGNER_RADIUS) continue;
-        h.refusedAligner = true;
-        refused.push(h);
+
+        const resistance = resistanceOf(h);
+        if (!Number.isFinite(resistance)) {
+          if (h.refusedAligner) continue;
+          h.refusedAligner = true;
+          refused.push(h);
+          continue;
+        }
+        if (strength < resistance) {
+          h.alignerResisted = true;
+          continue;
+        }
+        h.aligned = true;
+        h.faction = 'follower';
+        h.countsForObjective = false;
+        turned.push(h);
       }
     }
-    return { converted, refused };
+    return { converted, refused, turned, strength };
   }
 }
 

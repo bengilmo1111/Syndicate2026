@@ -10,8 +10,8 @@ import {
 import {
   buildCity, coverAgainst, damageStructure, addLandmark, hasLineOfSight, COVER,
 } from '../src/core/city.js';
-import { Agent, Civilian, Hostile, Projectile } from '../src/core/entities.js';
-import { Squad } from '../src/core/squad.js';
+import { Agent, Civilian, Hostile, Unquantized, Projectile } from '../src/core/entities.js';
+import { Squad, resistanceOf, ALIGN_RESISTANCE } from '../src/core/squad.js';
 import { createSim, step, PHASE } from '../src/core/sim.js';
 import { makeRng, dist } from '../src/core/math.js';
 
@@ -285,4 +285,98 @@ test('surge is never free — it always costs heat or people', () => {
   const before = sim.heat;
   for (let i = 0; i < 60; i++) step(sim, 1 / 60, idle);
   ok(sim.heat > before, 'the meter moved');
+});
+
+// ---------------------------------------------------------- aligner snowball
+
+suite('aligner snowball');
+
+test('resistance rises with what you are trying to convert', () => {
+  // Straight from the original: a crowd is free, an operative is not.
+  const civ = new Civilian(0, 0, makeRng(1));
+  eq(resistanceOf(civ), ALIGN_RESISTANCE.civilian, 'civilians do not resist');
+  eq(resistanceOf(new Hostile(0, 0, { faction: 'enforcer' })), ALIGN_RESISTANCE.enforcer,
+    'enforcement resists');
+  ok(resistanceOf(new Hostile(0, 0, { faction: 'rival' })) > ALIGN_RESISTANCE.enforcer,
+    'a rival operative resists more');
+  notOk(Number.isFinite(resistanceOf(new Unquantized(0, 0, makeRng(1), { members: [] }))),
+    'the unquantized cannot be converted at all');
+});
+
+test('an operative resists a lone squad and yields to a crowd', () => {
+  // The snowball. Converting civilians is how you *earn* the ability to
+  // convert an operative — this is what makes the Aligner a strategy
+  // rather than an objective counter.
+  const squad = new Squad(0, 0);
+  squad.cycleAligner();
+  const rng = makeRng(12);
+
+  const makeCrowd = n => Array.from({ length: n }, (_, i) => {
+    const c = new Civilian(200 + i, 200, rng); // far away, just strength
+    c.aligned = true;
+    return c;
+  });
+
+  const alone = new Hostile(2, 2, { faction: 'enforcer' });
+  const weak = squad.runAligner(makeCrowd(0), [alone]);
+  eq(weak.turned.length, 0, 'four agents alone cannot turn an enforcer');
+  notOk(alone.aligned, 'and it stays hostile');
+
+  const target = new Hostile(2, 2, { faction: 'enforcer' });
+  const strong = squad.runAligner(makeCrowd(ALIGN_RESISTANCE.enforcer), [target]);
+  eq(strong.turned.length, 1, 'with a crowd behind you, it turns');
+  ok(target.aligned, 'and it is yours');
+});
+
+test('a turned operative stops counting as a kill', () => {
+  const squad = new Squad(0, 0);
+  squad.cycleAligner();
+  const rng = makeRng(3);
+  const crowd = Array.from({ length: 20 }, (_, i) => {
+    const c = new Civilian(300 + i, 300, rng);
+    c.aligned = true;
+    return c;
+  });
+  const h = new Hostile(2, 2, { faction: 'rival' });
+  squad.runAligner(crowd, [h]);
+  ok(h.aligned, 'converted');
+  notOk(h.countsForObjective, 'and no longer counts toward ELIMINATE');
+});
+
+test('turned operatives shoot the side they came from', () => {
+  // Set the conversion directly rather than driving the Aligner: with a
+  // crowd big enough to turn one operative, the field turns everyone in
+  // range, and there is nobody left to shoot. What is under test here is
+  // what a convert *does*, not how they got there.
+  const sim = createSim('sector-7');
+  const convert = sim.hostiles[0];
+  const victim = sim.hostiles[1];
+
+  convert.aligned = true;
+  convert.faction = 'follower';
+  convert.countsForObjective = false;
+
+  convert.x = victim.x + 7;
+  convert.z = victim.z;
+  victim.aggroRange = 0;               // it stays put; we measure the convert
+  sim.squad.agents.forEach(a => {      // keep the squad out of it entirely
+    a.range = 0;
+    a.x = sim.city.halfW - 4;
+    a.z = sim.city.halfD - 4;
+  });
+
+  notOk(victim.aligned, 'the victim is still hostile');
+  const before = victim.health;
+  for (let i = 0; i < 60 * 10; i++) step(sim, 1 / 60, idle);
+  lt(victim.health, before, 'the convert shot its former colleague');
+});
+
+test('the squad will not shoot someone it just converted', () => {
+  const sim = createSim('sector-7');
+  const h = sim.hostiles[0];
+  h.aligned = true;
+  const agent = sim.squad.agents[0];
+  agent.x = h.x; agent.z = h.z + 5;
+  eq(agent.pickTarget(sim.city, sim.hostiles.filter(x => !x.aligned)), null,
+    'a converted operative is not a target');
 });

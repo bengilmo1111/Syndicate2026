@@ -135,7 +135,7 @@ alternative to a firefight in a way that a bigger gun never is.
 
 *Where:* Phase 4.
 
-### 5. The Persuadertron doesn't snowball
+### 5. The Persuadertron doesn't snowball — **largely closed**
 In the original, each target type has a persuade threshold — civilians
 and scientists 0, police and guards 6, punks 10, agents and zealots 20
 (community-documented) — and **your existing followers count toward
@@ -143,11 +143,10 @@ meeting it**. So converting a crowd is how you earn the ability to
 convert an enemy agent. Followers also collect dropped weapons and fight
 for you.
 
-Ours is a radius that increments a counter. Followers are decorative.
-Adding thresholds plus armed followers converts the Aligner from a
-mission-objective device into a genuine strategy — and it makes the Act
-IV jailbreak inversion land harder, because by then the player will have
-spent hours building crowds.
+Now implemented: resistance per target type (civilians 0, enforcement 6,
+rivals 12), your followers count toward it, and turned operatives fight
+their former side. Still missing: civilian followers that pick up dropped
+weapons and fight, which the original had.
 
 *Where:* Phase 3. Cheap relative to impact; the follower entity exists.
 

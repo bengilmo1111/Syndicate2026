@@ -116,7 +116,11 @@ export function step(sim, dt, intent) {
   const center = squad.center();
 
   // --- Aligner --------------------------------------------------------
-  const { converted, refused } = squad.runAligner(sim.civilians, sim.hostiles);
+  const { converted, refused, turned } = squad.runAligner(sim.civilians, sim.hostiles);
+  for (const h of turned ?? []) {
+    sim.events.push({ type: 'turned', x: h.x, z: h.z, actor: h });
+    say(sim, 'ALIGNER', `${h.label.toLowerCase()} aligned · compliance filed`, 3.5);
+  }
   for (const c of converted) {
     sim.events.push({ type: 'align', x: c.x, z: c.z, mode: squad.alignerMode, civilian: c });
   }
@@ -129,13 +133,19 @@ export function step(sim, dt, intent) {
   }
   sim.alignedCount = sim.civilians.filter(c => c.aligned && !c.dead).length;
 
+  // Turned operatives are on our side now: agents must not shoot them,
+  // and objectives must not count them.
+  const stillHostile = sim.hostiles.filter(h => !h.aligned);
+  const converts = sim.hostiles.filter(h => h.aligned && !h.dead);
+  sim.followerGuns = converts.length;
+
   // --- Weapons --------------------------------------------------------
   // The Aligner is a broadcast device, not a gun. Engaging it suppresses fire
   // entirely, which is what makes a no-casualty run possible.
   if (!squad.alignerEngaged) {
     for (const a of squad.alive) {
       const manual = intent.firing && intent.aimPoint;
-      const target = manual ? null : a.pickTarget(city, sim.hostiles, squad.compute);
+      const target = manual ? null : a.pickTarget(city, stillHostile, squad.compute);
       // Spin-up winds while there is something worth firing at, so a
       // minigun agent is useless the instant they arrive and lethal once
       // they've committed to the corner.
@@ -154,7 +164,9 @@ export function step(sim, dt, intent) {
     for (const a of squad.alive) a.tickSpin(dt, false);
   }
 
-  for (const h of sim.hostiles) {
+  // Turned operatives shoot the side they came from. Converting an
+  // enforcer is worth something concrete, not just a counter going up.
+  for (const h of stillHostile) {
     const out = [];
     h.update(dt, city, squad.alive, out);
     for (const shot of out) spawnProjectile(sim, shot);
@@ -163,6 +175,16 @@ export function step(sim, dt, intent) {
     if (h.pendingLine) {
       say(sim, h.pendingLine.speaker, h.pendingLine.text, 4.5);
       h.pendingLine = null;
+    }
+  }
+
+  for (const h of converts) {
+    const out = [];
+    h.follow = center;
+    h.update(dt, city, stillHostile, out);
+    for (const shot of out) {
+      shot.friendly = true; // they are shooting for us now
+      spawnProjectile(sim, shot);
     }
   }
 
@@ -192,7 +214,7 @@ export function step(sim, dt, intent) {
 
   // --- Contact damage -------------------------------------------------
   for (const h of sim.hostiles) {
-    if (h.dead) continue;
+    if (h.dead || h.aligned) continue;
     for (const a of squad.alive) {
       if (dist(a.x, a.z, h.x, h.z) < a.radius + h.radius) {
         a.takeDamage(9 * dt * 6);
@@ -208,7 +230,7 @@ export function step(sim, dt, intent) {
   // --- Reap -----------------------------------------------------------
   sim.hostiles = sim.hostiles.filter(h => {
     if (!h.dead) return true;
-    if (h.countsForObjective) sim.kills += 1;
+    if (h.countsForObjective && !h.aligned) sim.kills += 1;
     if (h.pendingLine) { say(sim, h.pendingLine.speaker, h.pendingLine.text, 4.5); h.pendingLine = null; }
     sim.events.push({ type: 'kill', x: h.x, z: h.z, faction: h.faction });
     return false;

@@ -105,7 +105,7 @@ function goalFor(sim, obj) {
 
   switch (obj.type) {
     case OBJECTIVE.ELIMINATE:
-      return nearest(centre, sim.hostiles.filter(h => !h.dead && h.countsForObjective));
+      return nearest(centre, sim.hostiles.filter(h => !h.dead && h.countsForObjective && !h.aligned));
 
     case OBJECTIVE.ALIGN:
       return nearest(centre, sim.civilians.filter(c => !c.dead && !c.aligned && !c.isAsset));

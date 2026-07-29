@@ -81,11 +81,10 @@ the 2D logic onto a 3D engine instead of losing it.
       `welfare-node-7` (`NARRATIVE.md` §6 Act II)
 
 ## Phase 3 — The Aligner and the street
-> `GAP_ANALYSIS.md` gap 5: the original's Persuadertron had per-target
-> strength thresholds that your *existing followers* counted toward, and
-> followers picked up dropped weapons and fought. Ours is a radius that
-> increments a counter. Closing that is cheap and deepens the signature
-> mechanic before Act IV inverts it.
+> `GAP_ANALYSIS.md` gap 5 is now largely closed: the Aligner has
+> per-target resistance that existing followers count toward, and turned
+> operatives fight for you. Still missing: followers picking up dropped
+> weapons, and civilians fighting at all.
 - [x] Civilians with wander AI, tiers, names, and jobs
 - [x] Aligner: radius conversion, followers trail the squad, fire
       suppressed while engaged
@@ -96,6 +95,10 @@ the 2D logic onto a 3D engine instead of losing it.
       rather than silently doing nothing
 - [x] Morale: hostiles that break and run once their group starts dying
 - [ ] Panic contagion and crowd flow through streets
+- [x] Aligner resistance thresholds — a crowd is the tool you use on an
+      operative (`ALIGN_RESISTANCE` in `src/core/squad.js`)
+- [x] Turned operatives fight their former side and stop counting as kills
+- [ ] Civilian followers pick up dropped weapons and fight
 - [ ] Followers take cover instead of clumping on the squad centroid
 
 ## Phase 3.5 — Tactical depth (DONE)
