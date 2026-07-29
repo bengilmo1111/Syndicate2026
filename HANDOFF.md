@@ -138,6 +138,16 @@ line of sight**, opening firing lanes that didn't exist at mission start.
 - Line of sight — standing structures block both shots and target selection
 - **Collapse-to-cover**: destructibles drop to rubble; rubble blocks
   movement but not sight. Camera kicks and debris flies on collapse.
+- **The Aligner snowballs.** Targets have resistance — civilians 0,
+  enforcement 6, rival operatives 12 — and every follower you already
+  hold counts toward meeting it. Converting a crowd is how you *earn* the
+  ability to convert an operative, which is what makes the Aligner a
+  strategy rather than an objective counter, and what will make the Act
+  IV jailbreak inversion land.
+- **Turned operatives fight for you** — they leave the hostile pool,
+  shoot the side they came from, follow the squad when nothing is in
+  range, stop counting toward ELIMINATE, and render in squad cyan so the
+  player knows who they may no longer shoot.
 - The Aligner (Space) — cycles off → bind → jailbreak (jailbreak gated
   behind `squad.jailbreakUnlocked`, which Act IV will set)
 - Civilians: wander, panic, tiers, names/jobs, mortality, heat on death
@@ -175,7 +185,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 93 checks, ~2s, zero dependencies. Covers city
+`node tests/run.mjs` — 98 checks, ~2s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,

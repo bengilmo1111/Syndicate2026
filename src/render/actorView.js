@@ -144,7 +144,10 @@ export class HostileView extends ActorView {
   update() {
     this.syncTransform(this.hostile);
     this.muzzle.visible = this.hostile.muzzle > 0;
-    this.flash(this.hostile, this.baseColor);
+    // A turned operative should read as ours at a glance — the player
+    // needs to know who they are no longer allowed to shoot.
+    this.flash(this.hostile, this.hostile.aligned ? 0x6fe3d0 : this.baseColor);
+    this.headMat.color.setHex(this.hostile.aligned ? 0x2b6a63 : 0x20242e);
   }
 }
 

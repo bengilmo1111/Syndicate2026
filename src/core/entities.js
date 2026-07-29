@@ -214,6 +214,16 @@ export class Hostile extends Actor {
     this.suppression = 0;
   }
 
+  /** Walk toward a point, used by turned operatives following the squad. */
+  trail(dt, city, to) {
+    const d = dist(this.x, this.z, to.x, to.z);
+    if (d < 7) return;
+    this.turnToward(to.x, to.z, dt, 8);
+    this.x += Math.sin(this.facing) * this.speed * dt;
+    this.z += Math.cos(this.facing) * this.speed * dt;
+    resolveCollision(city, this);
+  }
+
   update(dt, city, agents, out) {
     if (this.dead) return;
     this.tick(dt);
@@ -223,11 +233,16 @@ export class Hostile extends Actor {
     let target = null;
     let bestD = Infinity;
     for (const a of agents) {
-      if (a.dead) continue;
+      if (a.dead || a === this) continue;
       const d = dist(this.x, this.z, a.x, a.z);
       if (d < bestD) { bestD = d; target = a; }
     }
-    if (!target || bestD > this.aggroRange) return;
+    if (!target || bestD > this.aggroRange) {
+      // Nothing to shoot. A turned operative sticks with the squad that
+      // took them rather than standing where they were converted.
+      if (this.aligned && this.follow) this.trail(dt, city, this.follow);
+      return;
+    }
 
     decaySuppression(this, dt);
     const clearShot = hasLineOfSight(city, this.x, this.z, target.x, target.z);
