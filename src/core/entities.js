@@ -4,6 +4,8 @@
 
 import { clamp, dist, range, angleDelta, segmentPointDistance } from './math.js';
 import { resolveCollision, hasLineOfSight, randomStreetPoint } from './city.js';
+import { weapon, DEFAULT_LOADOUT } from './weapons.js';
+import { THROTTLED_SPEED } from './compute.js';
 
 export const TIER = Object.freeze({
   FREE: 'Free',
@@ -71,20 +73,25 @@ class Actor {
 export const AGENT_NAMES = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA'];
 
 export class Agent extends Actor {
-  constructor(x, z, index) {
+  constructor(x, z, index, weaponId = DEFAULT_LOADOUT[index] ?? 'SIDEARM') {
     super(x, z, 1.15);
     this.index = index;
     this.name = AGENT_NAMES[index];
     this.tier = TIER.PRO;
     this.selected = true;
+    this.baseSpeed = 13.5;
     this.speed = 13.5;
     this.maxHealth = 120;
     this.health = 120;
-    this.weapon = 'SIDEARM';
-    this.damage = 20;
-    this.fireRate = 0.19;
+
+    this.weapon = weapon(weaponId);
+    this.damage = this.weapon.damage;
+    this.fireRate = this.weapon.fireRate;
+    this.range = this.weapon.range;
     this.cooldown = 0;
-    this.range = 34;
+    // Barrels that spin up punish opening fire and reward committing to a
+    // position — the minigun's whole personality lives in this number.
+    this.spin = 0;
     this.muzzle = 0;
     this.moveTarget = null;
     this.path = null;
@@ -102,13 +109,14 @@ export class Agent extends Actor {
   }
 
   /** Nearest live target inside range with a clear shot. */
-  pickTarget(city, hostiles) {
+  pickTarget(city, hostiles, compute = null) {
+    const reach = this.effectiveRange(compute);
     let best = null;
     let bestD = Infinity;
     for (const h of hostiles) {
       if (h.dead) continue;
       const d = dist(this.x, this.z, h.x, h.z);
-      if (d > this.range || d >= bestD) continue;
+      if (d > reach || d >= bestD) continue;
       if (!hasLineOfSight(city, this.x, this.z, h.x, h.z)) continue;
       bestD = d;
       best = h;
@@ -116,20 +124,46 @@ export class Agent extends Actor {
     return best;
   }
 
-  fireAt(x, z) {
+  /**
+   * @param compute squad Compute — scales fire rate, spread and range
+   * @param rng     deterministic source for shot deflection
+   */
+  fireAt(x, z, compute = null, rng = Math.random) {
     if (!this.canFire()) return null;
-    this.cooldown = this.fireRate;
+    if (this.weapon.spinUp && this.spin < this.weapon.spinUp) return null;
+
+    const rate = compute ? this.fireRate / compute.speedScale : this.fireRate;
+    this.cooldown = rate;
     this.muzzle = 0.07;
     this.faceToward(x, z);
     if (this.hesitation > 0) this.hesitationTimer = this.hesitation;
-    const angle = this.facing;
-    return new Projectile(
+
+    const spread = this.weapon.spread * (compute ? compute.spreadScale : 1);
+    const angle = this.facing + (rng() - 0.5) * spread * 2;
+
+    const p = new Projectile(
       this.x + Math.sin(angle) * (this.radius + 0.5),
       this.z + Math.cos(angle) * (this.radius + 0.5),
       angle,
       this.damage,
       this,
     );
+    p.speed = this.weapon.speed;
+    p.pierce = this.weapon.pierce ?? 0;
+    return p;
+  }
+
+  /** Effective range, after the PRECISION channel. */
+  effectiveRange(compute = null) {
+    return compute ? this.range * compute.rangeScale : this.range;
+  }
+
+  /** Hold fire to spin up; release and the barrel winds back down. */
+  tickSpin(dt, wantsToFire) {
+    if (!this.weapon.spinUp) return;
+    this.spin = wantsToFire
+      ? Math.min(this.weapon.spinUp, this.spin + dt)
+      : Math.max(0, this.spin - dt * 1.6);
   }
 
   tick(dt) {
@@ -365,6 +399,8 @@ export class Civilian extends Actor {
     this.job = CIVILIAN_JOBS[Math.floor(rng() * CIVILIAN_JOBS.length)];
     this.aligned = false;
     this.jailbroken = false;
+    /** Set by SURGE — the squad is taking this person's cycles. */
+    this.throttled = false;
     this.panic = 0;
     this.wanderTarget = null;
     this.restTimer = range(rng, 0, 1.4);
@@ -393,12 +429,16 @@ export class Civilian extends Actor {
     if (this.dead) return;
     this.tick(dt);
 
+    // A throttled Instance thinks slower and so does the person running it.
+    // The player should be able to *see* what SURGE costs the street.
+    const t = this.throttled ? THROTTLED_SPEED : 1;
+
     if (this.aligned && squadCenter) {
       const d = dist(this.x, this.z, squadCenter.x, squadCenter.z);
       if (d > 5.5) {
         this.turnToward(squadCenter.x, squadCenter.z, dt, 9);
-        this.x += Math.sin(this.facing) * this.followSpeed * dt;
-        this.z += Math.cos(this.facing) * this.followSpeed * dt;
+        this.x += Math.sin(this.facing) * this.followSpeed * t * dt;
+        this.z += Math.cos(this.facing) * this.followSpeed * t * dt;
         resolveCollision(city, this);
       }
       return;
@@ -410,8 +450,8 @@ export class Civilian extends Actor {
         const away = Math.atan2(this.x - squadCenter.x, this.z - squadCenter.z);
         this.facing += clamp(angleDelta(this.facing, away), -8 * dt, 8 * dt);
       }
-      this.x += Math.sin(this.facing) * this.panicSpeed * dt;
-      this.z += Math.cos(this.facing) * this.panicSpeed * dt;
+      this.x += Math.sin(this.facing) * this.panicSpeed * t * dt;
+      this.z += Math.cos(this.facing) * this.panicSpeed * t * dt;
       resolveCollision(city, this);
       return;
     }
@@ -428,8 +468,8 @@ export class Civilian extends Actor {
     }
 
     this.turnToward(this.wanderTarget.x, this.wanderTarget.z, dt, 5);
-    this.x += Math.sin(this.facing) * this.wanderSpeed * dt;
-    this.z += Math.cos(this.facing) * this.wanderSpeed * dt;
+    this.x += Math.sin(this.facing) * this.wanderSpeed * t * dt;
+    this.z += Math.cos(this.facing) * this.wanderSpeed * t * dt;
     resolveCollision(city, this);
   }
 }
@@ -535,6 +575,9 @@ export class Projectile {
     this.life = 1.1;
     this.dead = false;
     this.radius = 0.35;
+    /** Extra bodies this round can pass through before it stops. */
+    this.pierce = 0;
+    this.hitActors = new Set();
   }
 
   update(dt) {
@@ -553,7 +596,18 @@ export class Projectile {
    */
   hits(actor) {
     if (actor.dead || actor === this.owner) return false;
+    if (this.hitActors.has(actor.id)) return false;
     const d = segmentPointDistance(this.prevX, this.prevZ, this.x, this.z, actor.x, actor.z);
     return d < actor.radius + this.radius;
+  }
+
+  /** Record a hit. Returns true if the round is spent and should stop. */
+  consumeHit(actor) {
+    this.hitActors.add(actor.id);
+    if (this.pierce > 0) {
+      this.pierce -= 1;
+      return false;
+    }
+    return true;
   }
 }

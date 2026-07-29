@@ -4,7 +4,7 @@ This file describes **what the world is like right now**. Read
 [`AGENTS.md`](./AGENTS.md) first for the rules; read this second for the
 state. Update it **last**, in the same commit as your code change.
 
-> **Before you push: `node tests/run.mjs` must pass.** ~1s, no
+> **Before you push: `node tests/run.mjs` must pass.** ~2s, no
 > dependencies. It plays every mission to a win headlessly, so a mission
 > you break — or ship uncompletable — fails the suite.
 
@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~1s, 48 checks, no dependencies
+node tests/run.mjs        # the gate — ~2s, 69 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -86,6 +86,24 @@ line of sight**, opening firing lanes that didn't exist at mission start.
 - Four agents: camera-relative formation movement, per-agent damage,
   death, KIA state in the HUD
 - Selection: 1–4 select, Shift+N toggle, Q select-all, rings on the ground
+- **Four different weapons.** ALPHA sidearm, BRAVO SMG, CHARLIE rail
+  rifle, DELTA minigun — differing in damage, rate, range, spread,
+  penetration and spin-up (`src/core/weapons.js`). The minigun will not
+  fire until it has spun up; the rail rifle passes through two bodies.
+- **Directional cover** (`coverAgainst` in `city.js`). A wall along your
+  flank shelters you; the same wall head-on does not; open ground is
+  cover from nowhere. Cover is sampled *perpendicular* to the shot,
+  because anything directly between you and the shooter has already
+  blocked the round outright — testing there could never affect a shot
+  that connects.
+- **Rubble as cover**, which is what finally completes collapse-to-cover:
+  a collapse opens the firing lane *and* leaves cover sitting in it.
+- **Compute allocation** (`src/core/compute.js`) — six points across
+  LATENCY / PRECISION / RESILIENCE, moved with C/V/B, always conserved.
+- **SURGE** (G) — overdraw the allocation. The squad gets faster,
+  straighter and tougher; every civilian within 26m is visibly throttled
+  to half speed and heat climbs the whole time you hold it. Do not make
+  this free. The cost is the mechanic.
 - Right-click move orders, formation preserved, markers on the final
   destination, **A\* routing over the street-intersection graph**
   (`src/core/nav.js`) with a stuck-detector that re-routes twice before
@@ -143,21 +161,26 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 48 checks, ~1s, zero dependencies. Covers city
-generation invariants, navigation, collapse-to-cover, ballistics, the
-Aligner (including the unquantized refusal), morale, the objective model,
-heat and enforcement, every mission definition, and **an autopilot that
-plays all four missions to a win**.
+`node tests/run.mjs` — 69 checks, ~2s, zero dependencies. Covers city
+generation invariants, navigation, collapse-to-cover, ballistics,
+weapons, cover, compute allocation, surge, the Aligner (including the
+unquantized refusal), morale, the objective model, heat and enforcement,
+every mission definition, and **an autopilot that plays all four
+missions to a win**.
 
-The suite has been mutation-tested: disabling pathfinding, making rubble
+The suite is mutation-tested. Twelve deliberate regressions have been
+confirmed to fail it, including: disabling pathfinding, making rubble
 block sight again, making the unquantized alignable, removing the
-objective prerequisite gate, reverting the swept projectile test, and
-letting extraction ignore agents left behind all produce failures. It is
-load-bearing, not decorative.
+objective prerequisite gate, reverting the swept projectile test,
+letting extraction ignore agents left behind, removing cover from the
+damage path, making surge cost no heat, making the throttle not slow
+anyone, giving every agent the same weapon, breaking budget conservation,
+and letting the minigun fire cold. It is load-bearing, not decorative.
 
-`node tests/browser.mjs` — 14 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 18 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
-wiring, frame rate, clean console.
+wiring, compute keys, surge and its visible cost, frame rate, clean
+console.
 
 **Not covered:** nothing asserts the game *looks* right. Visual judgement
 is still a human reading a screenshot.
