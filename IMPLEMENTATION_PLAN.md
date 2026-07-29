@@ -75,12 +75,15 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Objective panel UI (Tab toggles the full list)
 - [x] Briefing → mission → debrief flow with redeploy
 - [x] Mission-select tabs on the briefing card
-- [~] Act I missions: `sector-7`, `district-12` and `sable-campus`
-      shipped; **`the-bracket` is next** and closes Act I
+- [x] **Act I complete** — `sector-7`, `district-12`, `sable-campus`
+      and `the-bracket` all shipped
 - [x] Subtitle channel for in-mission dialogue (`say()` in `sim.js`)
 - [ ] Mission gating — lock missions until prerequisites complete so the
-      player walks the arc in order
+      player walks the arc in order. **Do this before Act II** — the
+      Act I→II turn only lands if the player walked Act I in order.
 - [ ] Interstitial screens between missions (Yelin's notes, graffiti beats)
+- [ ] Act II missions: `okafor-contract`, `calibration-window`,
+      `welfare-node-7` (`NARRATIVE.md` §6 Act II)
 
 ## Phase 3 — The Aligner and the street
 - [x] Civilians with wander AI, tiers, names, and jobs
@@ -89,7 +92,9 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Civilians take fire and die; deaths spike heat
 - [x] Enforcement escalation on heat
 - [x] Jailbreak mode modelled (`squad.jailbreakUnlocked`, Act IV gate)
-- [ ] Unquantized civilians — immune to the Aligner (needed for `the-bracket`)
+- [x] Unquantized — immune to the Aligner, which reports the refusal
+      rather than silently doing nothing
+- [x] Morale: hostiles that break and run once their group starts dying
 - [ ] Panic contagion and crowd flow through streets
 - [ ] Followers take cover instead of clumping on the squad centroid
 
@@ -144,6 +149,7 @@ src/
     sector-7.js         Act I·1  ELIMINATE + DEMOLISH
     district-12.js      Act I·2  ALIGN
     sable-campus.js     Act I·3  RETRIEVE + EXTRACT
+    the-bracket.js      Act I·4  ELIMINATE vs Unquantized
   render/               READS sim state, never writes to it
     ps1.js              materials, vertex jitter, fog, lights, windows
     cityView.js         city meshes, collapse reconciliation

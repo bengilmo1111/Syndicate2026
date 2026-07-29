@@ -76,6 +76,8 @@ export function createSim(missionId) {
     alertTimer: 0,
     /** Set when the mission is lost for a reason other than a squad wipe. */
     failReason: null,
+    /** The Aligner reports an unquantized target once, not every frame. */
+    alignerRefusalSeen: false,
     /** Current subtitle line, or null. Drained by the HUD. */
     dialogue: null,
     /** Renderer sets this from the mouse each frame; sim uses it for aiming. */
@@ -105,9 +107,16 @@ export function step(sim, dt, intent) {
   const center = squad.center();
 
   // --- Aligner --------------------------------------------------------
-  const converted = squad.runAligner(sim.civilians);
+  const { converted, refused } = squad.runAligner(sim.civilians, sim.hostiles);
   for (const c of converted) {
     sim.events.push({ type: 'align', x: c.x, z: c.z, mode: squad.alignerMode, civilian: c });
+  }
+  if (refused.length && !sim.alignerRefusalSeen) {
+    // The device is a diagnostic here, not a weapon. It reports that the
+    // people the briefing called a terror cell have no throttle to nudge.
+    sim.alignerRefusalSeen = true;
+    say(sim, 'ALIGNER — DIAGNOSTIC', 'no instance handshake · target is unquantized', 7);
+    sim.events.push({ type: 'refused', x: refused[0].x, z: refused[0].z });
   }
   sim.alignedCount = sim.civilians.filter(c => c.aligned && !c.dead).length;
 
@@ -132,6 +141,12 @@ export function step(sim, dt, intent) {
     const out = [];
     h.update(dt, city, squad.alive, out);
     for (const shot of out) spawnProjectile(sim, shot);
+    // Entities can't reach the subtitle channel from core; they queue a
+    // line and the sim delivers it.
+    if (h.pendingLine) {
+      say(sim, h.pendingLine.speaker, h.pendingLine.text, 4.5);
+      h.pendingLine = null;
+    }
   }
 
   // --- Civilians and assets -------------------------------------------
@@ -176,7 +191,8 @@ export function step(sim, dt, intent) {
   // --- Reap -----------------------------------------------------------
   sim.hostiles = sim.hostiles.filter(h => {
     if (!h.dead) return true;
-    if (h.faction === 'rival') sim.kills += 1;
+    if (h.countsForObjective) sim.kills += 1;
+    if (h.pendingLine) { say(sim, h.pendingLine.speaker, h.pendingLine.text, 4.5); h.pendingLine = null; }
     sim.events.push({ type: 'kill', x: h.x, z: h.z, faction: h.faction });
     return false;
   });

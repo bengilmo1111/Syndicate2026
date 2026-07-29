@@ -26,6 +26,8 @@ const PALETTES = {
   amazon: { base: 0x554e44, roof: 0x6b6357, trim: 0xffab4a },
   spacex: { base: 0x4a4e57, roof: 0x5e636e, trim: 0xd8dee9 },
   anthropic: { base: 0x574c46, roof: 0x6c5f57, trim: 0xd9a066 },
+  // Unclaimed ground. Nobody's brand, nobody's maintenance budget.
+  none: { base: 0x44443f, roof: 0x53534c, trim: 0x6b6a5e },
 };
 
 export function paletteFor(syndicate) {
@@ -66,6 +68,9 @@ export function buildCity(spec = {}) {
     // How thickly the street-cover layer fills open lots. A logistics
     // district wants clutter; a campus wants lawn.
     coverDensity = 1.6,
+    // Fraction of street cover that starts already collapsed. A sector
+    // nobody has maintained in years should look like one.
+    derelict = 0,
     plaza = { col: 4, row: 4, w: 2, h: 2 },
   } = spec;
 
@@ -151,6 +156,12 @@ export function buildCity(spec = {}) {
       destructible: true,
       hp: big ? 260 : 140,
     }));
+  }
+
+  if (derelict > 0) {
+    for (const s of structures) {
+      if (s.destructible && rng() < derelict) damageStructure(s, s.hp);
+    }
   }
 
   const city = {

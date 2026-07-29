@@ -284,7 +284,7 @@ task-focused and barely present.
   employment contract." The player can hear her through the wall behind
   the desk. Yelin doesn't comment.
 
-#### Mission 4 — Terror Cell: The Bracket `[next]`
+#### Mission 4 — Terror Cell: The Bracket `[shipped]`
 - **ID:** `the-bracket` · **Rival:** none (framed as terrorism)
 - **Premise:** A cell called the Bracket is operating out of a derelict
   overpass. Eliminate them.
@@ -292,10 +292,15 @@ task-focused and barely present.
   the faction. Crude weapons, no armor, no comms. They die fast.
   Several will say things mid-fight like *"we were going to leave"* and
   *"please."* This is the first time the briefing has lied.
-- **Mechanical hooks:** `ELIMINATE` ×6 against a new weak enemy type;
-  civilian count near zero (the area is hollowed out); the Aligner does
-  nothing to an unquantized Instance, which is how the player finds out
-  what they're actually shooting at.
+- **Mechanical hooks:** `ELIMINATE` ×6 against `Unquantized` — 26 HP,
+  15m range against the squad's 34, and they break and run once two of
+  them are down. The lie is legible from how they fight, not only from
+  the debrief: the squad kills them from outside the range they can
+  answer. Civilian count is 3; the sector was cleared for redevelopment
+  in '39 and half the street furniture starts as rubble.
+  The Aligner returns **no handshake** on an unquantized Instance
+  (`Hostile.alignable = false` → `runAligner().refused`), which is how
+  the player finds out what they're actually shooting at.
 - **Interstitial:** Yelin signs it off as a textbook counter-terror op.
   EXEC-7's first line of interiority in the whole game:
   *"They didn't fight like terrorists."*
@@ -314,7 +319,7 @@ this act, BRAVO hesitates ~0.4s before executing a fire or align order.
 Not a bug — implement it as the existing `agent.hesitation` field,
 which is already wired in `src/core/entities.js` and off by default.
 
-#### Mission 5 — The Okafor Contract `[planned]`
+#### Mission 5 — The Okafor Contract `[next]`
 - **ID:** `okafor-contract` · **Rival:** none
 - **Premise:** Eliminate journalist Priya Okafor before her next filing
   window. She is "compromising sensitive operations data."
