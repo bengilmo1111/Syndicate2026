@@ -6,6 +6,9 @@ import { clamp, dist, range, angleDelta, segmentPointDistance } from './math.js'
 import { resolveCollision, hasLineOfSight, randomStreetPoint } from './city.js';
 import { weapon, DEFAULT_LOADOUT } from './weapons.js';
 import { THROTTLED_SPEED } from './compute.js';
+import {
+  findCover, decaySuppression, suppressionSpread, RETHINK_INTERVAL,
+} from './tactics.js';
 
 export const TIER = Object.freeze({
   FREE: 'Free',
@@ -138,7 +141,9 @@ export class Agent extends Actor {
     this.faceToward(x, z);
     if (this.hesitation > 0) this.hesitationTimer = this.hesitation;
 
-    const spread = this.weapon.spread * (compute ? compute.spreadScale : 1);
+    const spread = this.weapon.spread
+      * (compute ? compute.spreadScale : 1)
+      * suppressionSpread(this);
     const angle = this.facing + (rng() - 0.5) * spread * 2;
 
     const p = new Projectile(
@@ -201,6 +206,12 @@ export class Hostile extends Actor {
     this.muzzle = 0;
     this.aggroRange = opts.aggroRange ?? 52;
     this.label = opts.label ?? 'RIVAL';
+    this.spread = opts.spread ?? 0.05;
+    /** Does this one think about where it stands? */
+    this.seeksCover = opts.seeksCover ?? true;
+    this.coverSpot = null;
+    this.rethinkIn = 0;
+    this.suppression = 0;
   }
 
   update(dt, city, agents, out) {
@@ -218,18 +229,46 @@ export class Hostile extends Actor {
     }
     if (!target || bestD > this.aggroRange) return;
 
+    decaySuppression(this, dt);
     const clearShot = hasLineOfSight(city, this.x, this.z, target.x, target.z);
     this.turnToward(target.x, target.z, dt, 7);
+
+    // --- Reposition. Periodically, or immediately when shot at.
+    this.rethinkIn = (this.rethinkIn ?? 0) - dt;
+    if (this.seeksCover && this.rethinkIn <= 0) {
+      this.rethinkIn = RETHINK_INTERVAL * (0.7 + (this.id % 5) * 0.15);
+      const spot = findCover(city, this, target, { weaponRange: this.range });
+      this.coverSpot = spot ? { x: spot.x, z: spot.z } : null;
+    }
+
+    if (this.coverSpot) {
+      const d = dist(this.x, this.z, this.coverSpot.x, this.coverSpot.z);
+      if (d < 1.0) {
+        this.coverSpot = null;
+      } else {
+        this.turnToward(this.coverSpot.x, this.coverSpot.z, dt, 8);
+        this.x += Math.sin(this.facing) * this.speed * dt;
+        this.z += Math.cos(this.facing) * this.speed * dt;
+        resolveCollision(city, this);
+        // Move *or* shoot, not both. Moving targets that also fire
+        // accurately are the reason firefights stop being positional.
+        return;
+      }
+    }
 
     if (clearShot && bestD <= this.range) {
       if (this.cooldown <= 0) {
         this.cooldown = this.fireRate;
         this.muzzle = 0.07;
         this.faceToward(target.x, target.z);
+        // Being shot at spoils your aim. This is what makes volume of
+        // fire worth something on its own.
+        const spread = this.spread * suppressionSpread(this);
+        const angle = this.facing + (Math.random() - 0.5) * spread * 2;
         out.push(new Projectile(
-          this.x + Math.sin(this.facing) * (this.radius + 0.5),
-          this.z + Math.cos(this.facing) * (this.radius + 0.5),
-          this.facing,
+          this.x + Math.sin(angle) * (this.radius + 0.5),
+          this.z + Math.cos(angle) * (this.radius + 0.5),
+          angle,
           this.damage,
           this,
         ));
@@ -307,6 +346,9 @@ export class Unquantized extends Hostile {
       fireRate: 1.7,
       aggroRange: 30,
       alignable: false,
+      // Untrained, and it should show. They stand where they are standing.
+      seeksCover: false,
+      spread: 0.14,
     });
     this.name = pickUniqueName(rng, group);
     this.group = group;
