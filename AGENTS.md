@@ -19,7 +19,7 @@ build step, no npm dependencies, deployed to Vercel from `main`.
 **`node tests/run.mjs` must pass before you push. No exceptions.**
 
 ```
-node tests/run.mjs            # ~2s, 69 checks, no dependencies
+node tests/run.mjs            # ~3s, 81 checks, no dependencies
 node tests/run.mjs nav        # filter by suite or test name
 node tests/browser.mjs        # optional: real browser, needs Playwright
 ```
@@ -118,7 +118,10 @@ the full statement; the short version:
    If it can't, the mission is not finished.
 6. Add a `story beats` test in `tests/missions.test.mjs` for whatever makes
    the mission *that* mission — the beat, not the boilerplate.
-7. Update the slot's status in `NARRATIVE.md` §6, tick
+7. Set `requires: [previousMissionId]` unless it is genuinely the first
+   mission of the game. A mission with no prerequisite is reachable from
+   a cold save, and a test asserts every mission but the first is gated.
+8. Update the slot's status in `NARRATIVE.md` §6, tick
    `IMPLEMENTATION_PLAN.md`, refresh `HANDOFF.md`.
 
 ---

@@ -18,6 +18,7 @@ export const sableCampus = registerMission({
   sector: 'Austin · Sable Campus · Anthropic Alignment Research',
   act: 'ACT I',
   rival: 'anthropic',
+  requires: ['district-12'],
   cityseed: 20410617,
 
   briefing: [

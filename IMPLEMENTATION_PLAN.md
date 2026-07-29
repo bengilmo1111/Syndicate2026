@@ -74,9 +74,8 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] **Act I complete** — `sector-7`, `district-12`, `sable-campus`
       and `the-bracket` all shipped
 - [x] Subtitle channel for in-mission dialogue (`say()` in `sim.js`)
-- [ ] Mission gating — lock missions until prerequisites complete so the
-      player walks the arc in order. **Do this before Act II** — the
-      Act I→II turn only lands if the player walked Act I in order.
+- [x] Mission gating — `requires` on each mission, enforced by
+      `src/core/campaign.js`, with locked tabs that say what to do first
 - [ ] Interstitial screens between missions (Yelin's notes, graffiti beats)
 - [ ] Act II missions: `okafor-contract`, `calibration-window`,
       `welfare-node-7` (`NARRATIVE.md` §6 Act II)
@@ -126,6 +125,7 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Per-weapon stats: damage, fire rate, range, spread, penetration
 - [ ] Compute upgrade slots: latency / throughput / context window /
       attention range (3 tiers each)
+- [x] Campaign persistence in localStorage (completions, records, flags)
 - [ ] Compute + funds currency persisted in localStorage
 - [ ] Research screen with timer-based unlocks
 
@@ -180,6 +180,7 @@ vendor/
   three.module.min.js   Three.js r169, vendored (MIT)
 tests/
   run.mjs               the gate: `node tests/run.mjs`
+  campaign.test.mjs     gating, prerequisite graph, records, save migration
   core.test.mjs         city, nav, ballistics, aligner, morale, objectives
   depth.test.mjs        weapons, cover, compute allocation, surge
   missions.test.mjs     definitions, completability, per-mission story beats
@@ -197,6 +198,7 @@ src/
     entities.js         Agent, Hostile, Enforcer, Civilian, Asset, Projectile
     squad.js            selection, formation, move orders, the Aligner
     mission.js          objective model, prerequisites, mission registry
+    campaign.js         completions, gating, records, branch flags
     sim.js              the simulation — owns all mutable game state
   missions/             one file per mission, self-registering
     sector-7.js         Act I·1  ELIMINATE + DEMOLISH
@@ -211,6 +213,7 @@ src/
     cameraRig.js        constrained orbit camera
     view.js             scene assembly, low-res pipeline, ground picking
   ui/                   DOM only
+    storage.js          localStorage load/save for the campaign
     hud.js              HUD updates, objective panel
     overlay.js          briefing/debrief cards
 ```
