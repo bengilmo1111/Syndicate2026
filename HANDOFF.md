@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~5s, 163 checks, no dependencies
+node tests/run.mjs        # the gate — ~9s, 173 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -190,6 +190,13 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   off the throttle and stop following you. Using the thing that makes you
   the protagonist dismantles the crowd you spent ten missions building.
   The Router warns you in the briefing. **Do not "balance" this away.**
+- **Epilogue missions** — a third kind, after field missions and choice
+  missions: no world, no decision, `def.epilogue = { by, fallback,
+  variants }` resolved by `epilogueFor()` against the *campaign* flags, so
+  the ending plays correctly on a reload with no sim in memory. Reaching
+  the card completes it. The `fallback` is not optional — being shown a
+  blank card at the end of the game is the worst bug available, so a save
+  that arrives with no `ending` still gets one.
 - **Predicate objectives** — `objective(type, { done: s => … })` completes
   by predicate on the same state snapshot rather than by counter. An
   ending branch is a decision, not a tally, and `s.flags` /
@@ -245,7 +252,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 163 checks, ~5s, zero dependencies. Covers city
+`node tests/run.mjs` — 173 checks, ~9s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -270,10 +277,14 @@ formation, and making the parley's hard choice free. Six more cover
 Act IV·13: ignoring a `done` predicate, collapsing every ending to the
 same copy, letting proximity capture Yelin, putting all three waves on
 the deck at deploy, sharing one branch group between the three fates,
-and making the kill ending bloodless. It is load-bearing, not
-decorative.
+and making the kill ending bloodless. Seven more cover Act IV·14–15:
+ignoring the ending flag, dropping the epilogue's fallback, treating an
+epilogue as a field mission, stacking the three checkpoints on one kill
+count, having one console action write another's flag, colliding two
+ending titles, and cutting the second "Maren" out of the last scene. It
+is load-bearing, not decorative.
 
-`node tests/browser.mjs` — 40 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 42 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -302,20 +313,28 @@ is still a human reading a screenshot.
 For any mission work, briefing copy, debriefs, or character lines,
 **read `NARRATIVE.md` first** — the slots are pre-defined.
 
-Acts I–III are complete and Act IV is three missions in. Thirteen of
-fifteen missions ship. Every objective type is implemented, objectives
-can complete on a predicate as well as a tally, and missions can talk to
-the player mid-field.
+**All fifteen missions ship.** `NARRATIVE.md` §6 is complete end to end,
+the three endings in §7 are wired from the console under the campus
+through to three different final scenes, and a test plays the whole
+campaign in order — every field mission autoplayed to a win, gated the
+way a player meets them, ending on the epilogue.
 
-1. **`the-core`** (Act IV·14) — `NARRATIVE.md` §6. A long approach with
-   three checkpoint interludes (BRAVO on what they remember, the Router
-   going off-air mid-sentence, Okafor's posthumous message), then a final
-   room with a console offering the three endings in §7: burn it, take it
-   over, walk away. Everything it needs exists — interludes for the
-   checkpoints, predicate objectives plus branch groups for the console,
-   exactly as `yelin` does it. What is new is that the choice has to
-   write a flag the *epilogue* reads, so `the-core` and mission 15 want
-   designing together.
+The arc is done. What is left is depth, not story: `GAP_ANALYSIS.md` is
+the ranked backlog.
+
+1. **Full building destruction** (`GAP_ANALYSIS.md` gap 2) and the
+   **agent roster / cybernetics loop** (gap 3). These are the two that
+   most change how the game plays, and with the story finished they are
+   no longer competing with mission work.
+2. **Between-mission interstitials for Acts I–III** — Yelin's notes and
+   the street graffiti. Act IV got its beats *inside* missions, which is
+   where they belonged, but the Act I→II tonal turn still has nothing
+   between the briefings. The card shape is the only thing missing;
+   `src/core/interlude.js` is not it (that one freezes a live field).
+3. **`bravoCalibrated`, `playerSuspicion`, `defectedAtRefusal`,
+   `heardYelin`, `pressedYelin`, `toldBravoItWasHers`** are all recorded
+   and nothing reads them. The epilogue is the obvious place: it currently
+   branches on `ending` alone, and it could be reading six more.
 2. **Interstitials** — the Yelin notes and street graffiti between
    missions carry most of the tonal shift, and Act IV needs them most.
    The subtitle channel handles in-mission lines; between-mission beats

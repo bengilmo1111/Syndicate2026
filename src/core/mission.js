@@ -47,7 +47,28 @@ export function getAllMissions() {
  * anything that drives `createSim` needs to know the difference.
  */
 export function isFieldMission(def) {
-  return !def.choice;
+  return !def.choice && !def.epilogue;
+}
+
+/**
+ * The copy an epilogue shows, chosen by a campaign flag.
+ *
+ * An epilogue is neither a field mission nor a choice — the player has
+ * already chosen, several missions ago, and this is the consequence being
+ * read back to them. `def.epilogue.by` names the flag; `variants` holds a
+ * `{ title, lines }` per value, and `fallback` covers a save that somehow
+ * reaches the end with nothing recorded.
+ */
+export function epilogueFor(def, flags = {}) {
+  const spec = def.epilogue;
+  if (!spec) return null;
+  const key = flags[spec.by] ?? spec.fallback;
+  return spec.variants[key] ?? spec.variants[spec.fallback];
+}
+
+/** Every ending an epilogue can deliver. */
+export function epilogueVariants(def) {
+  return def.epilogue ? Object.keys(def.epilogue.variants) : [];
 }
 
 export function getFieldMissions() {

@@ -19,7 +19,7 @@ build step, no npm dependencies, deployed to Vercel from `main`.
 **`node tests/run.mjs` must pass before you push. No exceptions.**
 
 ```
-node tests/run.mjs            # ~5s, 163 checks, no dependencies
+node tests/run.mjs            # ~9s, 173 checks, no dependencies
 node tests/run.mjs nav        # filter by suite or test name
 node tests/browser.mjs        # optional: real browser, needs Playwright
 ```
@@ -110,6 +110,11 @@ the full statement; the short version:
 1. Read the mission's slot in `NARRATIVE.md` §6. Do not invent a new one.
 2. Create `src/missions/<id>.js` and export from `src/missions/index.js`.
    Registration is a side effect of import.
+   There are three kinds: a **field mission** (`setup` + objectives), a
+   **choice** (`def.choice` — a room and a decision, no city), and an
+   **epilogue** (`def.epilogue` — no city, no decision, reads a campaign
+   flag back). `isFieldMission()` is what tells them apart; anything that
+   iterates missions has to respect it.
 3. `setup(rng)` returns `{ city, hostiles, civilianCount, assets?, extraction? }`.
    Use the seeded `rng` — worlds must be reproducible.
 4. New objective type? Handle it in `updateMissionStatus()` in

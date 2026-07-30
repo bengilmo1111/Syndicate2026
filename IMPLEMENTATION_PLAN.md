@@ -78,7 +78,10 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Subtitle channel for in-mission dialogue (`say()` in `sim.js`)
 - [x] Mission gating — `requires` on each mission, enforced by
       `src/core/campaign.js`, with locked tabs that say what to do first
-- [ ] Interstitial screens between missions (Yelin's notes, graffiti beats)
+- [x] Interstitials — shipped as *in*-mission beats (`src/core/interlude.js`)
+      rather than between-mission cards, because that is where Act IV
+      wanted them. Between-mission cards (Yelin's notes, graffiti) for
+      Acts I–III are still open.
 - [x] **Act II complete** — `okafor-contract`, `calibration-window` and
       `welfare-node-7`
 - [x] Hidden objectives that write narrative flags (`objective.flag`)
@@ -93,8 +96,12 @@ the 2D logic onto a 3D engine instead of losing it.
       them, three endings as three branch groups
 - [x] Predicate objectives (`objective({ done: s => … })`) — completion by
       decision rather than by tally, which is what an ending branch is
-- [ ] Act IV missions remaining: `the-core`, `epilogue`
-      (`NARRATIVE.md` §6 Act IV)
+- [x] **`the-core`** (Act IV·14) — the long approach, three checkpoint
+      interludes, and the console that picks the ending
+- [x] **`epilogue`** (Act IV·15) — a third mission kind: no world, no
+      choice, reads the ending back off the campaign flags
+- [x] **All fifteen missions ship.** `NARRATIVE.md` §6 is complete, and a
+      test plays every one of them in order to the end of the campaign.
 - [x] Branch objectives — one mission, mutually exclusive routes
       (`objective.branch`, `takenBranch`)
 - [x] Flag-aware gating — a mission can require a *decision*, not just a
@@ -246,6 +253,8 @@ src/
     reverse-the-gradient.js Act IV·11 RETRIEVE + HOLD; the Aligner inverts
     the-tower.js        Act IV·12 ELIMINATE + RETRIEVE; the parley
     yelin.js            Act IV·13 the argument; kill / capture / walk away
+    the-core.js         Act IV·14 the approach; the console; the endings
+    epilogue.js         Act IV·15 no world, no choice — the consequence
   render/               READS sim state, never writes to it
     ps1.js              materials, vertex jitter, fog, lights, windows
     cityView.js         city meshes, collapse reconciliation

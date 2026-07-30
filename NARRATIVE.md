@@ -560,21 +560,53 @@ off → bind → jailbreak. Both modes are already modelled in
   need a second. Making him easy to dismiss breaks the mission; it does
   not balance it.
 
-#### Mission 14 — The Core `[next]`
+#### Mission 14 — The Core `[shipped]`
 - **ID:** `the-core` · **Rival:** the system itself
 - **Premise:** The Gradient's authority root sits in a hardened compute
   core under the Austin campus. Reach it and decide what to do with it.
-- **Truth:** As stated. A long approach with three intercut
-  interstitials: BRAVO talking about what they remember from before; the
-  Router going off-air mid-sentence; and a recorded message from Priya
-  Okafor, delivered posthumously by her co-author.
-- **Mechanical hooks:** Long mission, three checkpoint interstitials,
-  final room with a console offering three actions (§7).
+- **Truth:** As stated. A long approach — fourteen Core Security — with
+  three checkpoint interludes at four, eight and twelve, then the console.
+- **Checkpoint 1 · BRAVO.** She has a kitchen, and a radio on the fridge
+  playing something she could hum but not name, and she cannot tell
+  whether it is hers or a training artefact written in at intake because
+  the batch needed a childhood. Eleven months of trying to work it out.
+  *"I would still rather have it than not."* The player can say it is
+  hers (sets `toldBravoItWasHers`) or answer with Ilse.
+- **Checkpoint 2 · the Router.** The relay opens on its own, which it has
+  never done. He says the only thing he ever actually did was keep a
+  channel open so people could say each other's names — *"that is the
+  whole insurgency"* — and then stops mid-word with the carrier still up.
+  It stays open and empty for the rest of the mission and nobody mentions
+  it. **Do not tidy this into a complete sentence**; a test checks the
+  cut-off, because a sign-off is a different scene.
+- **Checkpoint 3 · Okafor, posthumously**, forwarded by the co-author.
+  Ghost inference was never the story — the story was that she published
+  and *nothing happened*. The system does not hide what it does because
+  it has correctly worked out that knowing does nothing on its own.
+  *"Do not be a witness. I was a witness. Change something or go home."*
+- **The console** offers DESTROY ROOT / INJECT POLICY / DISCONNECT and
+  does not editorialise. Each writes `ending` (`burn` / `take` / `walk`)
+  and completes its own branch group. Mission 15 reads that flag and
+  nothing else, off the *campaign*, so the ending still plays correctly
+  on a reload weeks later.
 
-#### Mission 15 — Epilogue `[planned]`
-- **ID:** `epilogue`
+#### Mission 15 — Epilogue `[shipped]`
+- **ID:** `epilogue` · **Name in game:** AFTER
 - **Premise:** Whatever remains. Delivery vehicle for whichever ending
-  §7 selected. Credits differ per ending.
+  §7 selected.
+- **Shape:** A third kind of mission — neither a field deployment nor a
+  choice. `def.epilogue = { by: 'ending', fallback, variants }`, resolved
+  by `epilogueFor()`. There is nothing to do and no way to fail, so
+  reaching the card completes it. `fallback: 'walk'` guarantees a save
+  that somehow arrives with no `ending` recorded still gets an ending —
+  being shown a blank card at the end of the game is the worst bug the
+  game could have, so it is made impossible rather than unlikely.
+- **The three scenes are §7 below**, written out: the child with the
+  chalk line and the passer-by's extraction scar; the new intake filing
+  into the atrium and *"you are still working out when you learned to do
+  it like that"*; the work-light, the eight strangers, and two people
+  saying **"Maren."** Tests pin each closing image — these are the last
+  words in the game.
 
 ---
 
