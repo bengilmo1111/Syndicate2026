@@ -625,6 +625,16 @@ export class Asset extends Civilian {
     this.radius = 0.8;
     this.secured = false;
     this.secureRange = opts.secureRange ?? 3.2;
+    /**
+     * Whether walking up to them collects them.
+     *
+     * False for a named person whose fate is the mission's decision, not
+     * its geometry — Yelin is not captured by the squad happening to
+     * stand near him while shooting at somebody else. Same rule that
+     * stops the squad auto-targeting Priya Okafor: what happens to a
+     * person with a name has to be something the player chose.
+     */
+    this.securable = opts.securable ?? true;
     this.followSpeed = 9.5;
     this.panicSpeed = 9.5;
     // Said once, on being secured. Never referenced by anyone afterwards.
@@ -638,7 +648,7 @@ export class Asset extends Civilian {
 
   /** Returns true on the frame she is first collected. */
   trySecure(agents) {
-    if (this.secured || this.dead) return false;
+    if (this.secured || this.dead || !this.securable) return false;
     for (const a of agents) {
       if (dist(a.x, a.z, this.x, this.z) <= this.secureRange) {
         this.secured = true;

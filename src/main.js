@@ -3,7 +3,7 @@
 // (`src/core`) or pure presentation (`src/render`, `src/ui`).
 
 import './missions/index.js';
-import { getAllMissions, getMissionDef } from './core/mission.js';
+import { getAllMissions, getMissionDef, debriefLines } from './core/mission.js';
 import { createSim, step, PHASE } from './core/sim.js';
 import { answerInterlude } from './core/interlude.js';
 import {
@@ -183,7 +183,7 @@ function showDebrief(won) {
   // Node 7 earns different copy from walking past it.
   const winKey = won ? (def.debriefKey?.(app.sim) ?? 'win') : null;
   const lines = won
-    ? (def.debrief[winKey] ?? def.debrief.win)
+    ? debriefLines(def, winKey)
     : (def.debrief[app.sim.failReason] ?? def.debrief.loss);
   const stats = [
     '',

@@ -69,6 +69,14 @@ export function objective(type, opts = {}) {
     after: opts.after ?? null,
     // Optional predicate on the same state snapshot updateMissionStatus gets.
     failed: opts.failed ?? null,
+    /**
+     * Completion by predicate rather than by counter, on the same state
+     * snapshot. For objectives whose condition is a decision rather than
+     * a tally — which route through the ending the player took, which
+     * button they pressed on the console. Checked before the type switch,
+     * so the type is only there to say what the objective *is*.
+     */
+    done: opts.done ?? null,
     // Key into the mission's debrief copy when this objective is what lost it.
     failReason: opts.failReason ?? null,
     status: STATUS.PENDING,
@@ -122,6 +130,17 @@ export function updateMissionStatus(mission, s) {
       continue;
     }
 
+    if (obj.done) {
+      if (obj.done(s)) obj.progress = obj.target;
+      // A predicate objective is entirely described by its predicate.
+      // Falling through would let the type switch overwrite it.
+      if (obj.progress >= obj.target) {
+        obj.status = STATUS.COMPLETE;
+        if (obj.flag) Object.assign(mission.flags ??= {}, obj.flag);
+      }
+      continue;
+    }
+
     switch (obj.type) {
       case OBJECTIVE.ELIMINATE:
         obj.progress = Math.min(s.kills, obj.target);
@@ -167,6 +186,29 @@ export function updateMissionStatus(mission, s) {
  * then any *one* branch must complete in full. Taking one route does not
  * fail the other — it simply leaves it unfinished.
  */
+/** Keys in a `debrief` object that are not ending copy. */
+const DEBRIEF_META = new Set(['titles']);
+
+/** Every ending a mission can show on a win. */
+export function winEndings(def) {
+  return Object.entries(def.debrief)
+    .filter(([k, v]) => k !== 'loss' && !DEBRIEF_META.has(k) && Array.isArray(v) && v.length)
+    .map(([k]) => k);
+}
+
+/**
+ * The copy for an ending.
+ *
+ * Most missions have a single `win`. A mission whose endings *are* the
+ * choice — Yelin is kill / capture / walk away — has no `win` at all, so
+ * fall through to whatever ending it does declare rather than handing the
+ * overlay `undefined` and blanking the card.
+ */
+export function debriefLines(def, key) {
+  const d = def.debrief;
+  return d[key] ?? d.win ?? d[winEndings(def)[0]] ?? d.loss;
+}
+
 export function isMissionComplete(mission) {
   const required = mission.objectives.filter(o => !o.optional);
   const done = o => o.status === STATUS.COMPLETE;
