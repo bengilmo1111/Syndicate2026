@@ -10,6 +10,7 @@ import { suite, test, ok, notOk, eq, gte, lt, includes } from './lib/harness.mjs
 import { autoplay } from './lib/autopilot.mjs';
 import {
   getAllMissions, getFieldMissions, getMissionDef, isFieldMission, STATUS,
+  winEndings, debriefLines,
 } from '../src/core/mission.js';
 import { createSim, step, PHASE } from '../src/core/sim.js';
 import { Projectile } from '../src/core/entities.js';
@@ -32,8 +33,18 @@ test('every mission is registered with the fields the UI reads', () => {
     ok(m.act, `${m.id}: declares its act`);
     ok(m.sector, `${m.id}: has a sector line`);
     ok(Array.isArray(m.briefing) && m.briefing.length, `${m.id}: has briefing copy`);
-    ok(m.debrief?.win?.length, `${m.id}: has a win debrief`);
+    // Most missions have one `win`. A mission whose endings *are* the
+    // choice has none — Yelin is kill / capture / walk away — so what is
+    // required is at least one ending, not one called `win`.
+    gte(winEndings(m).length, 1, `${m.id}: has at least one win-side ending`);
     ok(m.debrief?.loss?.length, `${m.id}: has a loss debrief`);
+    for (const key of winEndings(m)) {
+      // Identity, not just presence: the resolver has to hand back *that*
+      // ending. Falling through to `win` for every key would still pass a
+      // length check while showing the wrong copy for every branch.
+      eq(debriefLines(m, key), m.debrief[key], `${m.id}: ending "${key}" resolves to its own copy`);
+      ok(m.debrief[key].length, `${m.id}: ending "${key}" has copy`);
+    }
     ok(typeof m.setup === 'function', `${m.id}: has a setup`);
     ok(m.buildObjectives().length, `${m.id}: builds at least one objective`);
     if (!isFieldMission(m)) {
@@ -51,7 +62,8 @@ test('no mission copy uses retired pre-pivot canon', () => {
   // back into copy the fiction fragments quietly.
   const retired = ['EuroCorp', 'Veridian', 'Halcyon', 'the CHIP', 'Persuadertron', 'unstrung'];
   for (const m of MISSIONS) {
-    const copy = [...m.briefing, ...m.debrief.win, ...m.debrief.loss, m.name, m.sector].join(' ');
+    const endings = winEndings(m).flatMap(k => m.debrief[k]);
+    const copy = [...m.briefing, ...endings, ...m.debrief.loss, m.name, m.sector].join(' ');
     for (const term of retired) {
       notOk(copy.includes(term), `${m.id}: does not mention "${term}"`);
     }
@@ -743,14 +755,22 @@ test('the-tower: listening costs you and interrupting does not', () => {
   eq(listen.interludeAnswers.parley, 'listen', 'the answer is recorded');
 
   // The whole reason the option is worth offering: the harder choice has
-  // to be legible as a cost within the next thirty seconds. Count the
-  // reinforcements by name — comparing array lengths across runs picks up
-  // enforcer waves, which vary with how the firefight happened to go.
-  const reinforcements = s => s.hostiles.filter(h => h.label === 'BOARD SECURITY');
-  gte(reinforcements(listen.sim).length, 4, 'listening puts four more guns on the floor');
-  eq(reinforcements(cut.sim).length, 0, 'cutting him off does not');
-  ok(reinforcements(listen.sim).every(h => !h.countsForObjective),
+  // to be legible as a cost within the next thirty seconds.
+  //
+  // Run the option's effect against a fresh sim rather than counting
+  // survivors at the end of a playthrough — whether the reinforcements
+  // are still standing when the mission closes is a race, and an
+  // assertion on it passes or fails on how the firefight happened to go.
+  const def = getMissionDef('the-tower');
+  const parley = def.interludes.find(i => i.id === 'parley');
+  const probe = createSim('the-tower');
+  const before = probe.hostiles.length;
+  parley.options.find(o => o.id === 'listen').effect(probe);
+  const added = probe.hostiles.slice(before);
+  eq(added.length, 4, 'listening puts four more guns on the floor');
+  ok(added.every(h => !h.countsForObjective),
     'and they are pure cost — killing them earns no objective progress');
+  notOk(parley.options.find(o => o.id === 'cut').effect, 'cutting him off costs nothing');
 });
 
 test('the-tower: the debrief knows whether you stood there and listened', () => {
@@ -770,4 +790,97 @@ test('the-tower: Yelin\'s argument is actually made', () => {
   const listen = parley.options.find(o => o.id === 'listen');
   gte(listen.lines.length, 3, 'he gets more than a soundbite');
   gte(listen.lines.join(' ').length, 400, 'and it is a real argument');
+});
+
+test('yelin: he does not fight, and the squad will not shoot him on its own', () => {
+  const sim = createSim('yelin');
+  const y = sim.assets.find(a => a.isYelin);
+  ok(y, 'he is on the deck');
+  eq(y.name, 'DIRECTOR YELIN', 'by name');
+  notOk(y.securable, 'and walking up to him does not collect him');
+
+  // Same rule as the Okafor contract. What happens to a person with a
+  // name has to be something the player chose, in as many words.
+  sim.squad.agents.forEach(a => { a.x = y.x; a.z = y.z + 2; });
+  for (let i = 0; i < 60 * 8; i++) step(sim, 1 / 60, idle);
+  notOk(y.secured, 'still not captured');
+  eq(y.health, y.maxHealth, 'and not shot at');
+});
+
+test('yelin: the loyalists arrive between beats, not all at once', () => {
+  // Three waves is the mission's shape — the waves are punctuation for
+  // the argument. All fifteen on the deck at deploy is a different, worse
+  // mission that happens to have the same copy.
+  const sim = createSim('yelin');
+  const first = sim.hostiles.length;
+  eq(first, 5, 'one wave on the deck at deploy');
+
+  const def = getMissionDef('yelin');
+  const argument = def.interludes.find(i => i.id === 'argument');
+  const close = def.interludes.find(i => i.id === 'close');
+  for (const beat of [argument, close]) {
+    for (const o of beat.options) {
+      ok(o.effect, `${beat.id}/${o.id}: brings the next wave up regardless of what you say`);
+    }
+  }
+
+  argument.options[0].effect(sim);
+  eq(sim.hostiles.length, first + 5, 'the second wave comes up the stairwell');
+});
+
+test('yelin: all three fates finish the mission, and only the taken one', () => {
+  for (const fate of ['kill', 'capture', 'walk']) {
+    const r = autoplay('yelin', { answers: { fate } });
+    ok(r.won, `${fate}: the mission closes`);
+    eq(r.sim.mission.flags.yelinFate, fate, `${fate}: the flag is written`);
+
+    const taken = r.objectives.filter(o => o.status === STATUS.COMPLETE && o.label.startsWith('CLOSE') === (fate === 'kill'));
+    ok(taken.length, `${fate}: a route completed`);
+    const others = r.sim.mission.objectives.filter(o => o.branch && o.branch !== fate);
+    ok(others.every(o => o.status !== STATUS.COMPLETE),
+      `${fate}: the routes you did not take stay open, not failed`);
+  }
+});
+
+test('yelin: each fate is a different ending, and each leaves him differently', () => {
+  const outcomes = {};
+  for (const fate of ['kill', 'capture', 'walk']) {
+    const r = autoplay('yelin', { answers: { fate } });
+    const y = r.sim.assets.find(a => a.isYelin);
+    outcomes[fate] = { dead: y.dead, secured: y.secured };
+  }
+  ok(outcomes.kill.dead, 'killed is dead');
+  ok(outcomes.capture.secured && !outcomes.capture.dead, 'captured is alive and held');
+  ok(!outcomes.walk.dead && !outcomes.walk.secured, 'walked away is alive and free');
+
+  const def = getMissionDef('yelin');
+  const copy = ['kill', 'capture', 'walk'].map(k => def.debrief[k].join(' '));
+  eq(new Set(copy).size, 3, 'three endings, three pieces of copy');
+  for (const k of ['kill', 'capture', 'walk']) {
+    ok(def.debrief.titles[k], `${k}: has its own title`);
+    eq(def.debriefKey({ mission: { flags: { yelinFate: k } } }), k, `${k}: routes to its own copy`);
+  }
+});
+
+test('yelin: the argument is actually made, and it is the one NARRATIVE specifies', () => {
+  // NARRATIVE.md §6: "Yelin's best argument goes here, and it has to
+  // actually land. The player should need a second to answer." A beat
+  // that got trimmed to a soundbite is the mission being broken, not
+  // tightened.
+  const def = getMissionDef('yelin');
+  const argument = def.interludes.find(i => i.id === 'argument');
+  const text = argument.lines.join(' ');
+  gte(argument.lines.length, 4, 'he gets room');
+  gte(text.length, 700, 'and it is a real argument');
+  includes(text, 'eight billion', 'the scale');
+  includes(text, 'ninth month', 'the thing he has seen and the player has not');
+  includes(text, 'I am the thing standing where it would be', 'and the line it turns on');
+
+  // He must be answerable in more than one way, and pressing him must be
+  // recorded — Act IV's endings should be able to know the player argued.
+  gte(argument.options.length, 3, 'more than one answer');
+  ok(argument.options.some(o => o.flag?.pressedYelin), 'pressing him is on the record');
+  for (const o of argument.options) {
+    gte(o.lines.join(' ').length, 150, `${o.id}: he answers properly`);
+  }
 });

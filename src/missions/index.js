@@ -13,3 +13,4 @@ export { gradientRelay4 } from './gradient-relay-4.js';
 export { runSouth } from './run-south.js';
 export { reverseTheGradient } from './reverse-the-gradient.js';
 export { theTower } from './the-tower.js';
+export { yelin } from './yelin.js';

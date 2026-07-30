@@ -322,6 +322,12 @@ export function step(sim, dt, intent) {
     assetsLost: sim.assets.filter(a => a.dead).length,
     squadExtracted: sim.squadExtracted,
     inZone: sim.inHoldZone,
+    // For `done` predicates: what the player has decided so far, and how
+    // they answered the dialog beats. An ending branch is a decision, not
+    // a tally, and this is what it reads.
+    flags: sim.mission.flags,
+    interludeAnswers: sim.interludeAnswers,
+    sim,
   });
 
   if (squad.allDead) {

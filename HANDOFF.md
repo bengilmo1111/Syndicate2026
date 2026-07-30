@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~4s, 157 checks, no dependencies
+node tests/run.mjs        # the gate — ~5s, 163 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -190,6 +190,15 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   off the throttle and stop following you. Using the thing that makes you
   the protagonist dismantles the crowd you spent ten missions building.
   The Router warns you in the briefing. **Do not "balance" this away.**
+- **Predicate objectives** — `objective(type, { done: s => … })` completes
+  by predicate on the same state snapshot rather than by counter. An
+  ending branch is a decision, not a tally, and `s.flags` /
+  `s.interludeAnswers` are on the snapshot for exactly this. `yelin`'s
+  three fates are the first use; Mission 14's console is the next.
+- **Named people are not collected by proximity** — `Asset.securable`.
+  False for someone whose fate is the mission's decision: you cannot
+  capture Yelin by standing next to him while shooting at somebody else.
+  Same family of rule as the squad refusing to auto-target Priya Okafor.
 - **Mid-mission dialog** (`src/core/interlude.js`) — a mission declares
   `interludes`; the sim raises one the first frame its `when(sim)` is
   true, freezes the field while the card is up, and records the answer in
@@ -236,7 +245,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 157 checks, ~4s, zero dependencies. Covers city
+`node tests/run.mjs` — 163 checks, ~5s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -257,10 +266,14 @@ HOLD zone count everywhere, and making it reset instead of unwind. Eight
 more cover Act IV·12: not freezing the field during dialog, letting a beat
 refire every frame, dropping an answer's flag, dropping its effect,
 accepting any option id, uncapping the formation offset, flattening the
-formation, and making the parley's hard choice free. It is load-bearing,
-not decorative.
+formation, and making the parley's hard choice free. Six more cover
+Act IV·13: ignoring a `done` predicate, collapsing every ending to the
+same copy, letting proximity capture Yelin, putting all three waves on
+the deck at deploy, sharing one branch group between the three fates,
+and making the kill ending bloodless. It is load-bearing, not
+decorative.
 
-`node tests/browser.mjs` — 39 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 40 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -289,17 +302,20 @@ is still a human reading a screenshot.
 For any mission work, briefing copy, debriefs, or character lines,
 **read `NARRATIVE.md` first** — the slots are pre-defined.
 
-Acts I–III are complete and Act IV is two missions in. Twelve of fifteen
-missions ship. Every objective type in the model is implemented, and
-missions can now talk to the player mid-field.
+Acts I–III are complete and Act IV is three missions in. Thirteen of
+fifteen missions ship. Every objective type is implemented, objectives
+can complete on a predicate as well as a tally, and missions can talk to
+the player mid-field.
 
-1. **`yelin`** (Act IV·13) — `NARRATIVE.md` §6. The boss fight is a long
-   argument with skirmishes between beats, ending in kill / capture /
-   walk away, and `yelinFate` gates the ending. The interlude system is
-   built and `the-tower` proves it works mid-firefight; this mission needs
-   *several* beats in sequence rather than one, plus a terminal choice
-   that reuses the `branch` machinery from The Refusal. Yelin's best
-   argument goes here and NARRATIVE says it has to actually land.
+1. **`the-core`** (Act IV·14) — `NARRATIVE.md` §6. A long approach with
+   three checkpoint interludes (BRAVO on what they remember, the Router
+   going off-air mid-sentence, Okafor's posthumous message), then a final
+   room with a console offering the three endings in §7: burn it, take it
+   over, walk away. Everything it needs exists — interludes for the
+   checkpoints, predicate objectives plus branch groups for the console,
+   exactly as `yelin` does it. What is new is that the choice has to
+   write a flag the *epilogue* reads, so `the-core` and mission 15 want
+   designing together.
 2. **Interstitials** — the Yelin notes and street graffiti between
    missions carry most of the tonal shift, and Act IV needs them most.
    The subtitle channel handles in-mission lines; between-mission beats

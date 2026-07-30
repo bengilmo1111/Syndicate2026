@@ -105,7 +105,7 @@ await page.evaluate(() => {
     version: 2,
     completed: ['sector-7', 'district-12', 'sable-campus', 'the-bracket',
       'okafor-contract', 'calibration-window', 'welfare-node-7', 'the-refusal', 'gradient-relay-4', 'run-south',
-      'reverse-the-gradient'],
+      'reverse-the-gradient', 'the-tower'],
     flags: {}, records: {},
   }));
 });

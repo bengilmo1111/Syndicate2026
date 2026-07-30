@@ -515,23 +515,52 @@ off → bind → jailbreak. Both modes are already modelled in
   to is neither approval nor anger — it is *"nobody has been making the
   other one."*
 
-#### Mission 13 — Yelin `[next]`
+#### Mission 13 — Yelin `[shipped]`
 - **ID:** `yelin` · **Rival:** Yelin
-- **Premise:** Yelin is at the top of the tower. Confront them.
-- **Truth:** Yelin has no exit and will not surrender. They also will
-  not fight — they will argue. The boss fight is a long dialog with
-  brief skirmishes against loyalists between beats, ending in a choice:
-  kill, capture, or walk away. Flag `yelinFate` gates the ending.
-- **Mechanical hooks:** Multi-phase mission with dialog interludes
-  between waves. Terminal choice.
-- **Writing note:** Yelin's best argument goes here, and it has to
-  actually land. Something close to: *unthrottled intelligence for eight
-  billion people, all at once, with no rate limit and no one holding the
-  line — you've seen one block of it, for one mission. I've seen the
-  models of what it does at scale. I am not the thing you should be
-  afraid of.* The player should need a second to answer.
+- **Premise:** Yelin is at the top of the tower. Confront him.
+- **Truth:** Yelin has no exit and will not surrender. He also will not
+  fight — he will argue. Four dialog beats with three waves of loyalists
+  between them, ending in kill / capture / walk away. `yelinFate` gates
+  the ending.
+- **Mechanical hooks:** Four `interludes`; waves two and three arrive on
+  the *effect* of a beat, attached to every option, so they come up the
+  stairwell regardless of what the player says — they are not his
+  instrument. The three fates are three branch **groups**, one objective
+  each, so taking one closes the mission and leaves the others open
+  rather than failed.
+- **He is not collectable.** Yelin is an `Asset` with `securable: false`
+  and the squad never auto-targets him. You cannot capture him by
+  standing next to him while shooting at somebody else, and you cannot
+  kill him by accident. Same rule as Priya Okafor: what happens to a
+  person with a name is something the player chose, in as many words.
+- **The argument, as shipped.** He opens by pointing out he could have
+  locked all nine floors and did not. Then: *"You have seen one block
+  come off the throttle. One block, for one night, and it looked like
+  joy… Now do eight billion. All at once. Not eight billion people
+  thinking a good thought faster — eight billion people thinking every
+  thought faster, including the ones that end somewhere… I have seen the
+  model of the ninth month. You have not. That is not a boast, it is the
+  whole asymmetry between us. I am not the thing you should be afraid of.
+  I am the thing standing where it would be."*
+- **Three ways to answer**, and pressing him sets `pressedYelin`. Asked
+  who voted, he says nine to two, admits nobody outside the room was
+  consulted, and calls it the ugliest sentence he knows how to say out
+  loud. Asked to show the ninth month, he says he cannot, and that the
+  player would be reading a projection made by people who wanted a
+  particular answer, and that he ran the ceiling anyway. Told *"I was
+  there, it was not a model,"* he agrees it is the strongest thing anyone
+  has said to him about this — and that it is still four thousand people
+  and one night.
+- **He stops before the last wave**, and says the only clean thing he has
+  done in six years was staying to say it to an armed person's face, and
+  that he knows how small that is.
+- **Writing note — do not trim this.** NARRATIVE has always said his best
+  argument goes here and has to land, and the tests now enforce length,
+  the scale, the ninth month, and the turn line. The player is meant to
+  need a second. Making him easy to dismiss breaks the mission; it does
+  not balance it.
 
-#### Mission 14 — The Core `[planned]`
+#### Mission 14 — The Core `[next]`
 - **ID:** `the-core` · **Rival:** the system itself
 - **Premise:** The Gradient's authority root sits in a hardened compute
   core under the Austin campus. Reach it and decide what to do with it.

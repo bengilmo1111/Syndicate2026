@@ -89,7 +89,11 @@ the 2D logic onto a 3D engine instead of losing it.
       condition, freezes the field, and the answer writes a flag and can
       change the field. First used by `the-tower`'s parley; missions 13–15
       are all partly dialog and use the same shape.
-- [ ] Act IV missions remaining: `yelin`, `the-core`, `epilogue`
+- [x] **`yelin`** (Act IV·13) — four dialog beats, three waves between
+      them, three endings as three branch groups
+- [x] Predicate objectives (`objective({ done: s => … })`) — completion by
+      decision rather than by tally, which is what an ending branch is
+- [ ] Act IV missions remaining: `the-core`, `epilogue`
       (`NARRATIVE.md` §6 Act IV)
 - [x] Branch objectives — one mission, mutually exclusive routes
       (`objective.branch`, `takenBranch`)
@@ -241,6 +245,7 @@ src/
     run-south.js        Act III·10 EXTRACT under pursuit; the file
     reverse-the-gradient.js Act IV·11 RETRIEVE + HOLD; the Aligner inverts
     the-tower.js        Act IV·12 ELIMINATE + RETRIEVE; the parley
+    yelin.js            Act IV·13 the argument; kill / capture / walk away
   render/               READS sim state, never writes to it
     ps1.js              materials, vertex jitter, fog, lights, windows
     cityView.js         city meshes, collapse reconciliation
