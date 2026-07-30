@@ -100,6 +100,9 @@ the 2D logic onto a 3D engine instead of losing it.
       interludes, and the console that picks the ending
 - [x] **`epilogue`** (Act IV·15) — a third mission kind: no world, no
       choice, reads the ending back off the campaign flags
+- [x] **Full building destruction** (`GAP_ANALYSIS.md` gap 2) — every tower
+      destructible, health on volume, occupancy as the cost model, rubble
+      that lands on whoever is under it, enforcement scaled to the dead
 - [x] **Persistent roster, permanent losses, cybernetics** (`GAP_ANALYSIS.md`
       gap 3) — `src/core/roster.js`, save v3 with migration from v2, four
       implants bought with research in a cryovat on the briefing card, and

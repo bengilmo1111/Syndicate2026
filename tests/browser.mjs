@@ -344,6 +344,36 @@ check('and dismissing it returns to the floor',
     && window.__syndicate.sim.elapsed > 0 && !window.__syndicate.sim.interlude)
     && !(await page.isVisible('#overlay-choices')));
 
+// --- full building destruction. The sim tests prove the cost model; this
+// --- proves the renderer turns a nine-floor block into a rubble field
+// --- without losing the GL context on the way.
+const demolition = await page.evaluate(async () => {
+  const app = window.__syndicate;
+  const tower = app.sim.city.structures
+    .filter(s => s.kind === 'tower' && !s.collapsed)
+    .sort((a, b) => b.occupancy - a.occupancy)[0];
+  if (!tower) return { ok: false, why: 'no tower' };
+  const before = { deaths: app.sim.civilianDeaths, height: tower.h };
+  // Drop it directly — driving 14 seconds of fire through the render loop
+  // is what the headless suite is for.
+  const mod = await import('/src/core/city.js');
+  mod.damageStructure(tower, tower.hp, app.sim.city);
+  app.sim.events.push({ type: 'collapse', structure: tower });
+  return { ok: true, id: tower.id, before, occupancy: tower.occupancy, after: tower.h };
+});
+check('a tower can be brought down', demolition.ok && demolition.after < demolition.before.height,
+  `${demolition.occupancy} tenants · ${demolition.before.height?.toFixed(1)}m → ${demolition.after?.toFixed(1)}m`);
+
+await page.waitForTimeout(900);
+const rendered = await page.evaluate(() => {
+  const app = window.__syndicate;
+  const canvas = document.getElementById('game-canvas');
+  const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+  return { phase: app.phase, glLost: !gl || gl.isContextLost() };
+});
+check('and the renderer reconciles it without losing the context',
+  rendered.phase === 'playing' && !rendered.glLost);
+
 // --- fullscreen. Headless Chromium will not actually go fullscreen, so
 // --- what is checkable is that the control exists, is wired, and that
 // --- neither the button nor the shortcut throws.

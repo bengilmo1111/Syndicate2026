@@ -98,18 +98,36 @@ promises.
 
 *Where:* Phase 5. Biggest single gap.
 
-### 2. Buildings are indestructible
-"Level a city block" is the original's headline. We destroy street
-furniture and scripted landmarks; the towers are permanent scenery.
+### 2. Buildings are indestructible — **closed**
+"Level a city block" is the original's headline. We destroyed street
+furniture and scripted landmarks; the towers were permanent scenery.
 
-Our collapse-to-cover mechanic already works and is tested — the gap is
-scope, not design. Making arbitrary structures destructible needs damage
-accumulation on the tower class, a collapse footprint that doesn't trap
-agents, nav-graph invalidation (already handled via the cache stamp), and
-a cost model so that levelling everything isn't always correct.
+**Shipped.** Every tower and slab is destructible, with health scaling on
+volume — 2 to 15 seconds of the whole squad on full auto, so a block is a
+commitment rather than a burst.
 
-*Where:* Phase 6, but arguably earlier — this is the feature people
-remember the original for.
+**The cost model is people.** A tower is not scenery with a health bar,
+it is ninety Free-tier tenants, and dropping it kills all of them. That
+wrecks the mission's civilian-loss record, costs the research the cryovat
+runs on, and draws enforcement scaled to the body count (capped at three
+waves — expensive, not unrecoverable). The game warns you at 40%
+integrity, by tenant count, so finding out afterwards is impossible and
+doing it anyway is a decision.
+
+Rubble spreads a third past the original footprint and lands on whoever
+is standing in it, **including the squad**, which is now a way to lose an
+operative permanently.
+
+Two latent bugs surfaced doing it, both invisible until towers could
+fall. The nav cache was stamped on `structures.length`, which a collapse
+never changes — so a route computed before a collapse walked straight
+through the new footprint; harmless for street cover, not for a tower's
+rubble field. And the `derelict` dial pre-collapses anything
+destructible, which would have silently rewritten the skyline of every
+sector that sets it.
+
+*Still open:* partial damage states (a building is intact or rubble,
+nothing between), and collapse that propagates to neighbours.
 
 ### 3. No progression, no roster, no persistence — **closed**
 Four fixed agents who reset every mission. The original had a roster you

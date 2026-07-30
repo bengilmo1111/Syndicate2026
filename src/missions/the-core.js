@@ -290,6 +290,7 @@ export const theCore = registerMission({
       density: 0.82,
       coverDensity: 0.85,
       maxFloors: 4,      // substructure: low ceilings, long sightlines
+      occupancyScale: 0, // eleven metres down. Nobody lives here.
       plaza: { col: 6, row: 6, w: 2, h: 2 },
     });
 

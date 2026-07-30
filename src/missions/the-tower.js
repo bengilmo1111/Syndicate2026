@@ -166,6 +166,7 @@ export const theTower = registerMission({
       density: 0.78,
       coverDensity: 0.9,
       maxFloors: 9,
+      occupancyScale: 0, // the Board went to Zurich and took the floor with them
       plaza: { col: 4, row: 4, w: 2, h: 2 },
     });
 

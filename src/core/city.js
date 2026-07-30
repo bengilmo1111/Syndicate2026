@@ -36,7 +36,10 @@ export function paletteFor(syndicate) {
 
 let nextStructureId = 1;
 
-function makeStructure({ x, z, w, d, h, kind, color, roof, trim, destructible, hp }) {
+function makeStructure({
+  x, z, w, d, h, kind, color, roof, trim, destructible, hp,
+  occupancy = 0, spread = 1.14,
+}) {
   return {
     id: nextStructureId++,
     kind,
@@ -46,6 +49,15 @@ function makeStructure({ x, z, w, d, h, kind, color, roof, trim, destructible, h
     hp: hp ?? 0,
     maxHp: hp ?? 0,
     collapsed: false,
+    /**
+     * How many people are inside. This is the cost model for levelling a
+     * block: a tower is not scenery with a health bar, it is ninety
+     * Free-tier tenants, and dropping it kills every one of them. See
+     * `collapseCasualties()` in `sim.js`.
+     */
+    occupancy,
+    /** How far the rubble field spreads past the footprint on collapse. */
+    spread,
     // Rubble keeps a footprint that blocks movement but not line of fire.
     rubbleHeight: 1.6,
   };
@@ -71,6 +83,13 @@ export function buildCity(spec = {}) {
     // Fraction of street cover that starts already collapsed. A sector
     // nobody has maintained in years should look like one.
     derelict = 0,
+    /**
+     * People per unit of building volume. This is the dial that decides
+     * what levelling a block costs: a residential sector is full at 3am
+     * and a campus substructure eleven metres down is not. Zero means
+     * genuinely empty, and a mission that sets it should mean it.
+     */
+    occupancyScale = 3,
     plaza = { col: 4, row: 4, w: 2, h: 2 },
   } = spec;
 
@@ -122,6 +141,11 @@ export function buildCity(spec = {}) {
       const d = CELL * range(rng, 0.62, 0.9);
       const kind = h > 16 ? STRUCT.TOWER : STRUCT.SLAB;
 
+      // Towers are destructible, and expensive in every sense. Health
+      // scales with the building so a nine-floor block is a decision and
+      // not a burst of minigun fire, and occupancy scales with it too, so
+      // the decision has people in it.
+      const volume = (w * d * floors) / 100;
       structures.push(makeStructure({
         x: cx + range(rng, -1, 1),
         z: cz + range(rng, -1, 1),
@@ -130,7 +154,13 @@ export function buildCity(spec = {}) {
         color: pal.base,
         roof: pal.roof,
         trim: pal.trim,
-        destructible: false,
+        destructible: true,
+        hp: Math.round(700 + volume * 220),
+        occupancy: Math.max(1, Math.round(volume * occupancyScale)),
+        // More to put down than a kiosk has, so the rubble reaches
+        // further — which is what makes dropping one near the squad a
+        // bad idea rather than a free wall-removal.
+        spread: 1.3,
       }));
     }
   }
@@ -155,12 +185,21 @@ export function buildCity(spec = {}) {
       trim: pal.trim,
       destructible: true,
       hp: big ? 260 : 140,
+      occupancy: big ? 1 : 0,
     }));
   }
 
   if (derelict > 0) {
+    // Street cover only. Towers became destructible when full building
+    // destruction landed, and a derelict dial that also drops nine-floor
+    // blocks at generation time is a different feature — it would rewrite
+    // the skyline of every sector that sets it, and Gradient Relay 4 sets
+    // it. Rubble on the street is what "nobody has maintained this in
+    // years" is supposed to mean.
     for (const s of structures) {
-      if (s.destructible && rng() < derelict) damageStructure(s, s.hp);
+      if (!s.destructible) continue;
+      if (s.kind !== STRUCT.KIOSK && s.kind !== STRUCT.DEPOT) continue;
+      if (rng() < derelict) damageStructure(s, s.hp);   // graph is built after
     }
   }
 
@@ -365,16 +404,25 @@ export function coverAgainst(city, targetX, targetZ, fromX, fromZ) {
   return best;
 }
 
-/** Damage a destructible. Returns true on the frame it collapses. */
-export function damageStructure(structure, amount) {
+/**
+ * Damage a destructible. Returns true on the frame it collapses.
+ *
+ * Pass the owning `city` so the collapse can bump its revision — the
+ * navigation graph is cached against it, and a route computed before a
+ * collapse would otherwise walk through the rubble field afterwards.
+ */
+export function damageStructure(structure, amount, city = null) {
   if (!structure.destructible || structure.collapsed) return false;
   structure.hp -= amount;
   if (structure.hp > 0) return false;
   structure.hp = 0;
   structure.collapsed = true;
-  // Rubble keeps roughly the footprint but slumps outward and low.
-  structure.w *= 1.14;
-  structure.d *= 1.14;
+  // Rubble keeps roughly the footprint but slumps outward and low. A
+  // tower spreads further than a kiosk — it has more to put down.
+  const spread = structure.spread ?? 1.14;
+  structure.w *= spread;
+  structure.d *= spread;
   structure.h = structure.rubbleHeight;
+  if (city) city.collapses = (city.collapses ?? 0) + 1;
   return true;
 }

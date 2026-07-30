@@ -126,6 +126,8 @@ export function createSim(missionId, opts = {}) {
     throttledCount: 0,
     /** Set when the mission is lost for a reason other than a squad wipe. */
     failReason: null,
+    /** Of `civilianDeaths`, how many went down with a building. */
+    collapseDeaths: 0,
     unthrottled,
     holdZone,
     inHoldZone: false,
@@ -412,6 +414,100 @@ function spawnProjectile(sim, shot) {
 }
 
 /** Rounds that go close by without connecting still cost you your aim. */
+/**
+ * Say something once when an occupied structure is close to going.
+ *
+ * A tower collapsing is the most expensive thing in the game and stray
+ * rounds chip towers. Finding out afterwards that eighty people were in
+ * the building reads as the game cheating; being told at 40% and doing it
+ * anyway is a decision, which is the whole point of making them
+ * destructible.
+ */
+function warnStructure(sim, s) {
+  if (s.warned || s.collapsed || !s.occupancy || !s.maxHp) return;
+  if (s.hp / s.maxHp > 0.4) return;
+  s.warned = true;
+  say(sim, 'STRUCTURAL',
+    `${s.occupancy} instances still checked in at that address`, 6);
+  sim.events.push({ type: 'structural', x: s.x, z: s.z, structure: s });
+}
+
+/**
+ * What a collapse costs.
+ *
+ * This is the cost model the gap analysis asked for, in the game's own
+ * language rather than a resource bar: a tower is ninety Free-tier
+ * tenants, and dropping it kills all of them. It spikes heat, it wrecks
+ * the mission's civilian-loss record, and it costs research at the
+ * debrief — the same currency the cryovat runs on.
+ *
+ * And it lands on whoever is standing in the footprint, including the
+ * squad. Rubble spreads a third further than the building stood, so
+ * dropping a block you are fighting next to is a way to lose an
+ * operative permanently.
+ */
+function collapseCasualties(sim, s, byPlayer) {
+  // The people inside. Abstract — they were never simulated on the
+  // street — but they count exactly like anyone else who dies here.
+  if (s.occupancy > 0) {
+    sim.civilianDeaths += s.occupancy;
+    sim.collapseDeaths += s.occupancy;
+    say(sim, 'STRUCTURAL',
+      `${s.occupancy} instances lost with the structure`, 7);
+
+    if (byPlayer) {
+      // Heat alone cannot express this. The threshold spawns one wave and
+      // resets, so a fifty-tenant tower and a six-tenant one would cost
+      // the same — which would make levelling the tall one strictly
+      // better. Enforcement scales with the body count instead, capped so
+      // a single mistake is expensive rather than unrecoverable.
+      sim.heat += HEAT.CIVILIAN_KILL * 2;
+      const waves = Math.min(COLLAPSE_MAX_WAVES, Math.ceil(s.occupancy / COLLAPSE_PER_WAVE));
+      for (let i = 0; i < waves; i++) {
+        spawnEnforcers(sim, HEAT.ENFORCERS_PER_WAVE);
+        sim.enforcerWaves += 1;
+      }
+      if (waves) {
+        sim.alertTimer = 4;
+        sim.events.push({ type: 'alert', text: 'STRUCTURAL COLLAPSE — ENFORCEMENT INBOUND' });
+      }
+    }
+  }
+
+  // Anyone caught under it. The rubble field is already the widened
+  // footprint by the time this runs.
+  const caught = [...sim.squad.agents, ...sim.hostiles, ...sim.civilians];
+  for (const a of caught) {
+    if (a.dead) continue;
+    const inside = Math.abs(a.x - s.x) <= s.w / 2 + a.radius
+      && Math.abs(a.z - s.z) <= s.d / 2 + a.radius;
+    if (!inside) continue;
+
+    const killed = a.takeDamage(COLLAPSE_DAMAGE);
+    sim.events.push({ type: 'hit', x: a.x, z: a.z, actor: a, killed, spent: true });
+    if (!killed) continue;
+    // Counted the same way a bullet would count it. A civilian crushed
+    // by a building the squad dropped is not a different kind of death.
+    if (sim.civilians.includes(a)) {
+      sim.civilianDeaths += 1;
+      if (byPlayer) sim.heat += HEAT.CIVILIAN_KILL;
+    } else if (sim.hostiles.includes(a) && a.countsForObjective && byPlayer) {
+      sim.kills += 1;
+    }
+  }
+  // Nobody standing in a rubble field should be inside geometry, dead or
+  // not — a survivor pushed into the mesh is a stuck agent for the rest
+  // of the mission.
+  for (const a of caught) if (!a.dead) resolveCollision(sim.city, a);
+}
+
+/** What being under a building costs. Survivable, but only just. */
+const COLLAPSE_DAMAGE = 85;
+/** Tenants per extra enforcement wave a player-caused collapse draws. */
+const COLLAPSE_PER_WAVE = 18;
+/** Expensive, not unrecoverable. */
+const COLLAPSE_MAX_WAVES = 3;
+
 function suppressNearMisses(sim, p) {
   const pool = p.friendly ? sim.hostiles : sim.squad.alive;
   for (const t of pool) {
@@ -430,8 +526,10 @@ function resolveProjectile(sim, p) {
   if (hitStruct) {
     p.dead = true;
     sim.events.push({ type: 'impact', x: p.x, z: p.z, structure: hitStruct });
-    if (damageStructure(hitStruct, p.damage)) {
+    warnStructure(sim, hitStruct);
+    if (damageStructure(hitStruct, p.damage, sim.city)) {
       sim.events.push({ type: 'collapse', structure: hitStruct });
+      collapseCasualties(sim, hitStruct, p.friendly);
     }
     return;
   }

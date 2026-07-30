@@ -150,9 +150,25 @@ export class CityView {
       v.bodyMat.emissive?.setHex(0x000000);
 
       v.roof.visible = false;
-      v.trim.scale.set(s.w * 0.62, 0.22, s.d * 0.62);
-      v.trim.position.y = s.h + 0.15;
-      v.trim.rotation.y = 0.6;
+
+      // A bent slab lying in the heap, not a coat of paint over it.
+      //
+      // The trim used to be 62% of the footprint, which reads as debris on
+      // a kiosk and as a large orange floor tile on a twenty-metre tower.
+      // Cap it, and push it off-centre by an amount derived from the
+      // structure id so the field is deterministic and no two collapses in
+      // a row look stamped from the same template.
+      const cap = Math.min(7, s.w * 0.62);
+      const capD = Math.min(7, s.d * 0.62);
+      const jitter = ((s.id * 2654435761) >>> 0) / 4294967296;
+      v.trim.scale.set(cap, 0.22, capD);
+      // Local to the group, which is already positioned at the structure.
+      v.trim.position.set(
+        (jitter - 0.5) * (s.w - cap) * 0.7,
+        s.h + 0.15,
+        (((jitter * 7) % 1) - 0.5) * (s.d - capD) * 0.7,
+      );
+      v.trim.rotation.set(0.12, 0.6 + jitter * 2.4, -0.09);
       v.trimMat.color.setHex(0x8a4a1c);
     }
   }

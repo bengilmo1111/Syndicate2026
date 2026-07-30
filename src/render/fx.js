@@ -126,7 +126,10 @@ export class Fx {
 
   /** Rubble burst when a structure comes down. */
   collapse(structure) {
-    const count = Math.min(24, Math.round(structure.w * structure.d * 0.35) + 8);
+    // Towers became destructible, and a nine-floor block putting down the
+    // same eight chunks as a kiosk reads as a bug. The pool recycles, so
+    // a high cap costs nothing when nothing large ever falls.
+    const count = Math.min(48, Math.round(structure.w * structure.d * 0.35) + 8);
     for (let i = 0; i < count; i++) {
       const d = this.debris.take();
       const a = Math.random() * Math.PI * 2;

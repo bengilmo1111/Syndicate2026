@@ -2,7 +2,8 @@
 // the enemy and auto-fire" into something with a decision in it.
 
 import '../src/missions/index.js';
-import { suite, test, ok, notOk, eq, near, lt, gte } from './lib/harness.mjs';
+import { suite, test, ok, notOk, eq, near, lt, gt, gte } from './lib/harness.mjs';
+import { findPath } from '../src/core/nav.js';
 import { WEAPONS, DEFAULT_LOADOUT, weapon } from '../src/core/weapons.js';
 import {
   Compute, CHANNELS, BUDGET, SURGE_RADIUS, THROTTLED_SPEED,
@@ -493,3 +494,174 @@ test('a tight squad still arrives in formation', () => {
   ok(spread > 1.5, `the formation survives (${spread.toFixed(1)}m)`);
   lt(spread, MAX_SPREAD + 0.01, 'but stays within a formation of the order');
 });
+
+// ------------------------------------------------------------- demolition
+
+suite('demolition');
+
+test('towers can be brought down, and cost real time to bring down', () => {
+  const city = buildCity({ seed: 21, cols: 8, rows: 8 });
+  const towers = city.structures.filter(s => s.kind === 'tower' || s.kind === 'slab');
+  gte(towers.length, 10, 'the block has towers');
+  ok(towers.every(s => s.destructible), 'and every one of them can come down');
+
+  // Four agents on full auto is roughly 460 dps. A tower must be a
+  // decision measured in seconds under fire, not a burst.
+  const DPS = 460;
+  const seconds = towers.map(s => s.maxHp / DPS);
+  gte(Math.min(...seconds), 2, `the cheapest is ${Math.min(...seconds).toFixed(1)}s of full-squad fire`);
+  lt(Math.max(...seconds), 25, `the dearest is ${Math.max(...seconds).toFixed(1)}s — a project, not a chore`);
+});
+
+test('a tower is people, and that is what levelling one costs', () => {
+  const city = buildCity({ seed: 21, cols: 8, rows: 8 });
+  const towers = city.structures.filter(s => s.kind === 'tower' || s.kind === 'slab');
+  ok(towers.every(s => s.occupancy > 0), 'every one of them is occupied');
+  // Bigger buildings hold more people. Otherwise levelling the tall one
+  // is strictly better, which is the failure mode the cost model exists
+  // to prevent.
+  const sorted = [...towers].sort((a, b) => a.maxHp - b.maxHp);
+  gte(sorted[sorted.length - 1].occupancy, sorted[0].occupancy * 2,
+    'and the big ones hold many more than the small ones');
+
+  // A mission whose fiction says the building is empty must be empty.
+  const empty = buildCity({ seed: 21, cols: 8, rows: 8, occupancyScale: 0 });
+  ok(empty.structures.filter(s => s.kind === 'tower').every(s => s.occupancy <= 1),
+    'occupancyScale 0 means nobody is home');
+});
+
+test('dropping an occupied tower kills everyone in it', () => {
+  const sim = createSim('sector-7');
+  const tower = sim.city.structures.filter(s => s.kind === 'tower' && !s.collapsed)
+    .sort((a, b) => b.occupancy - a.occupancy)[0];
+  const tenants = tower.occupancy;
+  gte(tenants, 5, `${tenants} people live there`);
+
+  const before = { deaths: sim.civilianDeaths, waves: sim.enforcerWaves };
+  levelIt(sim, tower);
+
+  ok(tower.collapsed, 'it came down');
+  eq(sim.civilianDeaths - before.deaths, tenants, 'and every tenant is counted');
+  eq(sim.collapseDeaths, tenants, 'and attributed to the building');
+  ok(sim.enforcerWaves > before.waves, 'and the sector comes for you');
+});
+
+test('the game warns you before you do it', () => {
+  // Stray rounds chip towers. Finding out afterwards that eighty people
+  // were inside reads as the game cheating; being told at 40% and firing
+  // anyway is a decision, which is the entire point.
+  const sim = createSim('sector-7');
+  const tower = sim.city.structures.find(s => s.kind === 'tower' && s.occupancy > 5);
+  levelIt(sim, tower, { stopAt: 0.3 });
+  ok(tower.warned, 'the warning fired before the collapse');
+  notOk(tower.collapsed, 'while it was still standing');
+  ok(sim.events.some(e => e.type === 'structural'), 'and it is on the event stream');
+});
+
+test('enforcement scales with the body count, but is survivable', () => {
+  // If a fifty-tenant tower and a six-tenant one drew the same response,
+  // levelling the tall one would be strictly better.
+  const waves = (pick) => {
+    const sim = createSim('sector-7');
+    const towers = sim.city.structures.filter(s => s.kind === 'tower' && !s.collapsed)
+      .sort((a, b) => a.occupancy - b.occupancy);
+    const target = pick(towers);
+    const before = sim.enforcerWaves;
+    levelIt(sim, target);
+    return { drawn: sim.enforcerWaves - before, tenants: target.occupancy };
+  };
+  const small = waves(t => t[0]);
+  const large = waves(t => t[t.length - 1]);
+  gte(large.tenants, small.tenants * 1.5, 'the two buildings differ enough to tell apart');
+  gt(large.drawn, small.drawn,
+    `${small.tenants} tenants → ${small.drawn} waves, ${large.tenants} → ${large.drawn}`);
+  lt(large.drawn, 5, 'expensive, not unrecoverable');
+});
+
+test('a collapse lands on whoever is standing under it, including you', () => {
+  const sim = createSim('sector-7');
+  const tower = sim.city.structures.find(s => s.kind === 'tower' && !s.collapsed);
+
+  // Park an agent on the far side, inside where the rubble will spread.
+  const victim = sim.squad.agents[0];
+  const hp = victim.health;
+  levelIt(sim, tower, {
+    place: (agents) => {
+      const a = Math.atan2(sim.city.deploy.x - tower.x, sim.city.deploy.z - tower.z);
+      agents.forEach((g, i) => {
+        g.x = tower.x + Math.sin(a) * (tower.w / 2 + 10) + i * 2;
+        g.z = tower.z + Math.cos(a) * (tower.d / 2 + 10);
+      });
+      // …except this one, who is standing in the footprint.
+      agents[0].x = tower.x;
+      agents[0].z = tower.z + tower.d / 2 - 1;
+    },
+  });
+  ok(tower.collapsed, 'it came down');
+  lt(victim.health, hp, 'and it landed on the agent standing under it');
+});
+
+test('a survivor of a collapse is not left inside the rubble', () => {
+  // Being pushed into the mesh is a stuck agent for the rest of the
+  // mission, which is worse than dying.
+  const sim = createSim('sector-7');
+  const tower = sim.city.structures.find(s => s.kind === 'tower' && !s.collapsed);
+  levelIt(sim, tower, {
+    place: (agents) => {
+      agents.forEach((g) => { g.health = 9999; g.x = tower.x; g.z = tower.z; });
+    },
+  });
+  for (const g of sim.squad.agents) {
+    const inside = Math.abs(g.x - tower.x) < tower.w / 2 - g.radius
+      && Math.abs(g.z - tower.z) < tower.d / 2 - g.radius;
+    notOk(inside, 'the agent was pushed clear of the rubble');
+  }
+});
+
+test('a collapse invalidates the navigation graph', () => {
+  // The nav cache was stamped on `structures.length`, which a collapse
+  // never changes — so a route computed beforehand could walk straight
+  // through the new footprint. Street cover made that harmless; a
+  // tower's rubble field does not.
+  const sim = createSim('sector-7');
+  const from = sim.squad.agents[0];
+  const to = { x: sim.city.halfW - 12, z: sim.city.halfD - 12 };
+  findPath(sim.city, from, to, from.radius);
+  const stamp = sim.city._nav.stamp;
+
+  const tower = sim.city.structures.find(s => s.kind === 'tower' && !s.collapsed);
+  damageStructure(tower, tower.hp, sim.city);
+
+  findPath(sim.city, from, to, from.radius);
+  notOk(sim.city._nav.stamp === stamp, 'the graph was rebuilt after the collapse');
+});
+
+test('a derelict sector rusts at street level, not at the skyline', () => {
+  // `derelict` predates towers being destructible. If it also drops
+  // nine-floor blocks it silently rewrites the skyline of every sector
+  // that sets it — and Gradient Relay 4 sets it.
+  const city = buildCity({ seed: 7, cols: 8, rows: 8, derelict: 1 });
+  const towers = city.structures.filter(s => s.kind === 'tower' || s.kind === 'slab');
+  ok(towers.every(s => !s.collapsed), 'every tower is still standing');
+  const cover = city.structures.filter(s => s.kind === 'kiosk' || s.kind === 'depot');
+  ok(cover.every(s => s.collapsed), 'and all the street cover is rubble');
+});
+
+/** Park the squad off one face of a structure and shoot it until it goes. */
+function levelIt(sim, target, { stopAt = 0, place = null } = {}) {
+  if (place) place(sim.squad.agents);
+  else {
+    const a = Math.atan2(sim.city.deploy.x - target.x, sim.city.deploy.z - target.z);
+    sim.squad.agents.forEach((g, i) => {
+      g.x = target.x + Math.sin(a) * (target.w / 2 + 10) + i * 2;
+      g.z = target.z + Math.cos(a) * (target.d / 2 + 10);
+      g.health = 9999;   // this is a demolition test, not a survival one
+    });
+  }
+  const intent = { moveX: 0, moveZ: 0, firing: true, aimPoint: { x: target.x, z: target.z } };
+  const floor = stopAt * target.maxHp;
+  for (let i = 0; i < 60 * 120; i++) {
+    if (target.collapsed || (stopAt && target.hp <= floor)) break;
+    step(sim, 1 / 60, intent);
+  }
+}

@@ -562,7 +562,13 @@ function frame(now) {
         step(app.sim, FIXED_DT, intent);
         // Collapses are the one event worth shaking the camera for.
         for (let i = before; i < app.sim.events.length; i++) {
-          if (app.sim.events[i].type === 'collapse') view.rig.kick(0.8);
+          // Kick scaled by what fell. A kiosk is a bump; a tower going
+          // down next to the squad should be the loudest thing on screen.
+          const ev = app.sim.events[i];
+          if (ev.type === 'collapse') {
+            const mass = Math.min(1, (ev.structure?.maxHp ?? 0) / 5000);
+            view.rig.kick(0.6 + mass * 1.7);
+          }
         }
       }
       updateHUD(app.sim);

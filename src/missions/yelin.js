@@ -289,6 +289,7 @@ export const yelin = registerMission({
       density: 0.7,
       coverDensity: 1.0,
       maxFloors: 6,
+      occupancyScale: 0, // the campus evacuated three days ago
       plaza: { col: 3, row: 3, w: 3, h: 3 },
     });
 
