@@ -127,6 +127,8 @@ following now ship:
   **Middle-drag** — free orbit
 - **Alt + Enter** — fullscreen, or the **⛶ VIEW** panel at the top right.
   Available from the briefing card as well as in the field
+- **CRYOVAT**, on the briefing card — fit cybernetics with research earned
+  from finished deployments. Fittings are permanent and so are losses
 
 > Note: an earlier draft of this document bound both "select all" and
 > "rotate camera" to **Q**. Camera rotation moved to **Z / X** so the

@@ -5,12 +5,17 @@
 // mission. Shuffled, it is four disconnected firefights.
 
 import '../src/missions/index.js';
-import { suite, test, ok, notOk, eq, gte, includes } from './lib/harness.mjs';
+import { suite, test, ok, notOk, eq, gte, gt, includes } from './lib/harness.mjs';
+import { createSim } from '../src/core/sim.js';
+import { autoplay } from './lib/autopilot.mjs';
 import {
   newCampaign, migrate, isComplete, isUnlocked, lockReason,
-  recordWin, setFlag, nextMission, progress, SAVE_VERSION,
+  recordWin, setFlag, nextMission, progress, SAVE_VERSION, recordCasualties,
 } from '../src/core/campaign.js';
 import { getAllMissions, getMissionDef } from '../src/core/mission.js';
+import {
+  SQUAD_SIZE, deployed, byId, researchFor, canFit, fit, fitBlocker,
+} from '../src/core/roster.js';
 
 const MISSIONS = getAllMissions();
 const def = id => getMissionDef(id);
@@ -168,4 +173,206 @@ test('flags recorded by a mission survive into the campaign', () => {
   const back = migrate(JSON.parse(JSON.stringify(c)));
   eq(back.flags.defectedAtRefusal, true, 'defection survives a save');
   eq(back.flags.playerSuspicion, true, 'so does suspicion');
+});
+
+// ------------------------------------------------------------------ roster
+
+suite('roster');
+
+test('a fresh campaign has the four the story is about', () => {
+  const c = newCampaign();
+  const crew = deployed(c.roster);
+  eq(crew.length, SQUAD_SIZE, 'four of them');
+  eq(crew.map(o => o.designation).join('/'), 'ALPHA/BRAVO/CHARLIE/DELTA', 'in order');
+  eq(crew.map(o => o.name).join('/'), 'IDRIS/MAREN-TWO/VEY/SONA', 'and they have names');
+  eq(c.roster.research, 0, 'nothing banked yet');
+  ok(crew.every(o => !o.implants.length), 'and nothing fitted');
+});
+
+test('a v2 save keeps its progress and gains a roster', () => {
+  // A player mid-campaign must not lose everything to a feature landing
+  // behind them.
+  const c = migrate({
+    version: 2,
+    completed: ['sector-7', 'district-12'],
+    flags: { bravoCalibrated: true },
+    records: { 'sector-7': { elapsed: 90, kills: 5 } },
+  });
+  eq(c.version, SAVE_VERSION, 'stamped current');
+  eq(c.completed.length, 2, 'progress survives');
+  eq(c.flags.bravoCalibrated, true, 'and so do the flags');
+  eq(deployed(c.roster).length, SQUAD_SIZE, 'and there is a roster now');
+});
+
+test('a save with a corrupt roster does not take the campaign down with it', () => {
+  for (const junk of [null, 'nonsense', 42, { operatives: 'no' }, { operatives: [] }]) {
+    const c = migrate({ version: 3, completed: ['sector-7'], roster: junk });
+    eq(deployed(c.roster).length, SQUAD_SIZE, `${JSON.stringify(junk)}: still four`);
+    eq(c.completed.length, 1, 'and the progress is intact');
+  }
+  // An implant we retired must not survive as a dangling id.
+  const c = migrate({
+    version: 3,
+    roster: {
+      research: 5,
+      operatives: [{ id: 'alpha', implants: ['LEGS', 'RETIRED_THING'], deployments: 3, slot: 0 }],
+    },
+  });
+  eq(byId(c.roster, 'alpha').implants.join(), 'LEGS', 'the unknown implant is dropped');
+  eq(c.roster.research, 5, 'research survives');
+});
+
+test('losing someone is permanent, and the suit gets a stranger in it', () => {
+  const c = newCampaign();
+  const bravo = byId(c.roster, 'bravo');
+  const { lost, drawn } = recordCasualties(c, 'the-refusal', {
+    squadAlive: 3, civilianDeaths: 2, deadSlots: [1],
+  });
+
+  eq(lost.length, 1, 'one did not come back');
+  eq(lost[0].id, 'bravo', 'and it was her');
+  ok(bravo.lost, 'marked lost');
+  eq(bravo.lostOn, 'the-refusal', 'and where');
+
+  eq(drawn.length, 1, 'the mesh finds somebody');
+  eq(drawn[0].designation, 'BRAVO', 'who inherits the designation');
+  notOk(drawn[0].name === 'MAREN-TWO', 'but not the person');
+  eq(drawn[0].deployments, 0, 'and starts from nothing');
+
+  const crew = deployed(c.roster);
+  eq(crew.length, SQUAD_SIZE, 'still four deploy');
+  notOk(crew.some(o => o.id === 'bravo'), 'and she is not one of them, ever again');
+});
+
+test('deployments and kills accumulate on the people who survive', () => {
+  const c = newCampaign();
+  recordCasualties(c, 'sector-7', { squadAlive: 4, killsBySlot: { 0: 3, 2: 1 } });
+  recordCasualties(c, 'district-12', { squadAlive: 4 });
+  const alpha = byId(c.roster, 'alpha');
+  eq(alpha.deployments, 2, 'two deployments');
+  eq(alpha.kills, 3, 'and a record');
+  eq(byId(c.roster, 'bravo').kills, 0, 'somebody else\'s kills are not hers');
+});
+
+test('research rewards bringing everyone home and killing no civilians', () => {
+  eq(researchFor({ squadAlive: 4, civilianDeaths: 0 }), 4, 'clean and whole');
+  eq(researchFor({ squadAlive: 4, civilianDeaths: 3 }), 3, 'whole but messy');
+  eq(researchFor({ squadAlive: 2, civilianDeaths: 0 }), 3, 'clean but costly');
+  eq(researchFor({ squadAlive: 2, civilianDeaths: 5 }), 2, 'neither');
+  // The floor must be above zero or a bad run leaves the player stuck.
+  ok(researchFor({ squadAlive: 0, civilianDeaths: 99 }) > 0, 'a bad run still pays something');
+});
+
+test('the cryovat spends research, and only research you have', () => {
+  const c = newCampaign();
+  c.roster.research = 3;
+
+  notOk(canFit(c.roster, 'alpha', 'REFLEX'), 'cannot afford the governor');
+  includes(fitBlocker(c.roster, 'alpha', 'REFLEX'), 'NEEDS 4', 'and it says why');
+
+  ok(fit(c.roster, 'alpha', 'ARMOUR'), 'can afford the weave');
+  eq(c.roster.research, 0, 'and it is spent');
+  eq(byId(c.roster, 'alpha').implants.join(), 'ARMOUR', 'and fitted');
+
+  notOk(fit(c.roster, 'alpha', 'ARMOUR'), 'not twice');
+  notOk(fit(c.roster, 'alpha', 'LEGS'), 'and not on credit');
+  eq(c.roster.research, 0, 'nothing leaked');
+});
+
+test('a lost operative cannot be fitted with anything', () => {
+  const c = newCampaign();
+  recordCasualties(c, 'run-south', { squadAlive: 3, deadSlots: [0] });
+  c.roster.research = 99;   // set after: closing a deployment banks research
+  notOk(canFit(c.roster, 'alpha', 'LEGS'), 'she is not in the vat, she is gone');
+  eq(fitBlocker(c.roster, 'alpha', 'LEGS'), 'OPERATIVE LOST', 'and it says so');
+  eq(c.roster.research, 99, 'and nothing was charged');
+});
+
+test('implants reach the body the sim simulates', () => {
+  // The roster is a record and the Agent is a body in a city. This is the
+  // only place they meet, so if it silently stops working the whole
+  // progression system becomes a stats screen.
+  const plain = createSim('sector-7').squad.agents[0];
+
+  const c = newCampaign();
+  c.roster.research = 99;
+  fit(c.roster, 'alpha', 'LEGS');
+  fit(c.roster, 'alpha', 'ARMOUR');
+  fit(c.roster, 'alpha', 'OPTICS');
+  const kitted = createSim('sector-7', { roster: c.roster }).squad.agents[0];
+
+  gt(kitted.baseSpeed, plain.baseSpeed, 'the actuators are in');
+  eq(kitted.speed, kitted.baseSpeed, 'and speed matches, not stale');
+  gt(kitted.maxHealth, plain.maxHealth, 'the weave is in');
+  eq(kitted.health, kitted.maxHealth, 'and it healed to the new maximum');
+  gt(kitted.range, plain.range, 'the optics are in');
+
+  eq(kitted.operativeId, 'alpha', 'and the agent knows who it is');
+  eq(kitted.trueName, 'IDRIS', 'by name');
+});
+
+test('a sim built without a roster is still four working agents', () => {
+  // Every test that does not care about progression relies on this, and
+  // so does a first run before any save exists.
+  const sim = createSim('sector-7');
+  eq(sim.squad.agents.length, SQUAD_SIZE, 'four');
+  ok(sim.squad.agents.every(a => a.health > 0 && a.range > 0), 'and functional');
+  eq(sim.roster, null, 'with no roster attached');
+});
+
+test('a reflex governor is the in-fiction fix for what is wrong with BRAVO', () => {
+  // Act II gives BRAVO a hesitation on every order. The governor
+  // suppresses it, which is a real mechanical reward for spending four
+  // research — and NARRATIVE is clear it does not fix her.
+  const bare = createSim('okafor-contract');
+  gt(bare.squad.agents[1].hesitation, 0, 'untreated, she hesitates');
+
+  const c = newCampaign();
+  c.roster.research = 99;
+  ok(fit(c.roster, 'bravo', 'REFLEX'), 'fit the governor');
+  const treated = createSim('okafor-contract', { roster: c.roster });
+  eq(treated.squad.agents[1].hesitation, 0, 'and the pause is gone');
+  eq(treated.squad.agents[1].trueName, 'MAREN-TWO', 'she is still herself');
+});
+
+test('losing BRAVO changes what happens at the checkpoint under the campus', () => {
+  // The payoff for permanent losses being permanent: Act IV·14's first
+  // beat is her talking about a kitchen she cannot verify is hers. If she
+  // is gone, somebody else is in the suit and the scene is the absence.
+  const fired = (roster) => {
+    const sim = createSim('the-core', roster ? { roster } : {});
+    return sim.interludeDefs.filter(b => b.when({ ...sim, kills: 99 })).map(b => b.id);
+  };
+
+  ok(fired(null).includes('bravo'), 'no roster at all: she is there');
+  ok(fired(newCampaign().roster).includes('bravo'), 'roster intact: she is there');
+
+  const bereaved = newCampaign();
+  recordCasualties(bereaved, 'the-refusal', { squadAlive: 3, deadSlots: [1] });
+  const beats = fired(bereaved.roster);
+  ok(beats.includes('bravo-gone'), 'she is gone: the other beat runs');
+  notOk(beats.includes('bravo'), 'and hers does not');
+
+  // Both versions must be written, or "she is gone" is a blank screen.
+  const def = getMissionDef('the-core');
+  for (const id of ['bravo', 'bravo-gone']) {
+    gte(def.interludes.find(i => i.id === id).lines.join(' ').length, 300, `${id}: is written`);
+  }
+});
+
+test('the campaign still finishes with a squad that has been rebuilt twice', () => {
+  // A player who loses people must not hit an unwinnable wall. Wipe out
+  // half the founding four and the missions must still be playable.
+  const c = newCampaign();
+  recordCasualties(c, 'sector-7', { squadAlive: 2, deadSlots: [0, 3] });
+  recordCasualties(c, 'district-12', { squadAlive: 3, deadSlots: [2] });
+
+  const crew = deployed(c.roster);
+  eq(crew.length, SQUAD_SIZE, 'four still deploy');
+  eq(crew.map(o => o.designation).sort().join('/'), 'ALPHA/BRAVO/CHARLIE/DELTA',
+    'all four designations are filled');
+  eq(crew.filter(o => o.id === 'bravo').length, 1, 'and the survivor is still herself');
+
+  const r = autoplay('sector-7', { roster: c.roster });
+  ok(r.won, 'and a rebuilt squad can still win');
 });

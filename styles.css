@@ -53,6 +53,81 @@ html, body {
   cursor: crosshair;
 }
 
+/* --------------------------------------------------------------- the roster */
+
+.overlay-roster {
+  margin: 14px 0 4px;
+  border-top: 1px solid rgba(111, 227, 208, 0.16);
+  border-bottom: 1px solid rgba(111, 227, 208, 0.16);
+  padding: 8px 0;
+  font-size: 12px;
+}
+
+.roster-head {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+  margin: 0 0 6px;
+}
+
+.roster-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
+  flex-wrap: wrap;
+}
+
+.roster-who { min-width: 17ch; }   /* "BRAVO MAREN-TWO" is the longest */
+.roster-who b { letter-spacing: 0.1em; }
+
+.roster-stat {
+  flex: 1;
+  min-width: 14ch;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.roster-kit {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+/* An operative who is not coming back. Kept on the card rather than
+   deleted — the roster is a record, and a record with a gap in it reads
+   as a bug rather than a loss. */
+.roster-row.lost { opacity: 0.45; }
+.roster-row.lost .roster-stat { color: var(--crit); }
+
+.implant {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
+  border: 1px solid rgba(111, 227, 208, 0.35);
+  color: var(--accent);
+  background: rgba(111, 227, 208, 0.08);
+}
+
+button.implant.offer {
+  font-family: inherit;
+  cursor: pointer;
+  border-style: dashed;
+  color: var(--text-dim);
+  background: none;
+}
+
+button.implant.offer:hover:not(:disabled) {
+  color: var(--accent);
+  border-style: solid;
+  background: rgba(111, 227, 208, 0.12);
+}
+
+button.implant.offer:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 /* ---------------------------------------------------------------- HUD top */
 
 #hud-top {

@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~9s, 173 checks, no dependencies
+node tests/run.mjs        # the gate — ~9s, 186 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -190,6 +190,24 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   off the throttle and stop following you. Using the thing that makes you
   the protagonist dismantles the crowd you spent ten missions building.
   The Router warns you in the briefing. **Do not "balance" this away.**
+- **The roster** (`src/core/roster.js`) — four *people*, not four slots.
+  Operatives persist with names, deployments and kills; losses are
+  permanent; a replacement inherits the **designation** but not the
+  person, so the radio still says BRAVO and the player knows it is not
+  her. Four cybernetics bought with research (2 per mission, +1 for
+  bringing everyone home, +1 for killing no civilians) and fitted in a
+  cryovat on the briefing card. `applyToAgent()` is the *only* place the
+  persistent record and the simulated body meet — the sim still does not
+  know a save file exists.
+  Losses and research land **on a win only**: permadeath that punishes a
+  retry is a tax on experimenting, not a consequence.
+  A reflex governor suppresses BRAVO's Act II hesitation, which is the
+  in-fiction fix and explicitly not a fix for BRAVO.
+- **Save v3**, migrated from v2. A v2 save keeps its progress and gains a
+  fresh roster; a corrupt or foreign roster is replaced without taking the
+  campaign down, and implants we later retire are dropped rather than left
+  dangling. Tests cover all of that, because the alternative is a player
+  losing a campaign to a feature landing behind them.
 - **Epilogue missions** — a third kind, after field missions and choice
   missions: no world, no decision, `def.epilogue = { by, fallback,
   variants }` resolved by `epilogueFor()` against the *campaign* flags, so
@@ -252,7 +270,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 173 checks, ~9s, zero dependencies. Covers city
+`node tests/run.mjs` — 186 checks, ~9s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -281,10 +299,16 @@ and making the kill ending bloodless. Seven more cover Act IV·14–15:
 ignoring the ending flag, dropping the epilogue's fallback, treating an
 epilogue as a field mission, stacking the three checkpoints on one kill
 count, having one console action write another's flag, colliding two
-ending titles, and cutting the second "Maren" out of the last scene. It
-is load-bearing, not decorative.
+ending titles, and cutting the second "Maren" out of the last scene.
+Eleven more cover the roster: making implants inert, making a loss
+temporary, making implants free, buying on credit, dropping implants on
+load, keeping a retired implant id, losing the designation on a
+replacement, dropping the full-squad research bonus, not applying the
+roster to the agents at all, making the reflex governor useless, and
+removing the BRAVO branch under the campus. It is load-bearing, not
+decorative.
 
-`node tests/browser.mjs` — 42 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 47 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -319,22 +343,31 @@ through to three different final scenes, and a test plays the whole
 campaign in order — every field mission autoplayed to a win, gated the
 way a player meets them, ending on the epilogue.
 
-The arc is done. What is left is depth, not story: `GAP_ANALYSIS.md` is
-the ranked backlog.
+The arc is done and the progression loop under it is done. What is left is
+depth: `GAP_ANALYSIS.md` is the ranked backlog, and gaps 3, 5, 7 and 10
+are now closed.
 
-1. **Full building destruction** (`GAP_ANALYSIS.md` gap 2) and the
-   **agent roster / cybernetics loop** (gap 3). These are the two that
-   most change how the game plays, and with the story finished they are
-   no longer competing with mission work.
-2. **Between-mission interstitials for Acts I–III** — Yelin's notes and
+1. **Full building destruction** (`GAP_ANALYSIS.md` gap 2) — the headline
+   feature of the original and the biggest remaining change to how the
+   game plays. The collapse-to-cover mechanic already works and is tested;
+   the gap is scope. Needs damage accumulation on the tower class, a
+   collapse footprint that does not trap agents (the nav cache stamp
+   already invalidates), and a cost model so levelling everything is not
+   always correct.
+2. **Non-lethal and area-denial weapons** (gap 4) — the original's
+   identity lives in its strange tools, and the game currently has four
+   conventional guns.
+3. **Between-mission interstitials for Acts I–III** — Yelin's notes and
    the street graffiti. Act IV got its beats *inside* missions, which is
    where they belonged, but the Act I→II tonal turn still has nothing
    between the briefings. The card shape is the only thing missing;
    `src/core/interlude.js` is not it (that one freezes a live field).
-3. **`bravoCalibrated`, `playerSuspicion`, `defectedAtRefusal`,
-   `heardYelin`, `pressedYelin`, `toldBravoItWasHers`** are all recorded
-   and nothing reads them. The epilogue is the obvious place: it currently
-   branches on `ending` alone, and it could be reading six more.
+4. **`bravoCalibrated`, `playerSuspicion`, `defectedAtRefusal`,
+   `heardYelin`, `pressedYelin`, `toldBravoItWasHers`,
+   `askedTheReplacement`** are all recorded and nothing reads them. The
+   epilogue is the obvious place: it branches on `ending` alone, and it
+   could be reading seven more — plus the roster, which now knows exactly
+   who survived to see it.
 2. **Interstitials** — the Yelin notes and street graffiti between
    missions carry most of the tonal shift, and Act IV needs them most.
    The subtitle channel handles in-mission lines; between-mission beats

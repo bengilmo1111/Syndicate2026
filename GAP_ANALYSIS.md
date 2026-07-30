@@ -111,14 +111,29 @@ a cost model so that levelling everything isn't always correct.
 *Where:* Phase 6, but arguably earlier — this is the feature people
 remember the original for.
 
-### 3. No progression, no roster, no persistence
+### 3. No progression, no roster, no persistence — **closed**
 Four fixed agents who reset every mission. The original had a roster you
 drew a squad of four from, cybernetic upgrades in the cryovat, and
 consequences for losing people. Without this, agent death costs nothing
 and there is no reason to care about ALPHA over DELTA — which also
 undercuts the story, since Act III is about them becoming people.
 
-*Where:* Phase 4. High narrative leverage, not just mechanical.
+**Shipped** in `src/core/roster.js`. Operatives persist across the
+campaign with names, deployments and kills; four cybernetics are bought
+with research earned per mission (more for bringing everyone home, more
+for killing no civilians) and fitted in a cryovat on the briefing card;
+losses are permanent, and a replacement inherits the *designation* but
+not the person, so the radio still says BRAVO.
+
+The narrative leverage arrived with it: Act IV·14's first checkpoint is
+BRAVO talking about a kitchen she cannot verify is hers, and if she was
+lost somewhere in Acts II–IV a different beat runs — the operative
+wearing BRAVO checks the corner and waits for an order, and the player
+can ask their name or give one.
+
+*Still open:* drawing a squad of four from a larger pool (the roster
+deploys the four whose slots are filled, it does not let you pick), and
+cybernetics that change *how* an agent plays rather than its numbers.
 
 ### 4. The weapon roster is four conventional guns
 The original's identity lives in its *strange* tools — psycho gas to

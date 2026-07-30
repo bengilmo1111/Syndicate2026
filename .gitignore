@@ -1,5 +1,9 @@
 # Node and project files
 node_modules/
+# ...and as a bare name, so a symlink to a Playwright install elsewhere
+# (which is how `tests/browser.mjs` gets run here) is ignored too. The
+# trailing-slash form does not match a symlink.
+node_modules
 .DS_Store
 Thumbs.db
 *.log

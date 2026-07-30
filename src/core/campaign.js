@@ -9,7 +9,9 @@
 // euphemistic mission by mission; shuffled, it is four disconnected
 // firefights.
 
-export const SAVE_VERSION = 2;
+import { newRoster, migrateRoster, researchFor, recordDeployment } from './roster.js';
+
+export const SAVE_VERSION = 3;
 
 export function newCampaign() {
   return {
@@ -20,6 +22,11 @@ export function newCampaign() {
     flags: {},
     /** Best result per mission, for the briefing card. */
     records: {},
+    /**
+     * The four people, their implants, and unspent research. Persisting
+     * this is what makes a squad wipe cost something — see `roster.js`.
+     */
+    roster: newRoster(),
   };
 }
 
@@ -30,6 +37,10 @@ export function migrate(raw) {
   if (Array.isArray(raw.completed)) c.completed = raw.completed.filter(id => typeof id === 'string');
   if (raw.flags && typeof raw.flags === 'object') c.flags = { ...raw.flags };
   if (raw.records && typeof raw.records === 'object') c.records = { ...raw.records };
+  // A v2 save has no roster at all. It gets a fresh one rather than being
+  // thrown away — a player mid-campaign should not lose their progress to
+  // a feature being added behind them.
+  c.roster = migrateRoster(raw.roster);
   return c;
 }
 
@@ -83,6 +94,18 @@ export function recordWin(campaign, id, result = {}) {
     };
   }
   return campaign;
+}
+
+/**
+ * Close out a deployment: bank the research, mark the dead lost for good,
+ * and draw replacements. Returns what it cost so the debrief can say so.
+ */
+export function recordCasualties(campaign, missionId, result = {}) {
+  const roster = campaign.roster ??= newRoster();
+  const earned = researchFor(result);
+  roster.research += earned;
+  const { lost, drawn } = recordDeployment(roster, missionId, result);
+  return { earned, lost, drawn };
 }
 
 export function setFlag(campaign, key, value) {

@@ -13,6 +13,7 @@ import {
 import { SURGE_RADIUS, SURGE_HEAT_PER_SECOND, THROTTLED_SPEED } from './compute.js';
 import { applySuppression, decaySuppression } from './tactics.js';
 import { pumpInterludes } from './interlude.js';
+import { deployed, applyToAgent } from './roster.js';
 import {
   getMissionDef, buildMission, updateMissionStatus, isMissionComplete,
   failedObjective, OBJECTIVE,
@@ -36,7 +37,14 @@ export const PHASE = Object.freeze({
   LOST: 'lost',
 });
 
-export function createSim(missionId) {
+/**
+ * @param missionId
+ * @param opts.roster optional persistent roster — supplies who is in the
+ *   suits and what has been bolted into them. Omitted, the squad is four
+ *   anonymous default agents, which is what every test that does not care
+ *   about progression wants.
+ */
+export function createSim(missionId, opts = {}) {
   const def = getMissionDef(missionId);
   const rng = makeRng(def.cityseed ?? 1);
   const {
@@ -64,10 +72,24 @@ export function createSim(missionId) {
   }
 
   const squad = new Squad(city.deploy.x, city.deploy.z);
+  // Who is actually in the suits, and what they have had fitted.
+  {
+    const roster = opts.roster ?? null;
+    if (roster) {
+      const crew = deployed(roster);
+      squad.agents.forEach((a, i) => applyToAgent(a, crew[i]));
+      squad.roster = roster;
+    }
+  }
   // Act II's mechanical signal: BRAVO's Instance is failing, and it shows
   // as a pause before every order executes. Not a bug — the player is
   // meant to notice it before anyone explains it.
-  if (def.bravoHesitation) squad.agents[1].hesitation = def.bravoHesitation;
+  //
+  // A reflex governor is the in-fiction fix, so it suppresses this. It
+  // does not fix what is actually wrong with BRAVO.
+  if (def.bravoHesitation && !squad.agents[1].hesitationImmune) {
+    squad.agents[1].hesitation = def.bravoHesitation;
+  }
   // Act IV: the same hardware, reversed. Space now cycles through a mode
   // that unthrottles people instead of binding them.
   if (def.jailbreak) squad.jailbreakUnlocked = true;
@@ -121,6 +143,8 @@ export function createSim(missionId) {
     interludesSeen: new Set(),
     /** interlude id → chosen option id. Debriefs and later missions read this. */
     interludeAnswers: {},
+    /** The persistent roster this deployment was drawn from, if any. */
+    roster: opts.roster ?? null,
     /** Renderer sets this from the mouse each frame; sim uses it for aiming. */
     cursor: { x: 0, z: 0 },
   };

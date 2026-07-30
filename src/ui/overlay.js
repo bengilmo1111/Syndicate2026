@@ -4,7 +4,7 @@
 const el = id => document.getElementById(id);
 
 export function setOverlay({
-  eyebrow, title, body, tabs, onSelectTab, button, altButton, choices, hint,
+  eyebrow, title, body, tabs, onSelectTab, button, altButton, choices, roster, hint,
 }) {
   el('overlay-eyebrow').textContent = eyebrow ?? '';
   el('overlay-title').textContent = title;
@@ -30,6 +30,8 @@ export function setOverlay({
   el('overlay-body').innerHTML = (body ?? [])
     .map(line => (line === '' ? '<div class="spacer"></div>' : `<p>${line}</p>`))
     .join('');
+
+  renderRoster(roster);
 
   // A decision mission renders its options instead of a deploy button.
   const choiceHost = el('overlay-choices');
@@ -63,6 +65,68 @@ export function setOverlay({
   }
 
   el('overlay-hint').innerHTML = hint ?? '';
+}
+
+/**
+ * The four people going in, and what has been fitted to them.
+ *
+ * Rendered on the briefing card because that is where the player is
+ * deciding whether to risk them. A roster tucked behind a menu is a stats
+ * screen; a roster on the card you press DEPLOY from is a decision.
+ *
+ * `onFit` present means this is the cryovat: every unfitted implant
+ * becomes a button, disabled with a reason when it cannot be bought.
+ */
+function renderRoster(roster) {
+  const host = el('overlay-roster');
+  host.innerHTML = '';
+  host.classList.toggle('hidden', !roster);
+  if (!roster) return;
+
+  if (roster.heading) {
+    const h = document.createElement('p');
+    h.className = 'roster-head';
+    h.innerHTML = roster.heading;
+    host.appendChild(h);
+  }
+
+  for (const op of roster.operatives) {
+    const row = document.createElement('div');
+    row.className = `roster-row${op.lost ? ' lost' : ''}`;
+
+    const who = document.createElement('span');
+    who.className = 'roster-who';
+    who.innerHTML = op.lost
+      ? `<b>${op.designation}</b> <s>${op.name}</s>`
+      : `<b>${op.designation}</b> ${op.name}`;
+    row.appendChild(who);
+
+    const stat = document.createElement('span');
+    stat.className = 'roster-stat';
+    stat.textContent = op.detail;
+    row.appendChild(stat);
+
+    const kit = document.createElement('span');
+    kit.className = 'roster-kit';
+    for (const item of op.implants) {
+      const tag = document.createElement('span');
+      tag.className = 'implant';
+      tag.textContent = item.short;
+      tag.title = `${item.name} — ${item.blurb}`;
+      kit.appendChild(tag);
+    }
+    for (const item of op.offers ?? []) {
+      const b = document.createElement('button');
+      b.className = 'implant offer';
+      b.textContent = `+ ${item.short} (${item.cost})`;
+      b.title = item.blocker ? item.blocker : `${item.name} — ${item.blurb}`;
+      b.disabled = !!item.blocker;
+      if (!item.blocker) b.addEventListener('click', () => roster.onFit(op.id, item.id));
+      kit.appendChild(b);
+    }
+    row.appendChild(kit);
+    host.appendChild(row);
+  }
 }
 
 export function showOverlay() {
