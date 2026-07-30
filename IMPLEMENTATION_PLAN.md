@@ -100,6 +100,10 @@ the 2D logic onto a 3D engine instead of losing it.
       interludes, and the console that picks the ending
 - [x] **`epilogue`** (Act IV·15) — a third mission kind: no world, no
       choice, reads the ending back off the campaign flags
+- [x] **Persistent roster, permanent losses, cybernetics** (`GAP_ANALYSIS.md`
+      gap 3) — `src/core/roster.js`, save v3 with migration from v2, four
+      implants bought with research in a cryovat on the briefing card, and
+      a replacement who inherits the designation but not the person
 - [x] **All fifteen missions ship.** `NARRATIVE.md` §6 is complete, and a
       test plays every one of them in order to the end of the campaign.
 - [x] Branch objectives — one mission, mutually exclusive routes
@@ -238,6 +242,7 @@ src/
     campaign.js         completions, gating, records, branch flags
     tactics.js          hostile cover-seeking, repositioning, suppression
     interlude.js        mid-mission dialog beats — freeze, ask, record
+    roster.js           who is in the suits, what is fitted, who is gone
     sim.js              the simulation — owns all mutable game state
   missions/             one file per mission, self-registering
     sector-7.js         Act I·1  ELIMINATE + DEMOLISH

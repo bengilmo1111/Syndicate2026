@@ -18,6 +18,18 @@ import { Hostile, Asset, TIER } from '../core/entities.js';
 const GUARD = 14;
 const CHECKPOINTS = [4, 8, 12];
 
+/**
+ * Is the operative in the BRAVO suit the BRAVO the story is about?
+ *
+ * With no roster — every test that does not care about progression, and a
+ * cold save — the answer is yes, because there is no history in which she
+ * could have been lost.
+ */
+function bravoIsBravo(sim) {
+  const bravo = sim.squad?.agents?.[1];
+  return !bravo?.operativeId || bravo.operativeId === 'bravo';
+}
+
 function guards(city, rng, n, away) {
   const out = [];
   let tries = 0;
@@ -126,10 +138,15 @@ export const theCore = registerMission({
 
   interludes: [
     // --- Checkpoint one: BRAVO, on what they remember.
+    //
+    // Only if she is still alive to say it. If the founding BRAVO was lost
+    // somewhere in Acts II–IV, the suit is somebody else now, and the beat
+    // below runs instead — which is the whole reason permanent losses are
+    // worth having.
     interlude({
       id: 'bravo',
       speaker: 'AGENT BRAVO',
-      when: sim => sim.kills >= CHECKPOINTS[0],
+      when: sim => sim.kills >= CHECKPOINTS[0] && bravoIsBravo(sim),
       lines: [
         'She stops at a service junction and does not move for long enough that you turn around.',
         '<em>"I have got a kitchen. That is all it is — a kitchen, and it is too small, and there is a radio on top of the fridge playing something I could hum for you right now and could not name."</em>',
@@ -154,6 +171,32 @@ export const theCore = registerMission({
             '<em>"Right. Both of us then. Come on — it is eleven metres and I would like to be the sort of person who walks it without stopping again."</em>',
           ],
         },
+      ],
+    }),
+
+    // --- Checkpoint one, the other way. Nobody's fault and nobody's fix.
+    interlude({
+      id: 'bravo-gone',
+      speaker: 'AGENT BRAVO',
+      when: sim => sim.kills >= CHECKPOINTS[0] && !bravoIsBravo(sim),
+      lines: [
+        'You stop at a service junction, out of habit, because this is where she would have stopped.',
+        'The operative wearing BRAVO checks the corner, finds it clear, and looks at you waiting for an order.',
+        'They have been in the suit for a while now. They are good at the work. You have never asked them anything and they have never volunteered, and there is a version of this where you fix that, and it is not going to be in the next four minutes.',
+        '',
+        'On the relay, from nobody, the carrier hiss of a channel with no one on it.',
+      ],
+      options: [
+        {
+          id: 'ask',
+          label: 'ASK THEIR NAME',
+          flag: { askedTheReplacement: true },
+          lines: [
+            'They tell you. It takes two seconds and they have to say it twice because the first time is too quiet.',
+            'Then they check the corner again, because the corner is what they can do something about.',
+          ],
+        },
+        { id: 'move', label: 'GIVE THE ORDER', lines: ['They move. They are good at the work.'] },
       ],
     }),
 

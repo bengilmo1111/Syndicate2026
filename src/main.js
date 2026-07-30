@@ -10,11 +10,15 @@ import { createSim, step, PHASE } from './core/sim.js';
 import { answerInterlude } from './core/interlude.js';
 import {
   isUnlocked, isComplete, lockReason, recordWin, nextMission, progress,
+  recordCasualties,
 } from './core/campaign.js';
 import { View } from './render/view.js';
 import { updateHUD, toggleObjectivePanel } from './ui/hud.js';
 import { setOverlay, showOverlay, hideOverlay, CONTROLS_HINT } from './ui/overlay.js';
 import { loadCampaign, saveCampaign, clearCampaign } from './ui/storage.js';
+import {
+  CYBERNETICS, CYBERNETIC_IDS, deployed, fit, fitBlocker,
+} from './core/roster.js';
 
 const canvas = document.getElementById('game-canvas');
 const view = new View(canvas);
@@ -32,6 +36,9 @@ const app = {
 // one — a returning player should not have to click past what they finished.
 app.selectedMissionId = (nextMission(app.campaign, MISSIONS) ?? MISSIONS[0]).id;
 
+/** The briefing card can show the roster or the cryovat. Same card. */
+let cryovatOpen = false;
+
 const keys = new Set();
 const pointer = { nx: 0.5, ny: 0.5, firing: false, orbiting: false, lastX: 0, lastY: 0 };
 
@@ -40,11 +47,60 @@ const pointer = { nx: 0.5, ny: 0.5, firing: false, orbiting: false, lastX: 0, la
 // ---------------------------------------------------------------------------
 
 /**
+ * The roster block for the briefing card. In cryovat mode every implant
+ * an operative does not have becomes a button, disabled with the reason
+ * it cannot be bought.
+ */
+function rosterView(fitting) {
+  const roster = app.campaign.roster;
+  const crew = deployed(roster);
+  const gone = roster.operatives.filter(o => o.lost);
+  const short = id => CYBERNETICS[id].name.split(' ').pop().slice(0, 4).toUpperCase();
+
+  const rows = [...crew, ...gone].map(op => ({
+    id: op.id,
+    designation: op.designation ?? '—',
+    name: op.name,
+    lost: op.lost,
+    detail: op.lost
+      ? `LOST · ${op.lostOn ?? 'unknown sector'}`
+      : `${op.deployments} deployment${op.deployments === 1 ? '' : 's'} · ${op.kills} down`,
+    implants: op.implants.map(id => ({
+      short: short(id), name: CYBERNETICS[id].name, blurb: CYBERNETICS[id].blurb,
+    })),
+    offers: fitting && !op.lost
+      ? CYBERNETIC_IDS.filter(id => !op.implants.includes(id)).map(id => ({
+        id,
+        short: short(id),
+        cost: CYBERNETICS[id].cost,
+        name: CYBERNETICS[id].name,
+        blurb: CYBERNETICS[id].blurb,
+        blocker: fitBlocker(roster, op.id, id),
+      }))
+      : [],
+  }));
+
+  return {
+    heading: fitting
+      ? `<b>CRYOVAT</b> · ${roster.research} RESEARCH UNSPENT · fittings are permanent`
+      : `<b>DEPLOYMENT</b> · ${roster.research} RESEARCH BANKED`,
+    operatives: rows,
+    onFit: fitting
+      ? (opId, cyberId) => {
+        if (!fit(roster, opId, cyberId)) return;
+        saveCampaign(app.campaign);
+        showBriefing();
+      }
+      : null,
+  };
+}
+
+/**
  * Build the mission's world but leave it paused, so the briefing card sits
  * over a live view of the sector you're about to walk into.
  */
 function loadPreview() {
-  app.sim = createSim(app.selectedMissionId);
+  app.sim = createSim(app.selectedMissionId, { roster: app.campaign.roster });
   view.loadCity(app.sim.city);
   const c = app.sim.squad.center();
   view.rig.smoothTarget.set(c.x, 0, c.z);
@@ -92,10 +148,16 @@ function showBriefing() {
     })),
     onSelectTab: (id) => { app.selectedMissionId = id; showBriefing(); },
     body,
-    button: { label: isComplete(app.campaign, def.id) ? 'REDEPLOY' : 'DEPLOY', onClick: startMission },
-    altButton: app.campaign.completed.length
-      ? { label: 'WIPE RECORD', onClick: resetCampaign }
-      : null,
+    roster: rosterView(cryovatOpen),
+    // The cryovat takes the card over while it is open, so the player
+    // cannot fit an implant and deploy in the same click without seeing
+    // the roster again. Fittings are permanent; make them deliberate.
+    button: cryovatOpen
+      ? { label: 'CLOSE CRYOVAT', onClick: toggleCryovat }
+      : { label: isComplete(app.campaign, def.id) ? 'REDEPLOY' : 'DEPLOY', onClick: startMission },
+    altButton: cryovatOpen
+      ? (app.campaign.completed.length ? { label: 'WIPE RECORD', onClick: resetCampaign } : null)
+      : { label: 'CRYOVAT', onClick: toggleCryovat },
     hint: CONTROLS_HINT,
   });
   showOverlay();
@@ -184,14 +246,21 @@ function showEpilogue(def) {
   showOverlay();
 }
 
+function toggleCryovat() {
+  cryovatOpen = !cryovatOpen;
+  showBriefing();
+}
+
 function resetCampaign() {
   app.campaign = clearCampaign();
   app.selectedMissionId = MISSIONS[0].id;
+  cryovatOpen = false;
   showBriefing();
 }
 
 function startMission() {
-  app.sim = createSim(app.selectedMissionId);
+  cryovatOpen = false;
+  app.sim = createSim(app.selectedMissionId, { roster: app.campaign.roster });
   view.loadCity(app.sim.city);
   view.rig.yaw = 0;
   view.rig.pitch = 0.78;
@@ -207,6 +276,13 @@ function showDebrief(won) {
   app.phase = won ? PHASE.WON : PHASE.LOST;
   const def = getMissionDef(app.sim.mission.id);
 
+  // Who did not come back. Read before anything else touches the roster.
+  const deadSlots = app.sim.squad.agents.filter(a => a.dead).map(a => a.slot ?? a.index);
+  const fallen = app.sim.squad.agents
+    .filter(a => a.dead)
+    .map(a => `${a.name}${a.trueName ? ` · ${a.trueName}` : ''}`);
+  let casualties = null;
+
   if (won) {
     recordWin(app.campaign, def.id, {
       elapsed: app.sim.elapsed,
@@ -215,6 +291,14 @@ function showDebrief(won) {
       civilianDeaths: app.sim.civilianDeaths,
     });
     Object.assign(app.campaign.flags, app.sim.mission.flags);
+    // Losses and research only land on a win. A failed deployment is a
+    // reload, not a funeral — permadeath that punishes a retry is just a
+    // tax on experimenting, and the original did not do that either.
+    casualties = recordCasualties(app.campaign, def.id, {
+      squadAlive: app.sim.squad.alive.length,
+      civilianDeaths: app.sim.civilianDeaths,
+      deadSlots,
+    });
     saveCampaign(app.campaign);
     // Roll the selection forward so RETURN TO BRIEFING lands on what's next.
     const next = nextMission(app.campaign, MISSIONS);
@@ -232,6 +316,17 @@ function showDebrief(won) {
     '',
     `HOSTILES DOWN <strong>${app.sim.kills}</strong> · ALIGNED <strong>${app.sim.alignedCount}</strong> · CIVILIAN LOSSES <strong>${app.sim.civilianDeaths}</strong>`,
   ];
+  // A permanent loss said in a stats line is a footnote. Say it in words,
+  // by name, and say who is wearing the designation now.
+  if (casualties?.lost.length) {
+    stats.push('', `<strong>NOT RECOVERED — ${fallen.join(' · ')}</strong>`);
+    stats.push(casualties.drawn.length
+      ? `The mesh has people. ${casualties.drawn.map(o => `<em>${o.name}</em> takes ${o.designation}`).join('; ')}. Nobody briefs them on whose suit it is.`
+      : 'There is nobody left in the pool. The next deployment goes in short-handed.');
+  }
+  if (casualties?.earned) {
+    stats.push('', `<em>RESEARCH BANKED ${casualties.earned} — cryovat fittings are on the briefing card.</em>`);
+  }
   const titles = def.debrief.titles ?? {};
   const lostTitle = titles[app.sim.failReason]
     ?? (app.sim.failReason === 'assetLost' ? 'ASSET LOST' : 'DEPLOYMENT TERMINATED');

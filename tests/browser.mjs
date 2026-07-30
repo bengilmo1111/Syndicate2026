@@ -188,6 +188,48 @@ for (let i = 0; i < missions.length; i++) {
   await page.waitForTimeout(600);
 }
 
+// --- the roster and the cryovat. The sim tests prove implants reach the
+// --- Agent; only a browser run proves the player can actually buy one.
+await page.click('.mission-tab:nth-child(1)');
+await page.waitForTimeout(400);
+
+const rosterRows = await page.$$eval('.roster-row', els => els.map(e => e.textContent));
+check('the briefing card shows who is going in', rosterRows.length >= 4,
+  `${rosterRows.length} operatives`);
+check('and names them', /IDRIS/.test(rosterRows.join(' ')) && /MAREN-TWO/.test(rosterRows.join(' ')));
+
+// Bank some research the way a finished mission would, then open the vat.
+await page.evaluate(() => {
+  window.__syndicate.campaign.roster.research = 9;
+});
+await page.click('#overlay-alt-button');           // CRYOVAT
+await page.waitForTimeout(400);
+const offers = await page.$$('.implant.offer:not([disabled])');
+check('the cryovat offers fittings you can afford', offers.length > 0, `${offers.length} available`);
+
+const bankedBefore = await page.evaluate(() => window.__syndicate.campaign.roster.research);
+await offers[0].click();
+await page.waitForTimeout(500);
+const fitted = await page.evaluate(() => ({
+  research: window.__syndicate.campaign.roster.research,
+  implants: window.__syndicate.campaign.roster.operatives[0].implants.length,
+  saved: JSON.parse(localStorage.getItem('syndicate2026.campaign')).roster.operatives[0].implants.length,
+}));
+check('fitting one spends research and persists to the save',
+  fitted.research < bankedBefore && fitted.implants === 1 && fitted.saved === 1,
+  `${bankedBefore} → ${fitted.research} research · ${fitted.implants} fitted · ${fitted.saved} in the save`);
+
+// A fitting with nothing left to spend must be refused, not silently free.
+await page.evaluate(() => { window.__syndicate.campaign.roster.research = 0; });
+await page.click('#overlay-button');               // CLOSE CRYOVAT
+await page.waitForTimeout(300);
+await page.click('#overlay-alt-button');           // CRYOVAT again
+await page.waitForTimeout(400);
+check('with nothing banked every fitting is disabled',
+  (await page.$$('.implant.offer:not([disabled])')).length === 0);
+await page.click('#overlay-button');
+await page.waitForTimeout(300);
+
 // --- input wiring: the sim tests drive state directly, so only a browser
 // --- run proves the keyboard and mouse are actually connected to it.
 await page.click('.mission-tab:nth-child(1)');

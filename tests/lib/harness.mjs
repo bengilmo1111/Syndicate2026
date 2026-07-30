@@ -52,6 +52,10 @@ export function lt(actual, bound, msg = 'expected less than') {
   if (!(actual < bound)) fail(`${msg} ${format(bound)} — got ${format(actual)}`);
 }
 
+export function gt(actual, bound, msg = 'expected greater than') {
+  if (!(actual > bound)) fail(`${msg} ${format(bound)} — got ${format(actual)}`);
+}
+
 export function gte(actual, bound, msg = 'expected at least') {
   if (!(actual >= bound)) fail(`${msg} ${format(bound)} — got ${format(actual)}`);
 }

@@ -33,9 +33,12 @@ export function autoplay(missionId, opts = {}) {
     // this file exists to catch — so the default is "answer something".
     answers = {},
     answerWith = 'first',
+    // A persistent roster, when the test cares who is in the suits and
+    // what has been fitted to them.
+    roster = null,
   } = opts;
 
-  const sim = createSim(missionId);
+  const sim = createSim(missionId, roster ? { roster } : {});
   const log = [];
   let orderTimer = 0;
   let lastGoal = null;
