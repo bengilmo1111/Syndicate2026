@@ -3,7 +3,9 @@
 // (`src/core`) or pure presentation (`src/render`, `src/ui`).
 
 import './missions/index.js';
-import { getAllMissions, getMissionDef, debriefLines } from './core/mission.js';
+import {
+  getAllMissions, getMissionDef, debriefLines, epilogueFor,
+} from './core/mission.js';
 import { createSim, step, PHASE } from './core/sim.js';
 import { answerInterlude } from './core/interlude.js';
 import {
@@ -64,6 +66,9 @@ function showBriefing() {
   // A decision mission has no field component: no city, no preview, just
   // the room and the choice.
   if (def.choice) { showChoice(def); return; }
+  // An epilogue has neither. The player chose under the campus; this
+  // reads back what it cost.
+  if (def.epilogue) { showEpilogue(def); return; }
 
   loadPreview();
   const { done, total } = progress(app.campaign, MISSIONS);
@@ -137,6 +142,44 @@ function resolveChoice(def, option) {
     title: option.label,
     body: option.outcome,
     button: { label: 'RETURN TO BRIEFING', onClick: showBriefing },
+  });
+  showOverlay();
+}
+
+/**
+ * The last card in the game. Which one it is was decided at the console
+ * in `the-core`, and the flag survives in the save — so this reads the
+ * campaign, not the sim, and plays correctly on a reload weeks later.
+ */
+function showEpilogue(def) {
+  app.phase = PHASE.WON;
+  app.sim = null;
+  const scene = epilogueFor(def, app.campaign.flags);
+
+  // Reaching the last card *is* completing it. There is nothing to do
+  // here and no way to fail, so record it on arrival rather than making
+  // the player press a button to be told they finished.
+  if (!isComplete(app.campaign, def.id)) {
+    recordWin(app.campaign, def.id, {});
+    saveCampaign(app.campaign);
+  }
+
+  setOverlay({
+    eyebrow: `${def.act} · ${def.sector}`,
+    title: scene.title,
+    tabs: MISSIONS.map(m => ({
+      id: m.id,
+      name: m.name.split(' — ')[0],
+      active: m.id === app.selectedMissionId,
+      locked: !isUnlocked(app.campaign, m),
+      done: isComplete(app.campaign, m.id),
+      lockReason: lockReason(app.campaign, m, getMissionDef),
+    })),
+    onSelectTab: (id) => { app.selectedMissionId = id; showBriefing(); },
+    body: scene.lines,
+    button: { label: 'BRIEFING ROOM', onClick: showBriefing },
+    altButton: { label: 'WIPE RECORD', onClick: resetCampaign },
+    hint: 'Syndicate 2026 · the endings are in NARRATIVE.md §7, if you want the other two.',
   });
   showOverlay();
 }

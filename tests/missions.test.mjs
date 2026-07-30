@@ -10,12 +10,15 @@ import { suite, test, ok, notOk, eq, gte, lt, includes } from './lib/harness.mjs
 import { autoplay } from './lib/autopilot.mjs';
 import {
   getAllMissions, getFieldMissions, getMissionDef, isFieldMission, STATUS,
-  winEndings, debriefLines,
+  winEndings, debriefLines, epilogueFor, epilogueVariants,
 } from '../src/core/mission.js';
 import { createSim, step, PHASE } from '../src/core/sim.js';
 import { Projectile } from '../src/core/entities.js';
 import { ALIGNER } from '../src/core/squad.js';
 import { interlude, answerInterlude, answerTo } from '../src/core/interlude.js';
+import {
+  newCampaign, isUnlocked, recordWin, nextMission, progress,
+} from '../src/core/campaign.js';
 
 const MISSIONS = getAllMissions();
 const FIELD = getFieldMissions();
@@ -45,9 +48,21 @@ test('every mission is registered with the fields the UI reads', () => {
       eq(debriefLines(m, key), m.debrief[key], `${m.id}: ending "${key}" resolves to its own copy`);
       ok(m.debrief[key].length, `${m.id}: ending "${key}" has copy`);
     }
-    ok(typeof m.setup === 'function', `${m.id}: has a setup`);
-    ok(m.buildObjectives().length, `${m.id}: builds at least one objective`);
-    if (!isFieldMission(m)) {
+    if (isFieldMission(m)) {
+      ok(typeof m.setup === 'function', `${m.id}: has a setup`);
+      ok(m.buildObjectives().length, `${m.id}: builds at least one objective`);
+    } else if (m.epilogue) {
+      // An epilogue has no world and no decision. What it must have is a
+      // scene for every ending the game can reach, and a fallback, so a
+      // save that arrives with nothing recorded still gets an ending.
+      gte(epilogueVariants(m).length, 2, `${m.id}: more than one ending`);
+      ok(m.epilogue.variants[m.epilogue.fallback], `${m.id}: the fallback exists`);
+      for (const key of epilogueVariants(m)) {
+        const scene = epilogueFor(m, { [m.epilogue.by]: key });
+        ok(scene.title, `${m.id}/${key}: has a title`);
+        gte(scene.lines.length, 3, `${m.id}/${key}: has a scene`);
+      }
+    } else {
       gte(m.choice.options.length, 2, `${m.id}: a choice needs choices`);
       for (const o of m.choice.options) {
         ok(o.label, `${m.id}: every option is labelled`);
@@ -63,7 +78,9 @@ test('no mission copy uses retired pre-pivot canon', () => {
   const retired = ['EuroCorp', 'Veridian', 'Halcyon', 'the CHIP', 'Persuadertron', 'unstrung'];
   for (const m of MISSIONS) {
     const endings = winEndings(m).flatMap(k => m.debrief[k]);
-    const copy = [...m.briefing, ...endings, ...m.debrief.loss, m.name, m.sector].join(' ');
+    const scenes = epilogueVariants(m)
+      .flatMap(k => epilogueFor(m, { [m.epilogue.by]: k }).lines);
+    const copy = [...m.briefing, ...endings, ...scenes, ...m.debrief.loss, m.name, m.sector].join(' ');
     for (const term of retired) {
       notOk(copy.includes(term), `${m.id}: does not mention "${term}"`);
     }
@@ -883,4 +900,153 @@ test('yelin: the argument is actually made, and it is the one NARRATIVE specifie
   for (const o of argument.options) {
     gte(o.lines.join(' ').length, 150, `${o.id}: he answers properly`);
   }
+});
+
+test('the-core: three checkpoints on the way down, and each says something', () => {
+  // NARRATIVE.md §6: BRAVO on what they remember, the Router going off-air
+  // mid-sentence, and Okafor posthumously. All three or the approach is
+  // just a corridor with fourteen people in it.
+  const def = getMissionDef('the-core');
+  for (const id of ['bravo', 'router', 'okafor']) {
+    const beat = def.interludes.find(i => i.id === id);
+    ok(beat, `${id}: the checkpoint exists`);
+    gte(beat.lines.join(' ').length, 300, `${id}: it says something`);
+  }
+
+  // They must be spread across the approach, not stacked at the end.
+  const sim = createSim('the-core');
+  const at = ['bravo', 'router', 'okafor', 'console']
+    .map(id => def.interludes.find(i => i.id === id))
+    .map(b => {
+      for (let k = 0; k <= 40; k++) if (b.when({ kills: k, elapsed: 999 })) return k;
+      return -1;
+    });
+  for (let i = 1; i < at.length; i++) {
+    ok(at[i] > at[i - 1], `checkpoint ${i} comes after ${i - 1} (${at.join(' → ')})`);
+  }
+});
+
+test('the-core: the Router stops mid-word and the channel stays open', () => {
+  // The beat only lands if it reads as an interruption rather than a
+  // sign-off. If someone tidies the copy into a complete sentence the
+  // scene is gone.
+  const def = getMissionDef('the-core');
+  const beat = def.interludes.find(i => i.id === 'router');
+  const text = beat.lines.join(' ');
+  includes(text, 'sound bigger than—', 'he is cut off mid-word');
+  includes(text, 'carrier still up', 'and the channel does not close');
+});
+
+test('the-core: the console offers exactly the three endings, and no default', () => {
+  const def = getMissionDef('the-core');
+  const consoleBeat = def.interludes.find(i => i.id === 'console');
+  const ids = consoleBeat.options.map(o => o.id);
+  eq(ids.length, 3, 'three actions');
+  for (const want of ['burn', 'take', 'walk']) {
+    ok(ids.includes(want), `the console offers ${want}`);
+    const opt = consoleBeat.options.find(o => o.id === want);
+    eq(opt.flag.ending, want, `${want}: writes its own ending flag`);
+    ok(opt.lines.length, `${want}: says what happened`);
+  }
+  // The console must not editorialise by pre-selecting anything.
+  eq(createSim('the-core').mission.flags.ending, undefined, 'nothing is chosen for the player');
+});
+
+test('the-core: each ending closes the mission and leaves the others open', () => {
+  for (const ending of ['burn', 'take', 'walk']) {
+    const r = autoplay('the-core', { answers: { console: ending } });
+    ok(r.won, `${ending}: the mission closes`);
+    eq(r.sim.mission.flags.ending, ending, `${ending}: the flag is written`);
+    const others = r.sim.mission.objectives.filter(o => o.branch && o.branch !== ending);
+    ok(others.every(o => o.status !== STATUS.COMPLETE),
+      `${ending}: the endings you did not take stay open, not failed`);
+    eq(getMissionDef('the-core').debriefKey(r.sim), ending, `${ending}: routes to its own debrief`);
+  }
+});
+
+test('epilogue: the ending the player chose is the ending they get', () => {
+  // The whole chain, end to end: the console writes `ending` onto mission
+  // flags, showDebrief copies those onto the campaign, and the epilogue
+  // reads the campaign — so it still plays correctly on a reload weeks
+  // later, with no sim in memory.
+  const def = getMissionDef('epilogue');
+  notOk(isFieldMission(def), 'there is nothing to deploy into');
+
+  for (const ending of ['burn', 'take', 'walk']) {
+    const r = autoplay('the-core', { answers: { console: ending } });
+    const campaignFlags = { ...r.sim.mission.flags };
+    const scene = epilogueFor(def, campaignFlags);
+    const expected = def.epilogue.variants[ending];
+    eq(scene, expected, `${ending}: gets its own final scene`);
+  }
+
+  const scenes = epilogueVariants(def).map(k => def.epilogue.variants[k].lines.join(' '));
+  eq(new Set(scenes).size, 3, 'three endings, three scenes');
+  const titles = epilogueVariants(def).map(k => def.epilogue.variants[k].title);
+  eq(new Set(titles).size, 3, 'and three titles');
+});
+
+test('epilogue: a save that arrives with no ending recorded still gets one', () => {
+  // Reaching the last card and being shown a blank is the worst possible
+  // bug in the game, so it must be impossible rather than unlikely.
+  const def = getMissionDef('epilogue');
+  ok(epilogueFor(def, {})?.lines.length, 'no flags at all');
+  ok(epilogueFor(def, { ending: 'nonsense' })?.lines.length, 'a flag from a future version');
+  eq(epilogueFor(def, {}), def.epilogue.variants[def.epilogue.fallback], 'and it is the declared fallback');
+});
+
+test('epilogue: the three final scenes are the ones NARRATIVE specifies', () => {
+  // §7 names each closing image exactly. These are the last words in the
+  // game and they are load-bearing for what the whole thing was about.
+  const v = getMissionDef('epilogue').epilogue.variants;
+  includes(v.burn.lines.join(' '), 'scar of an extraction', 'burn: the passer-by\'s scar');
+  includes(v.burn.lines.join(' '), 'chalk line', 'burn: the child playing');
+  includes(v.take.lines.join(' '), 'intake of promoted analysts', 'take: the new intake');
+  includes(v.take.lines.join(' '), 'when you learned to do it like that', 'take: the smile');
+  includes(v.walk.lines.join(' '), 'work-light', 'walk: the tunnel');
+  includes(v.walk.lines.join(' '), 'Not unkindly', 'walk: the laugh');
+
+  // Two people say the same name. That is the ending.
+  const walk = v.walk.lines.join(' ');
+  gte(walk.split('Maren').length - 1, 2, 'walk: the name is said twice');
+});
+
+test('the campaign is fifteen missions and the last one is the ending', () => {
+  // NARRATIVE.md §6 defines fifteen slots. All fifteen now ship.
+  eq(MISSIONS.length, 15, 'fifteen missions');
+  const last = MISSIONS[MISSIONS.length - 1];
+  eq(last.id, 'epilogue', 'and the last is the epilogue');
+
+  // Every mission but the first must be reachable only in order, or the
+  // arc can be read out of sequence and none of the reveals land.
+  for (const m of MISSIONS.slice(1)) {
+    ok(m.requires?.length || m.requiresFlags, `${m.id}: is gated behind something`);
+  }
+  notOk(MISSIONS[0].requires?.length, 'and the first is not');
+});
+
+test('playing every field mission in order walks the campaign to the end', () => {
+  // The single most valuable check in the file: fifteen missions, in
+  // order, gated the way the player will meet them, ending on an
+  // epilogue that reads back what the console did.
+  const campaign = newCampaign();
+  for (const m of MISSIONS) {
+    ok(isUnlocked(campaign, m), `${m.id}: is open by the time we reach it`);
+    if (isFieldMission(m)) {
+      const r = autoplay(m.id, { maxSeconds: 420 });
+      ok(r.won, `${m.id}: played to a win`);
+      recordWin(campaign, m.id, {});
+      Object.assign(campaign.flags, r.sim.mission.flags);
+    } else if (m.epilogue) {
+      ok(epilogueFor(m, campaign.flags)?.lines.length, `${m.id}: has an ending to show`);
+      recordWin(campaign, m.id, {});
+    } else {
+      // A decision mission: take the first option, as a player must take one.
+      Object.assign(campaign.flags, m.choice.options[0].flag ?? {});
+      recordWin(campaign, m.id, {});
+    }
+  }
+  const { done, total } = progress(campaign, MISSIONS);
+  eq(done, 15, `all fifteen closed (${done}/${total})`);
+  eq(nextMission(campaign, MISSIONS), null, 'and there is nothing left to open');
 });

@@ -105,8 +105,10 @@ await page.evaluate(() => {
     version: 2,
     completed: ['sector-7', 'district-12', 'sable-campus', 'the-bracket',
       'okafor-contract', 'calibration-window', 'welfare-node-7', 'the-refusal', 'gradient-relay-4', 'run-south',
-      'reverse-the-gradient', 'the-tower'],
-    flags: {}, records: {},
+      'reverse-the-gradient', 'the-tower', 'yelin',
+      'the-core'],
+    flags: { ending: 'walk' },
+    records: {},
   }));
 });
 await page.reload({ waitUntil: 'networkidle' });
@@ -121,6 +123,20 @@ for (let i = 0; i < missions.length; i++) {
   await page.click(`.mission-tab:nth-child(${i + 1})`);
   await page.waitForTimeout(400);
   const title = await page.textContent('#overlay-title');
+
+  // The epilogue has no world and no decision — it reads back the ending
+  // the player chose, and there is nothing to deploy. It must not be
+  // treated as a field mission or the sweep clicks through to a null sim.
+  const isEpilogue = await page.evaluate(() =>
+    !window.__syndicate.sim && !document.getElementById('overlay-choices').checkVisibility());
+  if (isEpilogue) {
+    const body = await page.textContent('#overlay-body');
+    check(`${title}: reads back the ending instead of deploying`,
+      body.length > 400 && title !== 'SYNDICATE 2026', `${title} · ${body.length} chars`);
+    await page.click('#overlay-button');
+    await page.waitForTimeout(600);
+    continue;
+  }
 
   // Decision missions have no field component — they render a choice
   // instead of a deploy button.

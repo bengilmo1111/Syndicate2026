@@ -14,3 +14,5 @@ export { runSouth } from './run-south.js';
 export { reverseTheGradient } from './reverse-the-gradient.js';
 export { theTower } from './the-tower.js';
 export { yelin } from './yelin.js';
+export { theCore } from './the-core.js';
+export { epilogue } from './epilogue.js';
