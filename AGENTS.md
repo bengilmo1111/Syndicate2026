@@ -19,7 +19,7 @@ build step, no npm dependencies, deployed to Vercel from `main`.
 **`node tests/run.mjs` must pass before you push. No exceptions.**
 
 ```
-node tests/run.mjs            # ~9s, 186 checks, no dependencies
+node tests/run.mjs            # ~11s, 195 checks, no dependencies
 node tests/run.mjs nav        # filter by suite or test name
 node tests/browser.mjs        # optional: real browser, needs Playwright
 ```
@@ -123,17 +123,20 @@ the full statement; the short version:
    `src/core/interlude.js` — declare it in `def.interludes`, don't invent
    a second pause mechanism. A blocking beat freezes the field, so the
    autopilot has to be able to answer it: give every option an `id`.
-6. Never place an objective entity by offsetting from a landmark's centre.
+6. Building a city? `occupancyScale` decides what levelling a block costs
+   — a tower is its tenants. Set it to 0 only when the fiction says the
+   floors are empty, and say so in a comment.
+7. Never place an objective entity by offsetting from a landmark's centre.
    It lands inside the footprint, gets shoved into the facade, and the
    squad grinds against the wall two metres short. Put it on open ground.
-7. Run `node tests/run.mjs`. The autopilot will try to win your mission.
+8. Run `node tests/run.mjs`. The autopilot will try to win your mission.
    If it can't, the mission is not finished.
-8. Add a `story beats` test in `tests/missions.test.mjs` for whatever makes
+9. Add a `story beats` test in `tests/missions.test.mjs` for whatever makes
    the mission *that* mission — the beat, not the boilerplate.
-9. Set `requires: [previousMissionId]` unless it is genuinely the first
+10. Set `requires: [previousMissionId]` unless it is genuinely the first
    mission of the game. A mission with no prerequisite is reachable from
    a cold save, and a test asserts every mission but the first is gated.
-10. Update the slot's status in `NARRATIVE.md` §6, tick
+11. Update the slot's status in `NARRATIVE.md` §6, tick
     `IMPLEMENTATION_PLAN.md`, refresh `HANDOFF.md`.
 
 ---

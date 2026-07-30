@@ -113,7 +113,9 @@ following now ship:
 - **1 / 2 / 3 / 4** — select agent · **Shift + 1–4** — add to selection
 - **Q** or **`** — select the whole deployment
 - **WASD** — move selected agents, camera-relative, formation preserved
-- **Left click** — focus fire at the cursor; release for auto-fire
+- **Left click** — focus fire at the cursor; release for auto-fire. This is
+  also how you level a building: towers are destructible, and the squad
+  will never fire on one by itself
 - **Right click** — issue a move order. The squad's shape is preserved up
   to a formation's width; past that it regroups on the point, because an
   uncapped offset means a scattered squad is ordered to stay where it is

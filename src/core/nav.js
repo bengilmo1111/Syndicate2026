@@ -27,7 +27,13 @@ export function movementBlocked(city, ax, az, bx, bz, radius = 1.2) {
  * since rubble can close a street that used to be open.
  */
 function navGrid(city, radius) {
-  const stamp = city.structures.length;
+  // Stamped on collapses, not on the structure count — collapsing does
+  // not add or remove a structure, it widens one by 14% and drops it to
+  // rubble height. Stamping on `structures.length` meant the comment
+  // above was a lie and a route computed before a collapse could path
+  // straight through the new footprint. It has not bitten yet only
+  // because street cover is small; a tower's rubble field is not.
+  const stamp = `${city.structures.length}:${city.collapses ?? 0}`;
   if (city._nav && city._nav.stamp === stamp && city._nav.radius === radius) {
     return city._nav;
   }

@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~9s, 186 checks, no dependencies
+node tests/run.mjs        # the gate — ~11s, 195 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -190,6 +190,21 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   off the throttle and stop following you. Using the thing that makes you
   the protagonist dismantles the crowd you spent ten missions building.
   The Router warns you in the briefing. **Do not "balance" this away.**
+- **Full building destruction** — every tower and slab is destructible.
+  Health scales on volume (2–15s of full-squad fire) and so does
+  `structure.occupancy`, which is the cost model: a tower is ninety
+  Free-tier tenants and dropping it kills all of them, wrecking the
+  civilian-loss record, costing research, and drawing enforcement scaled
+  to the body count (capped at 3 waves). `warnStructure()` says the tenant
+  count at 40% integrity, so a collapse is never a surprise. Rubble
+  spreads 1.3× the footprint and lands on whoever is in it, **squad
+  included** — survivors are pushed clear so nobody ends up stuck inside
+  the mesh.
+  `buildCity({ occupancyScale })` is the dial; the campus missions set it
+  to 0, because the fiction says those floors are empty.
+  **`derelict` only pre-collapses street cover.** It predates towers being
+  destructible and would otherwise rewrite the skyline of every sector
+  that sets it — Gradient Relay 4 sets it.
 - **The roster** (`src/core/roster.js`) — four *people*, not four slots.
   Operatives persist with names, deployments and kills; losses are
   permanent; a replacement inherits the **designation** but not the
@@ -270,7 +285,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 186 checks, ~9s, zero dependencies. Covers city
+`node tests/run.mjs` — 195 checks, ~11s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -305,10 +320,14 @@ temporary, making implants free, buying on credit, dropping implants on
 load, keeping a retired implant id, losing the designation on a
 replacement, dropping the full-squad research bonus, not applying the
 roster to the agents at all, making the reflex governor useless, and
-removing the BRAVO branch under the campus. It is load-bearing, not
-decorative.
+removing the BRAVO branch under the campus. Nine more cover demolition:
+making towers immortal, making them all empty, letting `derelict` drop
+towers, not invalidating the nav graph on collapse, leaving tenants
+uncounted, removing the structural warning, flattening enforcement to one
+wave regardless of the dead, making rubble harmless, and leaving
+survivors stuck inside it. It is load-bearing, not decorative.
 
-`node tests/browser.mjs` — 47 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 49 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -344,19 +363,17 @@ campaign in order — every field mission autoplayed to a win, gated the
 way a player meets them, ending on the epilogue.
 
 The arc is done and the progression loop under it is done. What is left is
-depth: `GAP_ANALYSIS.md` is the ranked backlog, and gaps 3, 5, 7 and 10
+depth: `GAP_ANALYSIS.md` is the ranked backlog, and gaps 2, 3, 5, 7 and 10
 are now closed.
 
-1. **Full building destruction** (`GAP_ANALYSIS.md` gap 2) — the headline
-   feature of the original and the biggest remaining change to how the
-   game plays. The collapse-to-cover mechanic already works and is tested;
-   the gap is scope. Needs damage accumulation on the tower class, a
-   collapse footprint that does not trap agents (the nav cache stamp
-   already invalidates), and a cost model so levelling everything is not
-   always correct.
-2. **Non-lethal and area-denial weapons** (gap 4) — the original's
-   identity lives in its strange tools, and the game currently has four
-   conventional guns.
+1. **Non-lethal and area-denial weapons** (`GAP_ANALYSIS.md` gap 4) — the
+   original's identity lives in its strange tools (psycho gas, knockout
+   gas, razor wire) and the game has four conventional guns. Now the
+   biggest remaining change to how a mission is played, and it pairs with
+   the Aligner rather than competing with it.
+2. **The world map / territory / tax / research meta-game** (gap 1) —
+   research already exists as a currency and the cryovat already spends
+   it, so the economy has one end built.
 3. **Between-mission interstitials for Acts I–III** — Yelin's notes and
    the street graffiti. Act IV got its beats *inside* missions, which is
    where they belonged, but the Act I→II tonal turn still has nothing
