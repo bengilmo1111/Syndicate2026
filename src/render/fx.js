@@ -90,6 +90,22 @@ export class Fx {
     this.zoneMesh.visible = false;
     scene.add(this.zoneMesh);
 
+    // Field devices. Pooled rings, because the belt is small and the
+    // fields are the only thing on the ground the player *placed*.
+    this.deviceMats = {
+      CHOKE: glow(0x8fa4ff, { transparent: true, opacity: 0.4, side: THREE.DoubleSide }),
+      STANDDOWN: glow(0xd9a066, { transparent: true, opacity: 0.4, side: THREE.DoubleSide }),
+    };
+    this.deviceRings = [];
+    for (let i = 0; i < 6; i++) {
+      const m = new THREE.Mesh(RING, this.deviceMats.CHOKE);
+      m.rotation.x = -Math.PI / 2;
+      m.position.y = 0.13;
+      m.visible = false;
+      scene.add(m);
+      this.deviceRings.push(m);
+    }
+
     // Ground cursor.
     this.cursorMat = glow(0x9be7ff, {
       transparent: true, opacity: 0.7, side: THREE.DoubleSide,
@@ -170,6 +186,30 @@ export class Fx {
     if (held) this.zoneMat.color.setHex(0xffc857);
     else this.zoneMat.color.setHex(ready ? 0x6fe3d0 : 0x54627a);
     this.zoneMat.opacity = held ? 0.6 : (ready ? 0.55 : 0.25);
+  }
+
+  /**
+   * Draw whatever the squad has put on the ground.
+   *
+   * A device that is still arming reads dimmer and tighter, so the beat
+   * before it takes effect is visible rather than a mystery — the arming
+   * delay exists to make a panicked drop at your own feet a mistake you
+   * get to watch happen.
+   */
+  syncDevices(devices) {
+    this.deviceRings.forEach((ring, i) => {
+      const d = devices[i];
+      ring.visible = !!d;
+      if (!d) return;
+      ring.material = this.deviceMats[d.id] ?? this.deviceMats.CHOKE;
+      ring.position.x = d.x;
+      ring.position.z = d.z;
+      const arming = !d.armed;
+      const pulse = 0.92 + Math.sin(performance.now() / (arming ? 90 : 260) + i) * 0.06;
+      ring.scale.setScalar(d.radius * (arming ? 0.55 : 1) * pulse);
+      // Fade out over the last two seconds so it never simply vanishes.
+      ring.material.opacity = arming ? 0.22 : Math.min(0.45, 0.12 + d.life * 0.22);
+    });
   }
 
   setCursor(x, z, visible = true) {

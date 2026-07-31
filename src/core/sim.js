@@ -15,6 +15,10 @@ import { applySuppression, decaySuppression } from './tactics.js';
 import { pumpInterludes } from './interlude.js';
 import { deployed, applyToAgent } from './roster.js';
 import {
+  DEVICE, newDeviceBelt, deploy as deployDevice, tickDevices,
+  CHOKE_SPEED, CHOKE_SPREAD,
+} from './devices.js';
+import {
   getMissionDef, buildMission, updateMissionStatus, isMissionComplete,
   failedObjective, OBJECTIVE,
 } from './mission.js';
@@ -147,6 +151,19 @@ export function createSim(missionId, opts = {}) {
     interludeAnswers: {},
     /** The persistent roster this deployment was drawn from, if any. */
     roster: opts.roster ?? null,
+    /** Field devices currently on the map. See `src/core/devices.js`. */
+    devices: [],
+    /** Charges left, per device type. Not restocked mid-deployment. */
+    belt: newDeviceBelt(),
+    /** Sedated, not dead. Counts toward ELIMINATE; does not count as a kill. */
+    downed: 0,
+    /**
+     * What the objective model reads. The syndicate does not distinguish
+     * between a cell that was shot and a cell that was sedated — both file
+     * as CLEARED. The player is the only party who knows the difference,
+     * and `kills` is where that difference is kept.
+     */
+    neutralised: 0,
     /** Renderer sets this from the mouse each frame; sim uses it for aiming. */
     cursor: { x: 0, z: 0 },
   };
@@ -179,6 +196,36 @@ export function step(sim, dt, intent) {
   }
 
   applySurge(sim, dt);
+
+  // A device goes where the player put the cursor, not at their feet.
+  if (intent.deployDevice) {
+    const at = intent.aimPoint ?? sim.cursor;
+    const placed = deployDevice(sim.belt, intent.deployDevice, at.x, at.z);
+    if (placed) {
+      sim.devices.push(placed);
+      sim.events.push({ type: 'device', x: placed.x, z: placed.z, device: placed });
+      say(sim, DEVICE[intent.deployDevice].name, DEVICE[intent.deployDevice].note, 4);
+    }
+  }
+
+  // --- Field devices ---------------------------------------------------
+  // Everybody on the map, because a field that only affected the enemy
+  // would be a gun with an area of effect.
+  const everyone = [...squad.agents, ...sim.hostiles, ...sim.civilians];
+  for (const a of tickDevices(sim.devices, everyone, dt)) {
+    sim.events.push({ type: 'downed', x: a.x, z: a.z, actor: a });
+    if (a.isAgent) {
+      say(sim, 'STANDDOWN', `${a.name} is down — sedated, not lost`, 5);
+    } else if (sim.hostiles.includes(a)) {
+      sim.downed += 1;
+    }
+  }
+  // A choked Instance thinks at Free tier. It is SURGE pointed the other
+  // way, and it does not care whose Instance it is.
+  for (const a of everyone) {
+    if (!a.choked) continue;
+    a.speed = (a.baseSpeed ?? a.speed) * CHOKE_SPEED;
+  }
 
   const center = squad.center();
 
@@ -268,6 +315,9 @@ export function step(sim, dt, intent) {
     }
   }
   sim.assetsSecured = sim.assets.filter(a => a.secured && !a.dead).length;
+  // Shot or sedated, the objective is satisfied. `kills` stays separate
+  // so the debrief can tell the player which run they actually had.
+  sim.neutralised = sim.kills + sim.downed;
 
   // Holding a zone means standing in it while people shoot at you. One
   // agent is enough to keep the upload running; nobody in it stops it.
@@ -339,7 +389,7 @@ export function step(sim, dt, intent) {
   // --- Objectives -----------------------------------------------------
   updateMissionStatus(sim.mission, {
     dt,
-    kills: sim.quarry.length ? sim.quarryDown : sim.kills,
+    kills: sim.quarry.length ? sim.quarryDown : sim.neutralised,
     aligned: sim.alignedCount,
     quarry: sim.quarry,
     landmarks: city.landmarks,
@@ -358,6 +408,14 @@ export function step(sim, dt, intent) {
 
   if (squad.allDead) {
     sim.failReason = 'wipe';
+    sim.phase = PHASE.LOST;
+    return;
+  }
+  // Everybody sedated is not a wipe and must not read as one — but the
+  // deployment is over, and it has to end rather than sit there while the
+  // player waits for someone to get up.
+  if (squad.allDown) {
+    sim.failReason = 'sedated';
     sim.phase = PHASE.LOST;
     return;
   }

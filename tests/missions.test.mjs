@@ -1050,3 +1050,56 @@ test('playing every field mission in order walks the campaign to the end', () =>
   eq(done, 15, `all fifteen closed (${done}/${total})`);
   eq(nextMission(campaign, MISSIONS), null, 'and there is nothing left to open');
 });
+
+test('the-bracket can be cleared without killing anybody', () => {
+  // The point of the non-lethal tools, stated as a test. An ELIMINATE
+  // mission has to be completable by sedation alone, or STANDDOWN is a
+  // flavour item and the gap is not actually closed.
+  //
+  // The Bracket is the right mission to prove it on. They are the people
+  // the briefing called a terror cell and who turn out to have no throttle
+  // to talk to — the Aligner reports it and nobody in the chain of command
+  // reacts. Being able to walk out of that mission with six people asleep
+  // instead of six people dead is the whole argument for the tool.
+  const sim = createSim('the-bracket');
+  const target = sim.mission.objectives[0].target;
+
+  // Hold the Aligner on the whole time. It suppresses friendly fire
+  // entirely, so it is what stops the squad shooting the people you are
+  // in the middle of putting to sleep — the gap analysis asked for tools
+  // that interact with the Aligner instead of bypassing it, and this is
+  // that interaction. Without it the squad auto-fires and the run is not
+  // bloodless.
+  sim.squad.cycleAligner();
+
+  let guard = 0;
+  while (sim.phase === PHASE.PLAYING && guard++ < 60 * 400) {
+    const live = sim.hostiles.filter(h => !h.neutralised && h.countsForObjective);
+    if (!live.length) { step(sim, 1 / 60, idle); continue; }
+
+    // Walk the squad onto the nearest one and gas it. Refill the belt by
+    // hand — this is a test of the mechanic, not of the loadout budget.
+    const h = live[0];
+    sim.squad.agents.forEach(a => { a.x = h.x + 30; a.z = h.z + 30; });
+    sim.belt.STANDDOWN = 1;
+    step(sim, 1 / 60, { ...idle, aimPoint: { x: h.x, z: h.z }, deployDevice: 'STANDDOWN' });
+    for (let i = 0; i < 60 * 5 && !h.neutralised; i++) step(sim, 1 / 60, idle);
+  }
+
+  eq(sim.phase, PHASE.WON, 'the sector is cleared');
+  eq(sim.kills, 0, 'and nobody was killed');
+  gte(sim.downed, target, `${sim.downed} sedated`);
+  eq(sim.civilianDeaths, 0, 'no civilian losses');
+});
+
+test('the syndicate files a sedated cell and a dead one identically', () => {
+  // NARRATIVE.md's satire, as a mechanical fact: `neutralised` is what
+  // the objective model reads, and `kills` is where the difference is
+  // kept — so the player is the only party who knows which run they had.
+  const sim = createSim('sector-7');
+  sim.downed = 3;
+  sim.kills = 2;
+  step(sim, 1 / 60, idle);
+  eq(sim.neutralised, sim.kills + sim.downed, 'the report does not distinguish');
+  ok(sim.kills < sim.neutralised, 'but the game still knows');
+});

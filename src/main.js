@@ -38,6 +38,8 @@ app.selectedMissionId = (nextMission(app.campaign, MISSIONS) ?? MISSIONS[0]).id;
 
 /** The briefing card can show the roster or the cryovat. Same card. */
 let cryovatOpen = false;
+/** A device the player asked for, waiting for the next simulation step. */
+let pendingDevice = null;
 
 const keys = new Set();
 const pointer = { nx: 0.5, ny: 0.5, firing: false, orbiting: false, lastX: 0, lastY: 0 };
@@ -463,6 +465,11 @@ window.addEventListener('keydown', (e) => {
     squad.compute.shiftInto('resilience');
   } else if (k === 'g') {
     squad.compute.toggleSurge();
+  } else if (k === 'e' || k === 't') {
+    // Devices go where the cursor is, and they are consumed on the frame
+    // the sim places them — queued here so the fixed-step loop applies it
+    // exactly once regardless of frame rate.
+    pendingDevice = k === 'e' ? 'CHOKE' : 'STANDDOWN';
   }
 });
 
@@ -527,7 +534,11 @@ function readIntent() {
   if (keys.has('a') || keys.has('arrowleft')) { mx -= right.x; mz -= right.z; }
 
   const aimPoint = view.screenToGround(pointer.nx, pointer.ny);
-  return { moveX: mx, moveZ: mz, firing: pointer.firing, aimPoint };
+  // Consumed here so exactly one simulation step sees it, whatever the
+  // frame rate is doing — the fixed-step loop can run this several times.
+  const deployDevice = pendingDevice;
+  pendingDevice = null;
+  return { moveX: mx, moveZ: mz, firing: pointer.firing, aimPoint, deployDevice };
 }
 
 function handleCameraKeys(dt) {
@@ -560,6 +571,10 @@ function frame(now) {
         accumulator -= FIXED_DT;
         const before = app.sim.events.length;
         step(app.sim, FIXED_DT, intent);
+        // One keypress is one device. This loop runs up to five times on
+        // the same intent object when the frame rate dips, and without
+        // this a single press on a bad frame spends the whole belt.
+        intent.deployDevice = null;
         // Collapses are the one event worth shaking the camera for.
         for (let i = before; i < app.sim.events.length; i++) {
           // Kick scaled by what fell. A kiosk is a bump; a tower going

@@ -9,6 +9,7 @@ import { THROTTLED_SPEED } from './compute.js';
 import {
   findCover, decaySuppression, suppressionSpread, RETHINK_INTERVAL,
 } from './tactics.js';
+import { CHOKE_SPREAD } from './devices.js';
 
 /**
  * What an unthrottled civilian does with itself.
@@ -54,10 +55,24 @@ class Actor {
     this.radius = radius;
     this.facing = 0;
     this.dead = false;
+    /**
+     * Sedated: alive, out of the fight, and staying that way for the rest
+     * of the mission. Not a synonym for dead — the whole point of the
+     * non-lethal tools is that the two are different, even though the
+     * syndicate's paperwork files them identically.
+     */
+    this.downed = false;
+    /** Accumulated sedation. Clears when you get out of the cloud. */
+    this.sedation = 0;
+    /** Standing in a choke field this frame — throttled to Free tier. */
+    this.choked = false;
     this.health = 100;
     this.maxHealth = 100;
     this.hitFlash = 0;
   }
+
+  /** Out of the fight, by either route. */
+  get neutralised() { return this.dead || this.downed; }
 
   get pos() { return { x: this.x, z: this.z }; }
 
@@ -98,6 +113,7 @@ export class Agent extends Actor {
   constructor(x, z, index, weaponId = DEFAULT_LOADOUT[index] ?? 'SIDEARM') {
     super(x, z, 1.15);
     this.index = index;
+    this.isAgent = true;
     this.name = AGENT_NAMES[index];
     this.tier = TIER.PRO;
     this.selected = true;
@@ -127,7 +143,7 @@ export class Agent extends Actor {
   }
 
   canFire() {
-    return !this.dead && this.cooldown <= 0 && this.hesitationTimer <= 0;
+    return !this.neutralised && this.cooldown <= 0 && this.hesitationTimer <= 0;
   }
 
   /** Nearest live target inside range with a clear shot. */
@@ -136,7 +152,10 @@ export class Agent extends Actor {
     let best = null;
     let bestD = Infinity;
     for (const h of hostiles) {
-      if (h.dead) continue;
+      // A sedated hostile is out of the fight. Shooting one is something
+      // the player has to do on purpose, not something the squad does
+      // automatically the moment the cloud disperses.
+      if (h.neutralised) continue;
       const d = dist(this.x, this.z, h.x, h.z);
       if (d > reach || d >= bestD) continue;
       if (!hasLineOfSight(city, this.x, this.z, h.x, h.z)) continue;
@@ -162,7 +181,10 @@ export class Agent extends Actor {
 
     const spread = this.weapon.spread
       * (compute ? compute.spreadScale : 1)
-      * suppressionSpread(this);
+      * suppressionSpread(this)
+      // Thinking at Free tier is thinking slower, and it shows in the
+      // grouping. A choke field does not care that this is your agent.
+      * (this.choked ? CHOKE_SPREAD : 1);
     const angle = this.facing + (rng() - 0.5) * spread * 2;
 
     const p = new Projectile(
@@ -250,7 +272,7 @@ export class Hostile extends Actor {
   }
 
   update(dt, city, agents, out) {
-    if (this.dead) return;
+    if (this.neutralised) return;
     this.tick(dt);
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.muzzle = Math.max(0, this.muzzle - dt);
@@ -419,7 +441,7 @@ export class Unquantized extends Hostile {
   }
 
   update(dt, city, agents, out) {
-    if (this.dead) return;
+    if (this.neutralised) return;
 
     if (this.broken) {
       if (!this.fleeing) {
@@ -531,7 +553,7 @@ export class Civilian extends Actor {
   }
 
   update(dt, city, squadCenter, rng) {
-    if (this.dead) return;
+    if (this.neutralised) return;
     this.tick(dt);
 
     // A throttled Instance thinks slower and so does the person running it.
@@ -660,7 +682,7 @@ export class Asset extends Civilian {
   }
 
   update(dt, city, squadCenter, rng) {
-    if (this.dead) return;
+    if (this.neutralised) return;
     if (this.secured) {
       // Reuse the aligned-follower path without being aligned.
       this.tick(dt);

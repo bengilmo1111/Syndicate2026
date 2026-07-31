@@ -97,11 +97,15 @@ export class AgentView extends ActorView {
     this.ringMat.color.setHex(this.baseColor);
     this.muzzle.visible = a.muzzle > 0;
 
-    if (a.dead) {
+    if (a.neutralised) {
       this.group.rotation.z = Math.PI / 2.1;
       this.group.position.y = 0.15;
-      this.bodyMat.color.setHex(0x3a3f4c);
-      this.headMat.color.setHex(0x3a3f4c);
+      // Sedated reads as *asleep*, not as killed. The whole point of the
+      // non-lethal tools is that the player can tell the two apart at a
+      // glance, even though the syndicate's paperwork cannot.
+      const tone = a.dead ? 0x3a3f4c : 0x6a5f7a;
+      this.bodyMat.color.setHex(tone);
+      this.headMat.color.setHex(tone);
       return;
     }
     this.flash(a, this.baseColor);
@@ -143,6 +147,21 @@ export class HostileView extends ActorView {
 
   update() {
     this.syncTransform(this.hostile);
+
+    // A sedated hostile stays in the world for the rest of the mission —
+    // dead ones are pruned, this one is not. Standing upright and
+    // unchanged it reads as an active threat the player cannot shoot,
+    // which is the worst possible reading.
+    if (this.hostile.downed) {
+      this.group.rotation.z = Math.PI / 2.1;
+      this.group.position.y = 0.15;
+      this.muzzle.visible = false;
+      this.bodyMat.color.setHex(0x6a5f7a);
+      this.headMat.color.setHex(0x6a5f7a);
+      this.gunMat.color.setHex(0x2a2c34);
+      return;
+    }
+
     this.muzzle.visible = this.hostile.muzzle > 0;
     // A turned operative should read as ours at a glance — the player
     // needs to know who they are no longer allowed to shoot.
@@ -197,12 +216,13 @@ export class CivilianView extends ActorView {
       return;
     }
 
-    if (c.dead) {
+    if (c.neutralised) {
       this.group.rotation.z = Math.PI / 2.1;
       this.group.position.y = 0.12;
-      this.bodyMat.color.setHex(0x2e3037);
-      this.headMat.color.setHex(0x2e3037);
-      this.badgeMat.color.setHex(0x2e3037);
+      const tone = c.dead ? 0x2e3037 : 0x5a5064;
+      this.bodyMat.color.setHex(tone);
+      this.headMat.color.setHex(tone);
+      this.badgeMat.color.setHex(tone);
       this.ring.visible = false;
       return;
     }

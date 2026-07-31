@@ -124,6 +124,10 @@ following now ship:
 - **G** — SURGE: overdraw the allocation. Faster, straighter, tougher —
   taken from the Instances of everyone standing nearby, who slow down
   while you hold it, and it climbs heat the whole time
+- **E** — choke field · **T** — standdown aerosol. Thrown at the cursor,
+  two charges each, and neither asks whose side you are on. Hold the
+  Aligner while the aerosol works — it suppresses your own fire, which is
+  the only way a deployment ends with nobody dead
 - **Tab** — objectives panel
 - **Z / X** — rotate the city · **R / F** — tilt · **Wheel** — zoom ·
   **Middle-drag** — free orbit
