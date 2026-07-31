@@ -4,6 +4,7 @@ import { AGENT_NAMES } from '../core/entities.js';
 import { activeObjective, objectiveText, STATUS } from '../core/mission.js';
 import { heatRatio } from '../core/sim.js';
 import { CHANNELS, BUDGET } from '../core/compute.js';
+import { DEVICE, DEVICE_IDS } from '../core/devices.js';
 import { AGENT_COLORS } from '../render/actorView.js';
 
 const el = id => document.getElementById(id);
@@ -35,6 +36,38 @@ function buildSquadStrip() {
     };
   });
   squadBuilt = true;
+}
+
+let deviceBuilt = false;
+const deviceRows = {};
+
+function buildDevicePanel() {
+  const host = el('hud-devices');
+  host.innerHTML = '';
+  for (const id of DEVICE_IDS) {
+    const d = DEVICE[id];
+    const row = document.createElement('div');
+    row.className = 'device-row';
+    row.innerHTML = `
+      <span class="device-key">${d.key}</span>
+      <span class="device-name">${d.name}</span>
+      <span class="device-charges"></span>`;
+    row.title = d.note;
+    host.appendChild(row);
+    deviceRows[id] = { row, pips: row.querySelector('.device-charges') };
+  }
+  deviceBuilt = true;
+}
+
+function renderDevices(sim) {
+  if (!deviceBuilt) buildDevicePanel();
+  for (const id of DEVICE_IDS) {
+    const left = sim.belt?.[id] ?? 0;
+    const { row, pips } = deviceRows[id];
+    pips.innerHTML = Array.from({ length: DEVICE[id].charges }, (_, i) =>
+      `<i class="${i < left ? 'on' : ''}"></i>`).join('');
+    row.classList.toggle('empty', left === 0);
+  }
 }
 
 const CHANNEL_KEYS = { latency: 'C', precision: 'V', resilience: 'B' };
@@ -117,6 +150,7 @@ export function updateHUD(sim) {
   });
 
   renderCompute(sim);
+  renderDevices(sim);
 
   const mode = el('hud-mode');
   if (sim.squad.alignerEngaged) {

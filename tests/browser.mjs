@@ -344,6 +344,35 @@ check('and dismissing it returns to the floor',
     && window.__syndicate.sim.elapsed > 0 && !window.__syndicate.sim.interlude)
     && !(await page.isVisible('#overlay-choices')));
 
+// --- field devices. The sim tests prove the mechanics; only a browser run
+// --- proves E and T are actually wired to them and the HUD says so.
+const beltBefore = await page.evaluate(() => ({ ...window.__syndicate.sim.belt }));
+check('the HUD shows what the squad is carrying',
+  (await page.$$('.device-row')).length >= 2,
+  (await page.$$eval('.device-row', els => els.map(e => e.textContent.trim()))).join(' / '));
+
+await page.keyboard.press('t');
+await page.waitForTimeout(500);
+const afterT = await page.evaluate(() => ({
+  belt: { ...window.__syndicate.sim.belt },
+  devices: window.__syndicate.sim.devices.length,
+}));
+check('T throws a standdown aerosol and spends a charge',
+  afterT.devices === 1 && afterT.belt.STANDDOWN === beltBefore.STANDDOWN - 1,
+  `${beltBefore.STANDDOWN} → ${afterT.belt.STANDDOWN} charges · ${afterT.devices} on the map`);
+
+await page.keyboard.press('e');
+await page.waitForTimeout(500);
+const afterE = await page.evaluate(() => ({
+  belt: { ...window.__syndicate.sim.belt },
+  devices: window.__syndicate.sim.devices.length,
+  pips: [...document.querySelectorAll('.device-charges i.on')].length,
+}));
+check('E throws a choke field, and the HUD counts down',
+  afterE.devices === 2 && afterE.belt.CHOKE === beltBefore.CHOKE - 1
+    && afterE.pips < beltBefore.CHOKE + beltBefore.STANDDOWN,
+  `${afterE.devices} on the map · ${afterE.pips} charges lit`);
+
 // --- full building destruction. The sim tests prove the cost model; this
 // --- proves the renderer turns a nine-floor block into a rubble field
 // --- without losing the GL context on the way.

@@ -153,7 +153,7 @@ can ask their name or give one.
 deploys the four whose slots are filled, it does not let you pick), and
 cybernetics that change *how* an agent plays rather than its numbers.
 
-### 4. The weapon roster is four conventional guns
+### 4. The weapon roster is four conventional guns — **largely closed**
 The original's identity lives in its *strange* tools — psycho gas to
 panic a crowd, knockout gas for a non-lethal run, razor wire and trip
 wires for area denial, status fields to slow, satellite rain for orbital
@@ -166,7 +166,30 @@ area-denial ones**, because they interact with the Aligner and the heat
 system rather than bypassing them — a knockout-gas run is a real
 alternative to a firefight in a way that a bigger gun never is.
 
-*Where:* Phase 4.
+**Shipped** in `src/core/devices.js`. Two field devices, thrown at the
+cursor, two charges each, non-restocking:
+
+- **CHOKE FIELD** — everything inside drops to Free tier: half speed and
+  nearly twice the spread. Pure area denial. It does not care whose
+  Instance it is, so standing in your own is exactly as bad as it sounds.
+- **STANDDOWN AEROSOL** — sedates. Not kills. `downed` is a distinct
+  state: alive, out of the fight for the rest of the mission, and the
+  squad will not auto-target one.
+
+The Aligner interaction the gap called for is real and load-bearing:
+engaging it suppresses friendly fire entirely, so **holding the Aligner
+is how you stop your own squad shooting the people you are putting to
+sleep**. A test clears The Bracket with six sedated and zero killed, and
+without the Aligner the same run is not bloodless.
+
+And the satire is now a mechanical fact. `sim.neutralised` is what the
+objective model reads — shot or sedated, the syndicate files CLEARED
+either way. `sim.kills` is kept separately, so the player is the only
+party to the deployment who knows which run they actually had.
+
+*Still open:* the *offensive* strange tools — psycho gas, razor wire,
+satellite rain, the graviton gun. Those are additive now that the device
+model exists; nothing about them needs new architecture.
 
 ### 5. The Persuadertron doesn't snowball — **largely closed**
 In the original, each target type has a persuade threshold — civilians

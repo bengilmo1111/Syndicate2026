@@ -4,6 +4,9 @@
 import '../src/missions/index.js';
 import { suite, test, ok, notOk, eq, near, lt, gt, gte } from './lib/harness.mjs';
 import { findPath } from '../src/core/nav.js';
+import {
+  DEVICE, SEDATION_THRESHOLD, AGENT_SEDATION_THRESHOLD,
+} from '../src/core/devices.js';
 import { WEAPONS, DEFAULT_LOADOUT, weapon } from '../src/core/weapons.js';
 import {
   Compute, CHANNELS, BUDGET, SURGE_RADIUS, THROTTLED_SPEED,
@@ -665,3 +668,165 @@ function levelIt(sim, target, { stopAt = 0, place = null } = {}) {
     step(sim, 1 / 60, intent);
   }
 }
+
+// --------------------------------------------------------------- devices
+
+suite('field devices');
+
+test('a device is thrown where the cursor is, and costs a charge', () => {
+  const sim = createSim('sector-7');
+  const at = { x: sim.city.deploy.x + 20, z: sim.city.deploy.z };
+  eq(sim.belt.STANDDOWN, DEVICE.STANDDOWN.charges, 'belt starts full');
+
+  step(sim, 1 / 60, { ...idle, aimPoint: at, deployDevice: 'STANDDOWN' });
+  eq(sim.devices.length, 1, 'one on the map');
+  eq(sim.belt.STANDDOWN, DEVICE.STANDDOWN.charges - 1, 'one off the belt');
+  near(sim.devices[0].x, at.x, 0.01, 'at the cursor, not at the squad');
+
+  // Not at the squad's feet is the whole reason it is area denial.
+  ok(dist(sim.devices[0].x, sim.devices[0].z, sim.squad.center().x, sim.squad.center().z) > 10,
+    'and nowhere near the agents');
+});
+
+test('the belt runs out, and an empty belt places nothing', () => {
+  const sim = createSim('sector-7');
+  const at = { x: sim.city.deploy.x + 20, z: sim.city.deploy.z };
+  for (let i = 0; i < DEVICE.CHOKE.charges + 3; i++) {
+    step(sim, 1 / 60, { ...idle, aimPoint: at, deployDevice: 'CHOKE' });
+  }
+  eq(sim.belt.CHOKE, 0, 'spent');
+  eq(sim.devices.filter(d => d.id === 'CHOKE').length, DEVICE.CHOKE.charges,
+    'and no more than the charges carried ever reached the map');
+});
+
+test('a device arms before it does anything', () => {
+  // The arming beat is what makes a panicked drop at your own feet a
+  // mistake the player gets to watch happen rather than one that has
+  // already happened.
+  const sim = createSim('sector-7');
+  const h = sim.hostiles[0];
+  step(sim, 1 / 60, { ...idle, aimPoint: { x: h.x, z: h.z }, deployDevice: 'STANDDOWN' });
+  const d = sim.devices[0];
+  notOk(d.armed, 'not armed on the frame it lands');
+  eq(h.sedation, 0, 'and nothing has happened to anyone');
+
+  for (let i = 0; i < 60 * 2; i++) step(sim, 1 / 60, idle);
+  ok(d.armed, 'armed a beat later');
+  ok(h.sedation > 0, 'and now it is working');
+});
+
+test('standdown sedates without killing, and the objective accepts it', () => {
+  // The payoff the gap analysis asked for: a real alternative to a
+  // firefight, rather than a bigger gun.
+  const sim = createSim('sector-7');
+  const h = sim.hostiles[0];
+  step(sim, 1 / 60, { ...idle, aimPoint: { x: h.x, z: h.z }, deployDevice: 'STANDDOWN' });
+  for (let i = 0; i < 60 * 6; i++) step(sim, 1 / 60, idle);
+
+  ok(h.downed, 'sedated');
+  notOk(h.dead, 'and not dead — those are different things');
+  ok(h.neutralised, 'but out of the fight either way');
+  eq(sim.kills, 0, 'nobody was killed');
+  eq(sim.downed, 1, 'one went down');
+  eq(sim.neutralised, 1, 'and the objective counts it');
+  eq(sim.civilianDeaths, 0, 'no civilian losses');
+  eq(sim.heat, 0, 'and it draws no heat at all — this is the point');
+});
+
+test('a sedated hostile stops fighting and stops being a target', () => {
+  const sim = createSim('sector-7');
+  const h = sim.hostiles[0];
+  h.downed = true;
+  const where = { x: h.x, z: h.z };
+
+  const agent = sim.squad.agents[0];
+  agent.x = h.x; agent.z = h.z + 4;
+  eq(agent.pickTarget(sim.city, sim.hostiles), null,
+    'the squad will not finish a sedated target off by itself');
+
+  for (let i = 0; i < 60 * 4; i++) step(sim, 1 / 60, idle);
+  near(h.x, where.x, 0.01, 'and it does not move');
+  near(h.z, where.z, 0.01, 'at all');
+});
+
+test('a choke field throttles whoever is in it — including your own squad', () => {
+  // A field that only affected the enemy would be a gun with an area of
+  // effect, and the placement decision would evaporate.
+  const sim = createSim('sector-7');
+  const agent = sim.squad.agents[0];
+  const at = { x: agent.x, z: agent.z };
+  step(sim, 1 / 60, { ...idle, aimPoint: at, deployDevice: 'CHOKE' });
+  for (let i = 0; i < 60; i++) step(sim, 1 / 60, idle);
+
+  ok(agent.choked, 'your own agent is standing in it');
+  lt(agent.speed, agent.baseSpeed, `and thinking at Free tier (${agent.speed.toFixed(1)} vs ${agent.baseSpeed})`);
+  notOk(agent.downed, 'choke does not sedate — that is the other one');
+});
+
+test('sedation clears if you get out of the cloud in time', () => {
+  const sim = createSim('sector-7');
+  const h = sim.hostiles[0];
+  step(sim, 1 / 60, { ...idle, aimPoint: { x: h.x, z: h.z }, deployDevice: 'STANDDOWN' });
+  for (let i = 0; i < 60 * 2.4; i++) step(sim, 1 / 60, idle);
+  const dosed = h.sedation;
+  ok(dosed > 0 && !h.downed, `partly dosed (${dosed.toFixed(0)})`);
+
+  h.x += 60;   // out of the cloud
+  for (let i = 0; i < 60 * 3; i++) step(sim, 1 / 60, idle);
+  eq(h.sedation, 0, 'and it wears off');
+  notOk(h.downed, 'without going down');
+});
+
+test('agents are harder to put down than anyone else, but not immune', () => {
+  ok(AGENT_SEDATION_THRESHOLD > SEDATION_THRESHOLD, 'hardened, not immune');
+
+  // Measured, not asserted from the constants: an agent and a hostile
+  // standing in the same cloud must go down at materially different
+  // times, or "hardened" is a number nothing reads.
+  const sim = createSim('sector-7');
+  const agent = sim.squad.agents[0];
+  const h = sim.hostiles[0];
+  h.x = agent.x; h.z = agent.z;
+  // Nobody is shooting anybody: this measures dosage, and a hostile pinned
+  // at point-blank inside four stacked agents kills the squad in two
+  // seconds flat, which is a different test entirely.
+  h.aggroRange = 0;
+  h.range = 0;
+  h.damage = 0;
+  h.health = 99999;
+  sim.squad.agents.forEach(a => { a.health = 99999; a.maxHealth = 99999; });
+  // The Aligner suppresses friendly fire, which is exactly how a player
+  // runs a non-lethal operation — otherwise the squad kills the hostile
+  // standing at point-blank range long before the aerosol matters.
+  sim.squad.cycleAligner();
+
+  step(sim, 1 / 60, { ...idle, aimPoint: { x: agent.x, z: agent.z }, deployDevice: 'STANDDOWN' });
+
+  let hostileAt = null;
+  let agentAt = null;
+  for (let i = 0; i < 60 * 30; i++) {
+    // Pin them both in the cloud; this is a dosage test, not a chase.
+    sim.squad.agents.forEach(a => { a.x = agent.x; a.z = agent.z; });
+    h.x = agent.x; h.z = agent.z;
+    step(sim, 1 / 60, idle);
+    if (h.downed && hostileAt === null) hostileAt = i / 60;
+    if (agent.downed && agentAt === null) agentAt = i / 60;
+    if (hostileAt !== null && agentAt !== null) break;
+  }
+
+  ok(hostileAt !== null, 'the hostile goes down');
+  ok(agentAt !== null, 'and so, eventually, does your own agent');
+  gte(agentAt, hostileAt * 1.6,
+    `the agent lasts materially longer (${hostileAt.toFixed(1)}s vs ${agentAt.toFixed(1)}s)`);
+});
+
+test('a squad sedated to a man loses the mission, and not as a wipe', () => {
+  // It must end — a player waiting for somebody to get up is waiting
+  // forever — and it must not read as everyone having been killed.
+  const sim = createSim('sector-7');
+  sim.squad.agents.forEach(a => { a.downed = true; });
+  step(sim, 1 / 60, idle);
+  eq(sim.phase, PHASE.LOST, 'the deployment is over');
+  eq(sim.failReason, 'sedated', 'and it says why');
+  notOk(sim.squad.allDead, 'nobody died');
+});

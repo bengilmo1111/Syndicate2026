@@ -144,6 +144,10 @@ export const CONTROLS_HINT = [
   '<b>Space</b> Aligner · <b>Tab</b> objectives',
   '<b>C / V / B</b> shift compute into latency / precision / resilience',
   '<b>G</b> surge — faster, straighter, tougher. Taken from the street.',
+  '<b>E</b> choke field · <b>T</b> standdown aerosol — thrown at the cursor,',
+  'two charges each, and neither of them asks whose side you are on.',
+  'Hold the Aligner while the aerosol works: it suppresses your own fire,',
+  'which is the only way a deployment ends with nobody dead.',
   '<b>Z / X</b> rotate city · <b>R / F</b> tilt · <b>Wheel</b> zoom · <b>Middle-drag</b> orbit',
   '<b>Alt+Enter</b> fullscreen — or the <b>⛶ VIEW</b> panel, top right',
 ].join('<br>');

@@ -100,6 +100,10 @@ the 2D logic onto a 3D engine instead of losing it.
       interludes, and the console that picks the ending
 - [x] **`epilogue`** (Act IV·15) — a third mission kind: no world, no
       choice, reads the ending back off the campaign flags
+- [x] **Non-lethal and area-denial devices** (`GAP_ANALYSIS.md` gap 4) —
+      CHOKE FIELD and STANDDOWN AEROSOL, thrown at the cursor, affecting
+      everyone in the footprint including the squad. A mission can now be
+      cleared with nobody dead.
 - [x] **Full building destruction** (`GAP_ANALYSIS.md` gap 2) — every tower
       destructible, health on volume, occupancy as the cost model, rubble
       that lands on whoever is under it, enforcement scaled to the dead
@@ -245,6 +249,7 @@ src/
     campaign.js         completions, gating, records, branch flags
     tactics.js          hostile cover-seeking, repositioning, suppression
     interlude.js        mid-mission dialog beats — freeze, ask, record
+    devices.js          choke / standdown — the first things you place
     roster.js           who is in the suits, what is fitted, who is gone
     sim.js              the simulation — owns all mutable game state
   missions/             one file per mission, self-registering

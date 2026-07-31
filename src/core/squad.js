@@ -71,9 +71,14 @@ export class Squad {
     for (const a of this.agents) a.speed = a.baseSpeed * scale;
   }
 
-  get alive() { return this.agents.filter(a => !a.dead); }
-  get selected() { return this.agents.filter(a => a.selected && !a.dead); }
+  // A sedated agent is alive and no use to anybody: they cannot walk,
+  // shoot, or stand in an extraction zone on their own account. Every
+  // one of those reads `alive`, so `alive` has to mean "on their feet".
+  get alive() { return this.agents.filter(a => !a.neutralised); }
+  get selected() { return this.agents.filter(a => a.selected && !a.neutralised); }
   get allDead() { return this.agents.every(a => a.dead); }
+  /** Nobody left standing — dead, sedated, or some of each. */
+  get allDown() { return this.agents.every(a => a.neutralised); }
   get alignerEngaged() { return this.alignerMode !== ALIGNER.OFF; }
 
   center() {

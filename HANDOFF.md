@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~11s, 195 checks, no dependencies
+node tests/run.mjs        # the gate — ~10s, 206 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -190,6 +190,24 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   off the throttle and stop following you. Using the thing that makes you
   the protagonist dismantles the crowd you spent ten missions building.
   The Router warns you in the briefing. **Do not "balance" this away.**
+- **Field devices** (`src/core/devices.js`) — the first things the player
+  puts *on the map*. Thrown at the cursor, two charges each, no restock.
+  **CHOKE FIELD**: half speed and 1.9× spread for anything inside.
+  **STANDDOWN AEROSOL**: sedates to `downed` — alive, out for the mission,
+  never auto-targeted. Both affect **everyone in the footprint, squad
+  included**; a field that spared your own agents would be a gun with an
+  area of effect and the placement decision would evaporate.
+  Devices arm after a beat, so a panicked drop at your own feet is a
+  mistake you get to watch happen.
+- **`neutralised` vs `kills`** — the objective model reads
+  `sim.neutralised` (shot + sedated), because the syndicate files a
+  sedated cell and a dead one identically. `sim.kills` is where the
+  difference is kept. **Do not collapse these.** The joke is the game.
+- **Holding the Aligner is how a non-lethal run works.** It suppresses
+  friendly fire entirely, which is what stops the squad shooting the
+  people the aerosol is putting to sleep. A test clears The Bracket six-
+  for-six with zero kills; without the Aligner the same run is not
+  bloodless. Documented on the controls card, because it is not obvious.
 - **Full building destruction** — every tower and slab is destructible.
   Health scales on volume (2–15s of full-squad fire) and so does
   `structure.occupancy`, which is the cost model: a tower is ninety
@@ -285,7 +303,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 195 checks, ~11s, zero dependencies. Covers city
+`node tests/run.mjs` — 206 checks, ~10s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -325,9 +343,12 @@ making towers immortal, making them all empty, letting `derelict` drop
 towers, not invalidating the nav graph on collapse, leaving tenants
 uncounted, removing the structural warning, flattening enforcement to one
 wave regardless of the dead, making rubble harmless, and leaving
-survivors stuck inside it. It is load-bearing, not decorative.
+survivors stuck inside it. Five more cover the devices: making them free,
+arming them instantly, making sedation never wear off, removing the
+agents' hardening, and letting the fields spare your own squad. It is
+load-bearing, not decorative.
 
-`node tests/browser.mjs` — 49 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 52 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -363,17 +384,20 @@ campaign in order — every field mission autoplayed to a win, gated the
 way a player meets them, ending on the epilogue.
 
 The arc is done and the progression loop under it is done. What is left is
-depth: `GAP_ANALYSIS.md` is the ranked backlog, and gaps 2, 3, 5, 7 and 10
-are now closed.
+depth: `GAP_ANALYSIS.md` is the ranked backlog, and gaps 2, 3, 4, 5, 7 and
+10 are now closed.
 
-1. **Non-lethal and area-denial weapons** (`GAP_ANALYSIS.md` gap 4) — the
-   original's identity lives in its strange tools (psycho gas, knockout
-   gas, razor wire) and the game has four conventional guns. Now the
-   biggest remaining change to how a mission is played, and it pairs with
-   the Aligner rather than competing with it.
-2. **The world map / territory / tax / research meta-game** (gap 1) —
-   research already exists as a currency and the cryovat already spends
-   it, so the economy has one end built.
+1. **The world map / territory / tax / research meta-game**
+   (`GAP_ANALYSIS.md` gap 1) — the strategic half, and the largest thing
+   left. Research already exists as a currency and the cryovat already
+   spends it, so the economy has one end built.
+2. **Squad stances** (hold / advance / engage-at-will). The non-lethal
+   tools made the gap obvious: the only way to stop the squad auto-firing
+   is to hold the Aligner, which works but is a side effect rather than a
+   control. This is small and it unblocks a lot.
+3. **The offensive strange tools** (gap 4's remainder) — psycho gas,
+   razor wire, satellite rain. Additive now that `devices.js` exists;
+   none of them need new architecture.
 3. **Between-mission interstitials for Acts I–III** — Yelin's notes and
    the street graffiti. Act IV got its beats *inside* missions, which is
    where they belonged, but the Act I→II tonal turn still has nothing
