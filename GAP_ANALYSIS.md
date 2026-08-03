@@ -134,9 +134,29 @@ Rivals carry off-map reach, so taking all of Austin does not make them
 evaporate — holding everything is possible and still costs attention. A
 sector that revolts goes to nobody, then its own syndicate walks back in.
 
+**And the four play differently**, which §4 is explicit is the flaw to
+inherit deliberately or not at all. Each doctrine changes what the player
+does about it:
+
+- **AMAZON — BROAD.** Leans on everything you hold at once, so there is
+  no sector you can leave unattended.
+- **GOOGLE — RICHEST.** Goes for whatever pays you most, so the thing you
+  most want to squeeze is the thing you most have to ease off.
+- **SPACEX — FLAT.** Pushes from orbit and is only half-interested in how
+  content the street is. Tuned to sit *just under* what a calm sector
+  shrugs off: they eat the whole margin without breaking the rule that
+  rationing lightly is a complete defence.
+- **ANTHROPIC — UNREST.** Takes no ground at all. Raises unrest instead,
+  pushing sectors toward revolt rather than seizure, so the counter is
+  the ration and not the gun.
+
+Concentrated doctrines sit out below `PORTFOLIO_MIN` sectors held —
+"richest" and "weakest" are the same block when you hold one, and all
+four converging on a new player's only sector makes easing the ration off
+stop working exactly when they are learning that it should.
+
 *Still open:* missions generated *by* the map rather than only feeding
-it, and rivals doing something other than take ground — the four play
-identically, which is the flaw §4 warns about inheriting.
+it.
 
 ### 2. Buildings are indestructible — **closed**
 "Level a city block" is the original's headline. We destroyed street

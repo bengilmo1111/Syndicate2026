@@ -105,6 +105,8 @@ the 2D logic onto a 3D engine instead of losing it.
       research the cryovat spends. Save v4 with migration from v3.
 - [x] **Rival syndicates on the map** — the four hold everything you have
       not taken and push back through the opening your ration made
+- [x] **Four doctrines, four remedies** — broad / richest / flat / unrest,
+      so the syndicates are not four names on one behaviour
 - [x] **Fire discipline** — the control the non-lethal devices made
       necessary; before it, the only way to stop the squad shooting was to
       hold the Aligner, which worked but was a side effect

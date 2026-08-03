@@ -19,8 +19,9 @@ import {
 } from '../src/core/roster.js';
 import {
   SECTORS, THROTTLE, THROTTLE_ORDER, heldSectors, setThrottle, income,
-  statusOf, UNREST_ON_CLAIM, RIVALS, rivalStrength, leadingRival, pressureOn,
-  REVOLT_AT, claim, sectorById,
+  statusOf, UNREST_ON_CLAIM, RIVALS, RIVAL_IDS, DOCTRINE, rivalStrength,
+  leadingRival, pressureOn, pressureFrom, agitationOn, hardestPusher,
+  REVOLT_AT, CONTEST_DECAY, claim, sectorById, PORTFOLIO_MIN,
 } from '../src/core/territory.js';
 
 const MISSIONS = getAllMissions();
@@ -443,6 +444,8 @@ test('a sector held at the hardest ration hands itself back', () => {
   eq(revolt.sectors[0].id, 'sector-7', 'the one you squeezed');
   notOk(c.territory['sector-7'].held, 'and it is off the map');
   eq(c.territory['sector-7'].lostTo, 'revolt', 'for a reason it can state');
+  // Which door it goes out of matters at campaign scale — see the
+  // two-doors test below. Here the point is only that it goes.
 
   // Inside a single playthrough, on purpose. A punishment that arrives
   // after the credits is not a punishment.
@@ -611,8 +614,13 @@ test('rivals push through the opening your own ration made', () => {
   const c = newCampaign();
   recordCasualties(c, 'sector-7', { squadAlive: 4 });
 
+  // A content sector is effectively immune — not because nothing is
+  // aimed at it (SpaceX pushes from orbit and is only half-interested in
+  // how the street feels) but because it shrugs off more than anyone can
+  // apply. That is the invariant: net, not gross.
   c.territory['sector-7'].unrest = 0;
-  eq(pressureOn(c.territory, 'sector-7'), 0, 'a content sector is not pushable at all');
+  lt(pressureOn(c.territory, 'sector-7'), CONTEST_DECAY,
+    'a content sector shrugs off more than anyone can apply');
 
   c.territory['sector-7'].unrest = REVOLT_AT / 2;
   const half = pressureOn(c.territory, 'sector-7');
@@ -629,25 +637,53 @@ test('a quiet sector shrugs pressure off faster than anyone can apply it', () =>
 
   for (let i = 0; i < 20; i++) recordCasualties(c, 'nothing', {});
   ok(c.territory['sector-7'].held, 'still yours');
-  eq(c.territory['sector-7'].contest, 0, 'and nobody is pushing any more');
-  eq(c.territory['sector-7'].contestedBy, null, 'nor claiming to be');
+  lt(c.territory['sector-7'].contest, 60, 'and the push is going backwards');
+  // The invariant is that it *never* completes on a content sector, not
+  // that it snaps to zero — SpaceX pushes from orbit and keeps a little
+  // pressure on regardless, which eats the margin without breaking it.
+  for (let i = 0; i < 200; i++) recordCasualties(c, 'nothing', {});
+  ok(c.territory['sector-7'].held, 'and two hundred deployments later it is still yours');
 });
 
 test('a sector left unhappy long enough gets taken by somebody with a logo', () => {
+  // Needs a portfolio: below PORTFOLIO_MIN nobody picks a favourite, and
+  // a lone unhappy sector revolts rather than being taken. That is the
+  // designed behaviour, not a gap — see the test below it.
   const c = newCampaign();
-  recordCasualties(c, 'sector-7', { squadAlive: 4 });
-  setThrottle(c.territory, 'sector-7', 'PLUS');
+  for (const id of ['sector-7', 'district-12', 'sable-campus', 'the-bracket']) {
+    recordCasualties(c, id, { squadAlive: 4 });
+  }
+  for (const s of heldSectors(c.territory)) setThrottle(c.territory, s.id, 'FRONTIER');
+  setThrottle(c.territory, 'district-12', 'PLUS');   // the richest, left to stew
 
   let taken = null;
-  for (let i = 0; i < 40 && !taken; i++) {
+  for (let i = 0; i < 60 && !taken; i++) {
     const r = recordCasualties(c, 'nothing', {});
     if (r.seized.length) taken = r.seized[0];
   }
-  ok(taken, 'a rival takes it');
-  eq(taken.sector.id, 'sector-7', 'the one you left unhappy');
-  ok(RIVALS[c.territory['sector-7'].owner], 'and they hold it now');
-  eq(c.territory['sector-7'].lostTo, c.territory['sector-7'].owner, 'the record says who');
-  notOk(c.territory['sector-7'].held, 'it is not yours');
+  ok(taken, 'a rival takes one');
+  eq(taken.sector.id, 'district-12', 'the one you left unhappy — and the one that pays most');
+  ok(RIVALS[c.territory['district-12'].owner], 'and they hold it now');
+  eq(c.territory['district-12'].lostTo, c.territory['district-12'].owner, 'the record says who');
+  notOk(c.territory['district-12'].held, 'it is not yours');
+});
+
+test('below a portfolio, nobody picks a favourite', () => {
+  // A player who has just taken their first sector must not have all four
+  // syndicates converge on it — "richest" and "weakest" are the same block
+  // when you hold one, and easing the ration off has to keep working
+  // exactly when a new player is learning that it should.
+  const c = newCampaign();
+  recordCasualties(c, 'sector-7', { squadAlive: 4 });
+  lt(heldSectors(c.territory).length, PORTFOLIO_MIN, 'one sector held');
+
+  for (const id of RIVAL_IDS) {
+    const doctrine = DOCTRINE[RIVALS[id].doctrine];
+    if (doctrine.targets === 'all') continue;
+    eq(pressureFrom(c.territory, id, 'sector-7'), 0, `${id} sits it out`);
+  }
+  ok(pressureFrom(c.territory, 'amazon', 'sector-7') > 0,
+    'the broad doctrine still leans, because it leans on everything');
 });
 
 test('redeploying takes a seized sector back', () => {
@@ -721,4 +757,120 @@ test('the two ways to lose a sector arrive by different rations', () => {
   ok(plus.seized > 0, `the Board rate loses sectors to rivals (${plus.seized})`);
   ok(free.revolts > plus.revolts, `the hardest ration loses them to revolt (${free.revolts})`);
   lt(free.held, pro.held, 'and either way squeezing costs you the map');
+});
+
+test('the four syndicates do not play the same', () => {
+  // GAP_ANALYSIS §4: the original's two factions were "largely cosmetic",
+  // and that is a flaw to inherit deliberately or not at all. Each of
+  // these has to change what the *player* does about it.
+  const doctrines = RIVAL_IDS.map(id => RIVALS[id].doctrine);
+  eq(new Set(doctrines).size, RIVAL_IDS.length, 'four syndicates, four doctrines');
+  for (const id of RIVAL_IDS) {
+    ok(RIVALS[id].note?.length > 20, `${id}: says what it does, in the panel`);
+  }
+
+  const c = newCampaign();
+  for (const id of ['sector-7', 'district-12', 'sable-campus', 'the-bracket', 'okafor-contract']) {
+    recordCasualties(c, id, { squadAlive: 4 });
+  }
+  // One sector clearly richest, a different one clearly unhappiest.
+  for (const s of heldSectors(c.territory)) {
+    setThrottle(c.territory, s.id, 'FRONTIER');
+    c.territory[s.id].unrest = 20;
+  }
+  setThrottle(c.territory, 'district-12', 'FREE');   // richest by yield
+  c.territory['sable'].unrest = 90;                  // unhappiest
+
+  const push = (rival, sector) => pressureFrom(c.territory, rival, sector);
+
+  // BROAD leans on everything.
+  ok(push('amazon', 'sector-7') > 0 && push('amazon', 'sable') > 0
+    && push('amazon', 'district-12') > 0, 'Amazon leans on everything you hold');
+
+  // RICHEST leans on the one that pays.
+  ok(push('google', 'district-12') > 0, 'Google goes for the sector that pays most');
+  eq(push('google', 'sector-7'), 0, 'and ignores the rest');
+
+  // FLAT leans on the one closest to going, and does not need unrest to do it.
+  ok(push('spacex', 'sable') > 0, 'SpaceX goes for the one closest to coming off you');
+  eq(push('spacex', 'district-12'), 0, 'one target, not all of them');
+
+  // UNREST takes no ground at all.
+  for (const s of heldSectors(c.territory)) {
+    eq(push('anthropic', s.id), 0, `Anthropic takes no ground at ${s.id}`);
+  }
+  ok(agitationOn(c.territory, 'sector-7') > 0, 'it makes sectors harder to hold instead');
+});
+
+test('SpaceX eats the margin without breaking it', () => {
+  // Their identity is not caring how content the street is, which must
+  // not become "rationing lightly stops working" — that would make the
+  // map a treadmill.
+  const c = newCampaign();
+  for (const id of ['sector-7', 'district-12', 'sable-campus', 'the-bracket']) {
+    recordCasualties(c, id, { squadAlive: 4 });
+  }
+  for (const s of heldSectors(c.territory)) c.territory[s.id].unrest = 0;
+
+  const onQuiet = pressureFrom(c.territory, 'spacex', 'sector-7');
+  ok(onQuiet > 0, 'they push at a sector with nothing wrong with it');
+  lt(onQuiet, CONTEST_DECAY, 'but never more than it shrugs off');
+  lt(pressureOn(c.territory, 'sector-7'), CONTEST_DECAY,
+    'and everyone together still cannot make headway on a content sector');
+});
+
+test('the panel can always name who is pushing hardest', () => {
+  const c = newCampaign();
+  for (const id of ['sector-7', 'district-12', 'sable-campus', 'the-bracket']) {
+    recordCasualties(c, id, { squadAlive: 4 });
+  }
+  for (const s of heldSectors(c.territory)) c.territory[s.id].unrest = 80;
+  for (const s of heldSectors(c.territory)) {
+    const who = hardestPusher(c.territory, s.id);
+    ok(RIVALS[who], `${s.id}: ${RIVALS[who]?.name ?? who} is named`);
+    ok(pressureFrom(c.territory, who, s.id) > 0, 'and is actually the one pushing');
+  }
+});
+
+test('Anthropic pushes sectors toward revolt, not toward seizure', () => {
+  // The counter to them is the ration, not the gun — which is a different
+  // remedy from the other three, which is the whole point.
+  const withThem = newCampaign();
+  recordCasualties(withThem, 'sector-7', { squadAlive: 4 });
+  setThrottle(withThem.territory, 'sector-7', 'PRO');
+
+  const before = withThem.territory['sector-7'].unrest;
+  recordCasualties(withThem, 'nothing', {});
+  const after = withThem.territory['sector-7'].unrest;
+
+  // PRO alone calms a sector. With Anthropic talking to it, it does not.
+  ok(agitationOn(withThem.territory, 'sector-7') > 0, 'they are agitating');
+  ok(after > before + THROTTLE.PRO.unrest - 0.001,
+    `agitation offsets the ration (${before} → ${after}, ration ${THROTTLE.PRO.unrest})`);
+});
+
+test('the sector records who is actually pushing on it, not a default', () => {
+  // `hardestPusher` being right is no use if `settle` writes something
+  // else into the record — the panel and the debrief both read the
+  // record, and naming the wrong syndicate is worse than naming none.
+  const c = newCampaign();
+  for (const id of ['sector-7', 'district-12', 'sable-campus', 'the-bracket', 'okafor-contract']) {
+    recordCasualties(c, id, { squadAlive: 4 });
+  }
+  for (const s of heldSectors(c.territory)) {
+    setThrottle(c.territory, s.id, 'FRONTIER');
+    c.territory[s.id].unrest = 30;
+  }
+  // District 12 is the richest, so Google's doctrine owns it; Sable is
+  // the unhappiest, so SpaceX's does.
+  setThrottle(c.territory, 'district-12', 'FREE');
+  c.territory['sable'].unrest = 95;
+
+  recordCasualties(c, 'nothing', {});
+  eq(c.territory['district-12'].contestedBy, hardestPusher(c.territory, 'district-12'),
+    'the richest sector names whoever is actually leaning on it');
+  eq(c.territory['sable'].contestedBy, hardestPusher(c.territory, 'sable'),
+    'and so does the unhappiest');
+  notOk(c.territory['district-12'].contestedBy === c.territory['sable'].contestedBy,
+    'and they are not the same syndicate, because they want different things');
 });

@@ -20,8 +20,8 @@ import {
   CYBERNETICS, CYBERNETIC_IDS, deployed, fit, fitBlocker,
 } from './core/roster.js';
 import {
-  SECTORS, THROTTLE, RIVALS, cycleThrottle, income, statusOf, yieldOf,
-  REVOLT_AT, SEIZE_AT, leadingRival, rivalStrength,
+  SECTORS, THROTTLE, RIVALS, RIVAL_IDS, cycleThrottle, income, statusOf,
+  yieldOf, REVOLT_AT, SEIZE_AT, leadingRival, rivalStrength,
 } from './core/territory.js';
 
 const canvas = document.getElementById('game-canvas');
@@ -89,10 +89,17 @@ function mapView() {
   });
   const leader = leadingRival(territory);
   const strength = rivalStrength(territory);
+  // Each syndicate's doctrine, said out loud. Four rivals that behave
+  // differently are worth nothing if the player cannot tell which is
+  // which — that is how "largely cosmetic" happens.
+  const dossier = RIVAL_IDS
+    .map(id => `<b>${RIVALS[id].name}</b> (${strength[id]}) ${RIVALS[id].note}`)
+    .join('<br>');
   return {
     heading: `<b>AUSTIN</b> · ${rows.filter(r => r.held).length}/${SECTORS.length} HELD · `
       + `THE MAP PAYS ${income(territory)} PER DEPLOYMENT · `
       + `${RIVALS[leader].name} LEADS THE REST WITH ${strength[leader]}`,
+    dossier,
     sectors: rows,
     onThrottle: (id) => {
       cycleThrottle(app.campaign.territory, id);
@@ -401,7 +408,7 @@ function showDebrief(won) {
     stats.push('', `<strong>${s.name} HAS GONE</strong> — held too hard for too long. The people threw you out; nobody else gets it either.`);
   }
   for (const { sector, rival } of casualties?.seized ?? []) {
-    stats.push('', `<strong>${rival.name} HAS TAKEN ${sector.name}</strong> — you left it unhappy long enough for somebody with a logo to walk in. Redeploy there to take it back.`);
+    stats.push('', `<strong>${rival.name} HAS TAKEN ${sector.name}</strong> — ${rival.note} Redeploy there to take it back.`);
   }
   if (casualties?.contested?.length) {
     const who = casualties.contested.map(c => `${c.sector.name} (${c.rival.name})`).join(' · ');
