@@ -173,17 +173,29 @@ function renderMap(map) {
     kit.className = 'roster-kit';
 
     if (s.held) {
-      // Unrest, as a bar rather than a number. The player needs to feel
-      // how close a sector is to handing itself back, not do arithmetic.
+      // Two bars, because there are two ways to lose a sector and the
+      // player has to be able to tell which one is closer: the people
+      // throwing you out, and somebody with a logo walking in.
       const meter = document.createElement('span');
       meter.className = 'unrest';
-      meter.title = `UNREST ${Math.round(s.unrest)} / ${s.revoltAt}`;
+      meter.title = `UNREST ${Math.round(s.unrest)} / ${s.revoltAt} — at full, the sector revolts`;
       const fill = document.createElement('i');
       fill.style.width = `${Math.min(100, (s.unrest / s.revoltAt) * 100)}%`;
-      if (s.status === 'STRAINING') fill.classList.add('crit');
-      else if (s.status === 'RESTLESS') fill.classList.add('warn');
+      if (s.unrest >= s.revoltAt * 0.7) fill.classList.add('crit');
+      else if (s.unrest >= s.revoltAt * 0.35) fill.classList.add('warn');
       meter.appendChild(fill);
       kit.appendChild(meter);
+
+      const push = document.createElement('span');
+      push.className = 'unrest contest';
+      push.title = s.contestedBy
+        ? `${s.contestedBy} PUSH ${Math.round(s.contest)} / ${s.seizeAt} — at full, they take it`
+        : 'NOBODY IS PUSHING HERE';
+      const pushFill = document.createElement('i');
+      pushFill.style.width = `${Math.min(100, (s.contest / s.seizeAt) * 100)}%`;
+      if (s.status === 'CONTESTED') pushFill.classList.add('crit');
+      push.appendChild(pushFill);
+      kit.appendChild(push);
 
       const b = document.createElement('button');
       b.className = 'implant throttle';

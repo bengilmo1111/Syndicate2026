@@ -224,6 +224,8 @@ await page.evaluate(() => {
   const c = window.__syndicate.campaign;
   c.territory['sector-7'].held = true;
   c.territory['sector-7'].unrest = 80;
+  c.territory['sector-7'].contest = 62;
+  c.territory['sector-7'].contestedBy = 'amazon';
   c.territory['district-12'].held = true;
 });
 await page.click('#overlay-alt-button');           // SECTOR MAP
@@ -233,6 +235,15 @@ check('the sector map lists Austin', mapRows.length >= 8, `${mapRows.length} sec
 check('and marks the ones you hold as straining',
   (await page.$$('.unrest i.crit')).length >= 1,
   (await page.$$eval('.unrest i', els => els.map(e => e.className || 'calm'))).join(','));
+
+// The rivals have to be legible: who holds what, and who is pushing.
+const mapText = mapRows.join(' ');
+check('the map names who holds the sectors you have not taken',
+  /AMAZON|GOOGLE|SPACEX|ANTHROPIC/.test(mapText),
+  mapText.slice(0, 90));
+check('and says when one is pushing on a sector of yours',
+  /pushing/.test(mapText) && (await page.$$('.unrest.contest i')).length >= 2,
+  `${(await page.$$('.unrest.contest')).length} contest bars`);
 
 const throttleBefore = await page.evaluate(() =>
   window.__syndicate.campaign.territory['sector-7'].throttle);

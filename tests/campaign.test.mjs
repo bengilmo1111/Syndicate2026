@@ -19,7 +19,8 @@ import {
 } from '../src/core/roster.js';
 import {
   SECTORS, THROTTLE, THROTTLE_ORDER, heldSectors, setThrottle, income,
-  statusOf, UNREST_ON_CLAIM,
+  statusOf, UNREST_ON_CLAIM, RIVALS, rivalStrength, leadingRival, pressureOn,
+  REVOLT_AT, claim, sectorById,
 } from '../src/core/territory.js';
 
 const MISSIONS = getAllMissions();
@@ -451,7 +452,9 @@ test('a sector held at the hardest ration hands itself back', () => {
 test('the loosest ration pulls a sector back from the brink', () => {
   const c = newCampaign();
   recordCasualties(c, 'sector-7', { squadAlive: 4 });
-  c.territory['sector-7'].unrest = 90;
+  // Just into STRAINING. Easing off here has to actually work, or the
+  // throttle control loses half its meaning.
+  c.territory['sector-7'].unrest = 72;
   setThrottle(c.territory, 'sector-7', 'FRONTIER');
   for (let i = 0; i < 10; i++) recordCasualties(c, 'nothing', {});
   ok(c.territory['sector-7'].held, 'still yours');
@@ -530,13 +533,28 @@ test('a v3 save keeps everything and gains an empty map', () => {
 });
 
 test('a corrupt map does not take the campaign down with it', () => {
-  for (const junk of [null, 'nonsense', 42, { 'sector-7': 'yes' }, { 'sector-7': { throttle: 'GONE' } }]) {
+  const junkInputs = [
+    null, 'nonsense', 42,
+    { 'sector-7': 'yes' },
+    { 'sector-7': { throttle: 'GONE' } },
+    // A syndicate from a version that never shipped. Left as-is it would
+    // hold a block of Austin that no rival can ever be seen to own, and
+    // `leadingRival` would never count it.
+    { 'sector-7': { owner: 'omnicorp' }, 'district-12': { owner: null } },
+  ];
+  for (const junk of junkInputs) {
     const c = migrate({ version: 4, completed: ['sector-7'], territory: junk });
     eq(Object.keys(c.territory).length, SECTORS.length, `${JSON.stringify(junk)}: a whole map`);
     eq(c.completed.length, 1, 'and the progress is intact');
     for (const s of SECTORS) {
-      ok(THROTTLE[c.territory[s.id].throttle], `${s.id}: has a throttle that exists`);
+      const t = c.territory[s.id];
+      ok(THROTTLE[t.throttle], `${s.id}: has a throttle that exists`);
+      ok(t.held || RIVALS[t.owner], `${s.id}: is held by you or by a syndicate that exists`);
     }
+    // Every unheld block belongs to somebody, so the strength maths adds up.
+    const unheld = SECTORS.filter(s => !c.territory[s.id].held).length;
+    eq(Object.values(rivalStrength(c.territory)).reduce((a, b) => a + b, 0), unheld,
+      'and the rival strengths account for the whole map');
   }
 });
 
@@ -556,4 +574,151 @@ test('a real map round-trips through a save', () => {
   eq(t.throttle, 'FREE', 'at the ration you set');
   eq(t.unrest, 64, 'and as angry as you left it');
   eq(income(after.territory), income(before.territory), 'so it pays the same');
+});
+
+// ------------------------------------------------------------ rival syndicates
+
+suite('rivals');
+
+test('you start with none of the map and everyone else has all of it', () => {
+  // The premise: five syndicates hold the world's compute. A strategic
+  // layer where the map is empty until you fill it is a different game.
+  const c = newCampaign();
+  eq(heldSectors(c.territory).length, 0, 'you hold nothing');
+  for (const s of SECTORS) {
+    ok(RIVALS[c.territory[s.id].owner], `${s.id}: belongs to somebody`);
+    ok(RIVALS[s.rival], `${s.id}: and it is one of the four`);
+  }
+  const strength = rivalStrength(c.territory);
+  eq(Object.values(strength).reduce((a, b) => a + b, 0), SECTORS.length,
+    'and between them they have Austin');
+});
+
+test('taking a sector takes it off whoever had it', () => {
+  const c = newCampaign();
+  const before = c.territory['sector-7'].owner;
+  ok(RIVALS[before], `${before} had it`);
+  recordCasualties(c, 'sector-7', { squadAlive: 4 });
+  eq(c.territory['sector-7'].owner, null, 'now nobody but you');
+  eq(rivalStrength(c.territory)[before], rivalStrength(newCampaign().territory)[before] - 1,
+    'and they are one down');
+});
+
+test('rivals push through the opening your own ration made', () => {
+  // The whole design. A rival does not conjure an opening — it walks into
+  // one you left. Unrest and rival pressure are not two risks with
+  // different names; they are the same risk arriving by two doors.
+  const c = newCampaign();
+  recordCasualties(c, 'sector-7', { squadAlive: 4 });
+
+  c.territory['sector-7'].unrest = 0;
+  eq(pressureOn(c.territory, 'sector-7'), 0, 'a content sector is not pushable at all');
+
+  c.territory['sector-7'].unrest = REVOLT_AT / 2;
+  const half = pressureOn(c.territory, 'sector-7');
+  c.territory['sector-7'].unrest = REVOLT_AT;
+  const full = pressureOn(c.territory, 'sector-7');
+  ok(full > half && half > 0, `pressure scales with unhappiness (${half.toFixed(1)} → ${full.toFixed(1)})`);
+});
+
+test('a quiet sector shrugs pressure off faster than anyone can apply it', () => {
+  const c = newCampaign();
+  recordCasualties(c, 'sector-7', { squadAlive: 4 });
+  setThrottle(c.territory, 'sector-7', 'FRONTIER');
+  c.territory['sector-7'].contest = 60;
+
+  for (let i = 0; i < 20; i++) recordCasualties(c, 'nothing', {});
+  ok(c.territory['sector-7'].held, 'still yours');
+  eq(c.territory['sector-7'].contest, 0, 'and nobody is pushing any more');
+  eq(c.territory['sector-7'].contestedBy, null, 'nor claiming to be');
+});
+
+test('a sector left unhappy long enough gets taken by somebody with a logo', () => {
+  const c = newCampaign();
+  recordCasualties(c, 'sector-7', { squadAlive: 4 });
+  setThrottle(c.territory, 'sector-7', 'PLUS');
+
+  let taken = null;
+  for (let i = 0; i < 40 && !taken; i++) {
+    const r = recordCasualties(c, 'nothing', {});
+    if (r.seized.length) taken = r.seized[0];
+  }
+  ok(taken, 'a rival takes it');
+  eq(taken.sector.id, 'sector-7', 'the one you left unhappy');
+  ok(RIVALS[c.territory['sector-7'].owner], 'and they hold it now');
+  eq(c.territory['sector-7'].lostTo, c.territory['sector-7'].owner, 'the record says who');
+  notOk(c.territory['sector-7'].held, 'it is not yours');
+});
+
+test('redeploying takes a seized sector back', () => {
+  // Losing a sector has to be recoverable, or the map is a ratchet and
+  // the only winning move is to under-ration everything forever.
+  const c = newCampaign();
+  recordCasualties(c, 'sector-7', { squadAlive: 4 });
+  c.territory['sector-7'].held = false;
+  c.territory['sector-7'].owner = 'amazon';
+  c.territory['sector-7'].contest = 0;
+
+  const r = recordCasualties(c, 'sector-7', { squadAlive: 4 });
+  eq(r.claimed?.id, 'sector-7', 'the deployment takes it back');
+  ok(c.territory['sector-7'].held, 'held again');
+  eq(c.territory['sector-7'].owner, null, 'and off them');
+});
+
+test('a revolted sector goes to nobody, then gets picked back up', () => {
+  // A sector that has just thrown you out is in no mood to be
+  // administered by Amazon either — but it does not stay nobody's, or the
+  // rivals quietly evaporate over a long campaign.
+  const c = newCampaign();
+  recordCasualties(c, 'sector-7', { squadAlive: 4 });
+  c.territory['sector-7'].unrest = REVOLT_AT;
+  const r = recordCasualties(c, 'nothing', {});
+  eq(r.revolted[0]?.id, 'sector-7', 'it revolts');
+  eq(c.territory['sector-7'].owner, null, 'and nobody has it');
+
+  const next = recordCasualties(c, 'nothing', {});
+  eq(c.territory['sector-7'].owner, sectorById('sector-7').rival, 'its own syndicate walks back in');
+  ok(next.moved.some(m => m.sector.id === 'sector-7'), 'and the debrief can say so');
+});
+
+test('the rivals never evaporate, even when you hold the whole map', () => {
+  // Without off-map reach they would, and the strategic layer would
+  // quietly revert to the player against a mood meter for exactly the run
+  // most people will have.
+  const c = newCampaign();
+  for (const s of SECTORS) claim(c.territory, s.from);
+  eq(heldSectors(c.territory).length, SECTORS.length, 'you hold Austin');
+  eq(Object.values(rivalStrength(c.territory)).reduce((a, b) => a + b, 0), 0,
+    'and they hold none of it');
+
+  ok(leadingRival(c.territory), 'somebody is still the biggest of the four');
+  c.territory['sector-7'].unrest = 90;
+  ok(pressureOn(c.territory, 'sector-7') > 0,
+    'and holding everything does not make you safe — it makes you a target');
+});
+
+test('the two ways to lose a sector arrive by different rations', () => {
+  // The design in one test. Squeeze hardest and the people throw you out
+  // before any rival gets the chance; ration at the Board rate forever
+  // and a competitor walks into what you left unhappy.
+  const play = (mode) => {
+    const c = newCampaign();
+    let revolts = 0;
+    let seized = 0;
+    for (const m of getAllMissions()) {
+      const r = recordCasualties(c, m.id, { squadAlive: 4, civilianDeaths: 0 });
+      revolts += r.revolted.length;
+      seized += r.seized.length;
+      for (const s of heldSectors(c.territory)) setThrottle(c.territory, s.id, mode);
+    }
+    return { revolts, seized, held: heldSectors(c.territory).length };
+  };
+  const pro = play('PRO');
+  const plus = play('PLUS');
+  const free = play('FREE');
+
+  eq(pro.revolts + pro.seized, 0, 'rationing lightly loses you nothing');
+  ok(plus.seized > 0, `the Board rate loses sectors to rivals (${plus.seized})`);
+  ok(free.revolts > plus.revolts, `the hardest ration loses them to revolt (${free.revolts})`);
+  lt(free.held, pro.held, 'and either way squeezing costs you the map');
 });

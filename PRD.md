@@ -137,9 +137,11 @@ following now ship:
   Available from the briefing card as well as in the field
 - **CRYOVAT**, on the briefing card — fit cybernetics with research earned
   from finished deployments. Fittings are permanent and so are losses
-- **SECTOR MAP**, the card's third face — what you hold and how hard you
-  ration it. Tighter pays more and cannot hold; a sector squeezed to HARD
-  hands itself back in about eight deployments
+- **SECTOR MAP**, the card's third face — what you hold, who holds the
+  rest, and how hard you ration your own. Tighter pays more and cannot
+  hold: squeeze to HARD and the people throw you out; ration at STANDARD
+  forever and a rival walks into what you left unhappy. Redeploy to a
+  sector to take it back
 
 > Note: an earlier draft of this document bound both "select all" and
 > "rotate camera" to **Q**. Camera rotation moved to **Z / X** so the
