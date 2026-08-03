@@ -14,7 +14,7 @@ import {
 } from '../src/core/mission.js';
 import { createSim, step, PHASE } from '../src/core/sim.js';
 import { Projectile } from '../src/core/entities.js';
-import { ALIGNER } from '../src/core/squad.js';
+import { ALIGNER, STANCE } from '../src/core/squad.js';
 import { interlude, answerInterlude, answerTo } from '../src/core/interlude.js';
 import {
   newCampaign, isUnlocked, recordWin, nextMission, progress,
@@ -1064,13 +1064,12 @@ test('the-bracket can be cleared without killing anybody', () => {
   const sim = createSim('the-bracket');
   const target = sim.mission.objectives[0].target;
 
-  // Hold the Aligner on the whole time. It suppresses friendly fire
-  // entirely, so it is what stops the squad shooting the people you are
-  // in the middle of putting to sleep — the gap analysis asked for tools
-  // that interact with the Aligner instead of bypassing it, and this is
-  // that interaction. Without it the squad auto-fires and the run is not
-  // bloodless.
-  sim.squad.cycleAligner();
+  // HOLD FIRE. Nothing else stops the squad shooting the people you are
+  // in the middle of putting to sleep — without it they auto-fire and the
+  // run is not bloodless. (Holding the Aligner also works, and did the
+  // job before stances existed, but it is a side effect of a broadcast
+  // device rather than a control.)
+  sim.squad.stance = STANCE.HOLD;
 
   let guard = 0;
   while (sim.phase === PHASE.PLAYING && guard++ < 60 * 400) {

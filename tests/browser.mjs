@@ -344,6 +344,28 @@ check('and dismissing it returns to the floor',
     && window.__syndicate.sim.elapsed > 0 && !window.__syndicate.sim.interlude)
     && !(await page.isVisible('#overlay-choices')));
 
+// --- fire discipline. H cycles it and the HUD has to say so on screen —
+// --- a stance the player must remember they set is one they will blame
+// --- the game for.
+const stance0 = await page.textContent('#hud-stance');
+await page.keyboard.press('h');
+await page.waitForTimeout(300);
+const stance1 = await page.textContent('#hud-stance');
+await page.keyboard.press('h');
+await page.waitForTimeout(300);
+const stance2 = await page.evaluate(() => ({
+  label: document.getElementById('hud-stance').textContent,
+  cls: document.getElementById('hud-stance').className,
+  stance: window.__syndicate.sim.squad.stance,
+}));
+check('H cycles fire discipline and the HUD follows',
+  stance0 !== stance1 && stance1 !== stance2.label && stance2.stance === 'hold',
+  `${stance0} → ${stance1} → ${stance2.label}`);
+check('and holding fire is called out, not just labelled',
+  stance2.cls.includes('holding'), stance2.cls);
+await page.keyboard.press('h');
+await page.waitForTimeout(300);
+
 // --- field devices. The sim tests prove the mechanics; only a browser run
 // --- proves E and T are actually wired to them and the HUD says so.
 const beltBefore = await page.evaluate(() => ({ ...window.__syndicate.sim.belt }));

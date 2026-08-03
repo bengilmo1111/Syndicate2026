@@ -100,6 +100,9 @@ the 2D logic onto a 3D engine instead of losing it.
       interludes, and the console that picks the ending
 - [x] **`epilogue`** (Act IV·15) — a third mission kind: no world, no
       choice, reads the ending back off the campaign flags
+- [x] **Fire discipline** — the control the non-lethal devices made
+      necessary; before it, the only way to stop the squad shooting was to
+      hold the Aligner, which worked but was a side effect
 - [x] **Non-lethal and area-denial devices** (`GAP_ANALYSIS.md` gap 4) —
       CHOKE FIELD and STANDDOWN AEROSOL, thrown at the cursor, affecting
       everyone in the footprint including the squad. A mission can now be
@@ -162,7 +165,8 @@ the 2D logic onto a 3D engine instead of losing it.
       them from the direction they are being shot from.
 - [x] Suppression: near-misses widen the target's spread and make them
       reconsider their position
-- [ ] Stances (hold / advance / engage-at-will) — the obvious next layer
+- [x] Fire discipline — engage at will / return fire / hold fire (`H`),
+      with `provoked` set by a near miss and expiring after 4s
 - [ ] Hostiles retreat when badly hurt rather than dying in place
 
 ## Phase 4 — Loadout and progression
