@@ -19,6 +19,9 @@ import { loadCampaign, saveCampaign, clearCampaign } from './ui/storage.js';
 import {
   CYBERNETICS, CYBERNETIC_IDS, deployed, fit, fitBlocker,
 } from './core/roster.js';
+import {
+  SECTORS, THROTTLE, cycleThrottle, income, statusOf, yieldOf, REVOLT_AT,
+} from './core/territory.js';
 
 const canvas = document.getElementById('game-canvas');
 const view = new View(canvas);
@@ -36,8 +39,13 @@ const app = {
 // one — a returning player should not have to click past what they finished.
 app.selectedMissionId = (nextMission(app.campaign, MISSIONS) ?? MISSIONS[0]).id;
 
-/** The briefing card can show the roster or the cryovat. Same card. */
-let cryovatOpen = false;
+/**
+ * The briefing card has three faces: the briefing itself, the cryovat,
+ * and the sector map. One card, because they are one decision — who you
+ * risk, what you spend, and what you squeeze to afford it.
+ */
+const PANEL = { BRIEF: 'brief', CRYOVAT: 'cryovat', MAP: 'map' };
+let panel = PANEL.BRIEF;
 /** A device the player asked for, waiting for the next simulation step. */
 let pendingDevice = null;
 
@@ -47,6 +55,39 @@ const pointer = { nx: 0.5, ny: 0.5, firing: false, orbiting: false, lastX: 0, la
 // ---------------------------------------------------------------------------
 // Mission lifecycle
 // ---------------------------------------------------------------------------
+
+/** The sector map: what you hold, how hard, and how close it is to going. */
+function mapView() {
+  const territory = app.campaign.territory;
+  const rows = SECTORS.map(s => {
+    const t = territory[s.id];
+    const status = statusOf(t);
+    return {
+      id: s.id,
+      name: s.name,
+      detail: s.detail,
+      held: t.held,
+      unrest: t.unrest,
+      revoltAt: REVOLT_AT,
+      status,
+      throttleLabel: THROTTLE[t.throttle].label,
+      throttleNote: `${THROTTLE[t.throttle].name} — ${THROTTLE[t.throttle].note}`,
+      detail_line: t.held
+        ? `${s.detail} · pays ${yieldOf(s, t).toFixed(1)} · ${status.toLowerCase()}`
+        : (t.lostTo === 'revolt' ? `${s.detail} · handed itself back` : s.detail),
+    };
+  });
+  return {
+    heading: `<b>AUSTIN</b> · ${rows.filter(r => r.held).length}/${SECTORS.length} HELD · `
+      + `THE MAP PAYS ${income(territory)} PER DEPLOYMENT`,
+    sectors: rows,
+    onThrottle: (id) => {
+      cycleThrottle(app.campaign.territory, id);
+      saveCampaign(app.campaign);
+      showBriefing();
+    },
+  };
+}
 
 /**
  * The roster block for the briefing card. In cryovat mode every implant
@@ -150,16 +191,16 @@ function showBriefing() {
     })),
     onSelectTab: (id) => { app.selectedMissionId = id; showBriefing(); },
     body,
-    roster: rosterView(cryovatOpen),
-    // The cryovat takes the card over while it is open, so the player
-    // cannot fit an implant and deploy in the same click without seeing
-    // the roster again. Fittings are permanent; make them deliberate.
-    button: cryovatOpen
-      ? { label: 'CLOSE CRYOVAT', onClick: toggleCryovat }
-      : { label: isComplete(app.campaign, def.id) ? 'REDEPLOY' : 'DEPLOY', onClick: startMission },
-    altButton: cryovatOpen
-      ? (app.campaign.completed.length ? { label: 'WIPE RECORD', onClick: resetCampaign } : null)
-      : { label: 'CRYOVAT', onClick: toggleCryovat },
+    roster: panel === PANEL.MAP ? null : rosterView(panel === PANEL.CRYOVAT),
+    map: panel === PANEL.MAP ? mapView() : null,
+    // A panel takes the card over while it is open, so the player cannot
+    // fit an implant or move a throttle and deploy in the same click
+    // without seeing the consequence. Both are permanent-ish; make them
+    // deliberate.
+    button: panel === PANEL.BRIEF
+      ? { label: isComplete(app.campaign, def.id) ? 'REDEPLOY' : 'DEPLOY', onClick: startMission }
+      : { label: 'BACK TO BRIEFING', onClick: () => showPanel(PANEL.BRIEF) },
+    altButton: nextPanelButton(),
     hint: CONTROLS_HINT,
   });
   showOverlay();
@@ -248,20 +289,34 @@ function showEpilogue(def) {
   showOverlay();
 }
 
-function toggleCryovat() {
-  cryovatOpen = !cryovatOpen;
+function showPanel(next) {
+  panel = next;
   showBriefing();
+}
+
+/**
+ * The secondary action, which cycles the card's faces — and, on the map,
+ * becomes the one destructive control in the game. WIPE RECORD lives
+ * there rather than on the briefing because the map is the page you are
+ * on when you are thinking about the campaign as a whole.
+ */
+function nextPanelButton() {
+  if (panel === PANEL.BRIEF) return { label: 'CRYOVAT', onClick: () => showPanel(PANEL.CRYOVAT) };
+  if (panel === PANEL.CRYOVAT) return { label: 'SECTOR MAP', onClick: () => showPanel(PANEL.MAP) };
+  return app.campaign.completed.length
+    ? { label: 'WIPE RECORD', onClick: resetCampaign }
+    : null;
 }
 
 function resetCampaign() {
   app.campaign = clearCampaign();
   app.selectedMissionId = MISSIONS[0].id;
-  cryovatOpen = false;
+  panel = PANEL.BRIEF;
   showBriefing();
 }
 
 function startMission() {
-  cryovatOpen = false;
+  panel = PANEL.BRIEF;
   app.sim = createSim(app.selectedMissionId, { roster: app.campaign.roster });
   view.loadCity(app.sim.city);
   view.rig.yaw = 0;
@@ -326,8 +381,20 @@ function showDebrief(won) {
       ? `The mesh has people. ${casualties.drawn.map(o => `<em>${o.name}</em> takes ${o.designation}`).join('; ')}. Nobody briefs them on whose suit it is.`
       : 'There is nobody left in the pool. The next deployment goes in short-handed.');
   }
-  if (casualties?.earned) {
-    stats.push('', `<em>RESEARCH BANKED ${casualties.earned} — cryovat fittings are on the briefing card.</em>`);
+  if (casualties?.claimed) {
+    stats.push('', `<strong>${casualties.claimed.name} IS YOURS</strong> — ${casualties.claimed.detail}. It pays while you hold it, and it will not like being held.`);
+  }
+  for (const s of casualties?.revolted ?? []) {
+    stats.push('', `<strong>${s.name} HAS GONE</strong> — held too hard for too long. It is off the map and it is not coming back on its own.`);
+  }
+  if (casualties?.straining?.length) {
+    stats.push('', `<em>STRAINING — ${casualties.straining.map(s => s.name).join(' · ')}. Ease the ration or lose them.</em>`);
+  }
+  if (casualties?.earned || casualties?.paid) {
+    const from = casualties.paid
+      ? `${casualties.earned} from the deployment, ${casualties.paid} from the map`
+      : `${casualties.earned} from the deployment`;
+    stats.push('', `<em>RESEARCH BANKED ${casualties.earned + casualties.paid} — ${from}. The cryovat and the sector map are both on the briefing card.</em>`);
   }
   const titles = def.debrief.titles ?? {};
   const lostTitle = titles[app.sim.failReason]

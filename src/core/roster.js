@@ -44,33 +44,39 @@ export const SQUAD_SIZE = 4;
  * Deliberately small and legible: each one is a single number the player
  * can feel in the next firefight. No stacking trees, no percentages of
  * percentages. `apply(agent)` is the whole implementation.
+ *
+ * Costs are set against the *whole* economy, not just the per-mission
+ * award. Kitting all four operatives out completely is 144 research and a
+ * campaign does not pay that, so the cryovat is a question about who
+ * matters rather than a checklist you finish. Raising these was the right
+ * response to the map paying an income — see `territory.js`.
  */
 export const CYBERNETICS = Object.freeze({
   LEGS: {
     id: 'LEGS',
     name: 'LEG ACTUATORS',
-    cost: 2,
+    cost: 6,
     blurb: '+18% movement. Everything about this game is arriving first.',
     apply: (a) => { a.baseSpeed *= 1.18; a.speed = a.baseSpeed; },
   },
   ARMOUR: {
     id: 'ARMOUR',
     name: 'SUBDERMAL WEAVE',
-    cost: 3,
+    cost: 9,
     blurb: '+40 health. The difference between a bad corner and a funeral.',
     apply: (a) => { a.maxHealth += 40; a.health = a.maxHealth; },
   },
   OPTICS: {
     id: 'OPTICS',
     name: 'TARGETING OPTICS',
-    cost: 3,
+    cost: 9,
     blurb: '+20% weapon range. Shoot from where they are not looking.',
     apply: (a) => { a.range *= 1.2; },
   },
   REFLEX: {
     id: 'REFLEX',
     name: 'REFLEX GOVERNOR',
-    cost: 4,
+    cost: 12,
     blurb: '+15% fire rate, and no order hesitation, ever.',
     apply: (a) => {
       a.fireRate *= 1.15;

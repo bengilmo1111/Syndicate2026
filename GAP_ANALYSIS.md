@@ -84,7 +84,7 @@ Legend: ✅ have · ◐ partial · ❌ missing
 
 Ranked by **how much the game changes per unit of work**, not by size.
 
-### 1. There is no meta-game at all
+### 1. There is no meta-game at all — **closed**
 The entire strategic half of the original is absent. No world map, no
 territory, no economy, no research, no persistence. Every mission is
 currently a disconnected sandbox, so nothing the player does accumulates.
@@ -96,7 +96,31 @@ and tactical layers would be arguing the same argument at two scales.
 That's a strong thematic fit, and it's already what `PRD.md` pillar 5
 promises.
 
-*Where:* Phase 5. Biggest single gap.
+**Shipped** in `src/core/territory.js`. Ten sectors of Austin, each taken
+by winning its mission, each held at one of four **rations** — the
+Instance tiers read as a ceiling. FRONTIER takes almost nothing and calms
+the sector; FREE caps everyone at the floor, pays best, and cannot hold.
+
+The shape the gap asked for is exact: **the ration is SURGE one scale
+up.** SURGE takes cycles off the civilians nearest the squad for a
+tactical advantage and climbs heat; a ration takes cycles off a whole
+sector for a strategic advantage and climbs unrest. Same sentence,
+different font size, and the player answers the game's central question
+again every time they open the map.
+
+It pays into `research` — the currency the cryovat already spent — so the
+loop closes rather than running alongside. Implant costs were raised to
+match; a whole campaign does not pay for a full kit at any ration, so the
+cryovat stays a question about who matters.
+
+Tuned so the obvious exploit fails. Playing the whole campaign at FREE
+earns more than PLUS and loses seven of ten sectors doing it, and a test
+asserts the margin stays small enough that squeezing is not simply
+correct — which is the failure state for a tax mechanic.
+
+*Still open:* rival syndicates contesting sectors (the map is currently
+you against unrest, not you against Amazon), and missions generated *by*
+the map rather than only feeding it.
 
 ### 2. Buildings are indestructible — **closed**
 "Level a city block" is the original's headline. We destroyed street

@@ -310,6 +310,7 @@ export const yelin = registerMission({
       tier: TIER.FRONTIER,
       health: 120,
       securable: false,   // he is not collected by being stood next to
+      fated: true,        // and not killed by a building, either
       leash: 0,
       line: 'You understand that I am going to keep talking.',
     });

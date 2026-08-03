@@ -128,6 +128,45 @@ button.implant.offer:disabled {
   cursor: not-allowed;
 }
 
+/* ------------------------------------------------------------ sector map */
+
+.sector-row .unheld { color: var(--text-dim); }
+
+.unrest {
+  display: inline-block;
+  width: 64px;
+  height: 8px;
+  border: 1px solid rgba(111, 227, 208, 0.3);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.unrest i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.unrest i.warn { background: var(--warn); }
+.unrest i.crit { background: var(--crit); }
+
+button.implant.throttle {
+  font-family: inherit;
+  cursor: pointer;
+  min-width: 10ch;
+  text-align: center;
+}
+
+button.implant.throttle:hover {
+  background: rgba(111, 227, 208, 0.2);
+}
+
+.implant.unheld-tag {
+  border-style: dashed;
+  color: var(--text-dim);
+  border-color: rgba(126, 142, 160, 0.4);
+  background: none;
+}
+
 /* ---------------------------------------------------------- field devices */
 
 /* Above the compute panel, which sits above the full-width squad bar.

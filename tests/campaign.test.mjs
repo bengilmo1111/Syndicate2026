@@ -5,7 +5,7 @@
 // mission. Shuffled, it is four disconnected firefights.
 
 import '../src/missions/index.js';
-import { suite, test, ok, notOk, eq, gte, gt, includes } from './lib/harness.mjs';
+import { suite, test, ok, notOk, eq, gte, gt, lt, includes } from './lib/harness.mjs';
 import { createSim } from '../src/core/sim.js';
 import { autoplay } from './lib/autopilot.mjs';
 import {
@@ -14,8 +14,13 @@ import {
 } from '../src/core/campaign.js';
 import { getAllMissions, getMissionDef } from '../src/core/mission.js';
 import {
-  SQUAD_SIZE, deployed, byId, researchFor, canFit, fit, fitBlocker,
+  SQUAD_SIZE, deployed, byId, researchFor, canFit, fit, fitBlocker, CYBERNETICS,
+  CYBERNETIC_IDS,
 } from '../src/core/roster.js';
+import {
+  SECTORS, THROTTLE, THROTTLE_ORDER, heldSectors, setThrottle, income,
+  statusOf, UNREST_ON_CLAIM,
+} from '../src/core/territory.js';
 
 const MISSIONS = getAllMissions();
 const def = id => getMissionDef(id);
@@ -265,10 +270,14 @@ test('research rewards bringing everyone home and killing no civilians', () => {
 
 test('the cryovat spends research, and only research you have', () => {
   const c = newCampaign();
-  c.roster.research = 3;
+  // Exactly enough for the weave and not the governor, whatever those
+  // cost this week — the point is the boundary, not the number.
+  c.roster.research = CYBERNETICS.ARMOUR.cost;
+  ok(CYBERNETICS.REFLEX.cost > CYBERNETICS.ARMOUR.cost, 'the governor is the dearest');
 
   notOk(canFit(c.roster, 'alpha', 'REFLEX'), 'cannot afford the governor');
-  includes(fitBlocker(c.roster, 'alpha', 'REFLEX'), 'NEEDS 4', 'and it says why');
+  includes(fitBlocker(c.roster, 'alpha', 'REFLEX'),
+    `NEEDS ${CYBERNETICS.REFLEX.cost}`, 'and it says why');
 
   ok(fit(c.roster, 'alpha', 'ARMOUR'), 'can afford the weave');
   eq(c.roster.research, 0, 'and it is spent');
@@ -375,4 +384,176 @@ test('the campaign still finishes with a squad that has been rebuilt twice', () 
 
   const r = autoplay('sector-7', { roster: c.roster });
   ok(r.won, 'and a rebuilt squad can still win');
+});
+
+// --------------------------------------------------------------- territory
+
+suite('territory');
+
+test('a fresh campaign holds nothing, and every sector is a real place', () => {
+  const c = newCampaign();
+  eq(heldSectors(c.territory).length, 0, 'you start with nothing');
+  gte(SECTORS.length, 8, 'and there is a map to take');
+  for (const s of SECTORS) {
+    ok(s.name && s.detail, `${s.id}: is a named place`);
+    gte(s.yield, 1, `${s.id}: is worth something`);
+    ok(getMissionDef(s.from), `${s.id}: is taken by a real mission`);
+  }
+});
+
+test('winning a mission takes its sector, once', () => {
+  const c = newCampaign();
+  const first = recordCasualties(c, 'sector-7', { squadAlive: 4 });
+  eq(first.claimed?.id, 'sector-7', 'the sector is yours');
+  ok(c.territory['sector-7'].held, 'and held');
+  eq(c.territory['sector-7'].unrest, UNREST_ON_CLAIM, 'nobody is pleased about it');
+
+  const again = recordCasualties(c, 'sector-7', { squadAlive: 4 });
+  eq(again.claimed, null, 'replaying it does not re-take it');
+  ok(c.territory['sector-7'].unrest > UNREST_ON_CLAIM, 'or reset how it feels');
+});
+
+test('the throttle is SURGE at the scale of a sector', () => {
+  // Take more, pay for it socially. Same sentence as SURGE, different
+  // font size — that is the whole reason this layer exists.
+  const order = THROTTLE_ORDER.map(id => THROTTLE[id]);
+  for (let i = 1; i < order.length; i++) {
+    ok(order[i].yield > order[i - 1].yield,
+      `${order[i].id} pays more than ${order[i - 1].id}`);
+    ok(order[i].unrest > order[i - 1].unrest,
+      `${order[i].id} costs more than ${order[i - 1].id}`);
+  }
+  ok(order[0].unrest < 0, 'the loosest ration actually calms a sector down');
+  ok(order[order.length - 1].unrest > 0, 'and the tightest cannot hold');
+});
+
+test('a sector held at the hardest ration hands itself back', () => {
+  const c = newCampaign();
+  recordCasualties(c, 'sector-7', { squadAlive: 4 });
+  setThrottle(c.territory, 'sector-7', 'FREE');
+
+  let cycles = 0;
+  let revolt = null;
+  while (cycles++ < 40 && !revolt) {
+    const r = recordCasualties(c, 'nothing-in-particular', {});
+    if (r.revolted.length) revolt = { at: cycles, sectors: r.revolted };
+  }
+  ok(revolt, `it revolts (after ${revolt?.at} deployments)`);
+  eq(revolt.sectors[0].id, 'sector-7', 'the one you squeezed');
+  notOk(c.territory['sector-7'].held, 'and it is off the map');
+  eq(c.territory['sector-7'].lostTo, 'revolt', 'for a reason it can state');
+
+  // Inside a single playthrough, on purpose. A punishment that arrives
+  // after the credits is not a punishment.
+  lt(revolt.at, 15, `${revolt.at} deployments is inside one campaign`);
+});
+
+test('the loosest ration pulls a sector back from the brink', () => {
+  const c = newCampaign();
+  recordCasualties(c, 'sector-7', { squadAlive: 4 });
+  c.territory['sector-7'].unrest = 90;
+  setThrottle(c.territory, 'sector-7', 'FRONTIER');
+  for (let i = 0; i < 10; i++) recordCasualties(c, 'nothing', {});
+  ok(c.territory['sector-7'].held, 'still yours');
+  lt(c.territory['sector-7'].unrest, 60, 'and calming down');
+  notOk(statusOf(c.territory['sector-7']) === 'STRAINING', 'off the brink');
+
+  // All the way back, given long enough. A sector you cannot ever calm
+  // is a sector you may as well squeeze.
+  for (let i = 0; i < 20; i++) recordCasualties(c, 'nothing', {});
+  eq(statusOf(c.territory['sector-7']), 'QUIET', 'and eventually quiet');
+});
+
+test('the map pays into the same research the cryovat spends', () => {
+  // The loop has to close, or the strategic layer is a spreadsheet
+  // beside the game rather than part of it.
+  const c = newCampaign();
+  recordCasualties(c, 'sector-7', { squadAlive: 4, civilianDeaths: 0 });
+  const afterOne = c.roster.research;
+  recordCasualties(c, 'district-12', { squadAlive: 4, civilianDeaths: 0 });
+  const afterTwo = c.roster.research - afterOne;
+
+  ok(afterTwo > afterOne - 1, 'holding two sectors pays better than holding one');
+  ok(income(c.territory) > 0, 'the map has an income');
+  ok(fit(c.roster, 'alpha', 'LEGS') || c.roster.research < CYBERNETICS.LEGS.cost,
+    'and it is the currency the cryovat wants');
+});
+
+test('squeezing everything is not the winning move', () => {
+  // The failure state for a tax mechanic is that maximum tax is always
+  // correct. Playing the whole campaign at each ration must not make the
+  // hardest one obviously best.
+  const run = (mode) => {
+    const c = newCampaign();
+    let lost = 0;
+    for (const m of getAllMissions()) {
+      lost += recordCasualties(c, m.id, { squadAlive: 4, civilianDeaths: 0 }).revolted.length;
+      for (const s of heldSectors(c.territory)) setThrottle(c.territory, s.id, mode);
+    }
+    return { research: c.roster.research, held: heldSectors(c.territory).length, lost };
+  };
+  const plus = run('PLUS');
+  const free = run('FREE');
+
+  ok(free.research > plus.research, 'squeezing does pay more');
+  lt(free.held, plus.held, `but you lose the map (${free.held} vs ${plus.held} sectors)`);
+  ok(free.research < plus.research * 1.5,
+    `and not by enough to be obvious (${plus.research} vs ${free.research})`);
+});
+
+test('a campaign does not pay for a full kit, at any ration', () => {
+  // If it did, the cryovat would stop being a question about who matters
+  // and become a checklist you finish.
+  const fullKit = CYBERNETIC_IDS.reduce((n, id) => n + CYBERNETICS[id].cost, 0) * SQUAD_SIZE;
+  for (const mode of THROTTLE_ORDER) {
+    const c = newCampaign();
+    for (const m of getAllMissions()) {
+      recordCasualties(c, m.id, { squadAlive: 4, civilianDeaths: 0 });
+      for (const s of heldSectors(c.territory)) setThrottle(c.territory, s.id, mode);
+    }
+    lt(c.roster.research, fullKit,
+      `${mode}: ${c.roster.research} banked against ${fullKit} to kit everyone`);
+  }
+});
+
+test('a v3 save keeps everything and gains an empty map', () => {
+  const c = migrate({
+    version: 3,
+    completed: ['sector-7', 'district-12'],
+    flags: { ending: 'walk' },
+    roster: { research: 7, operatives: [{ id: 'alpha', slot: 0, implants: ['LEGS'] }] },
+  });
+  eq(c.version, SAVE_VERSION, 'stamped current');
+  eq(c.completed.length, 2, 'progress survives');
+  eq(c.roster.research, 7, 'and so does the research');
+  eq(heldSectors(c.territory).length, 0, 'the map starts empty rather than handing you ten sectors');
+});
+
+test('a corrupt map does not take the campaign down with it', () => {
+  for (const junk of [null, 'nonsense', 42, { 'sector-7': 'yes' }, { 'sector-7': { throttle: 'GONE' } }]) {
+    const c = migrate({ version: 4, completed: ['sector-7'], territory: junk });
+    eq(Object.keys(c.territory).length, SECTORS.length, `${JSON.stringify(junk)}: a whole map`);
+    eq(c.completed.length, 1, 'and the progress is intact');
+    for (const s of SECTORS) {
+      ok(THROTTLE[c.territory[s.id].throttle], `${s.id}: has a throttle that exists`);
+    }
+  }
+});
+
+test('a real map round-trips through a save', () => {
+  // The corrupt-input tests all pass if migration simply throws the map
+  // away and hands back a fresh one, which would silently reset every
+  // returning player's campaign.
+  const before = newCampaign();
+  recordCasualties(before, 'sector-7', { squadAlive: 4 });
+  recordCasualties(before, 'relay-4-not-a-mission', {});
+  setThrottle(before.territory, 'sector-7', 'FREE');
+  before.territory['sector-7'].unrest = 64;
+
+  const after = migrate(JSON.parse(JSON.stringify(before)));
+  const t = after.territory['sector-7'];
+  ok(t.held, 'still held');
+  eq(t.throttle, 'FREE', 'at the ration you set');
+  eq(t.unrest, 64, 'and as angry as you left it');
+  eq(income(after.territory), income(before.territory), 'so it pays the same');
 });
