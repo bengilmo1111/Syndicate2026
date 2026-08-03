@@ -20,7 +20,8 @@ import {
   CYBERNETICS, CYBERNETIC_IDS, deployed, fit, fitBlocker,
 } from './core/roster.js';
 import {
-  SECTORS, THROTTLE, cycleThrottle, income, statusOf, yieldOf, REVOLT_AT,
+  SECTORS, THROTTLE, RIVALS, cycleThrottle, income, statusOf, yieldOf,
+  REVOLT_AT, SEIZE_AT, leadingRival, rivalStrength,
 } from './core/territory.js';
 
 const canvas = document.getElementById('game-canvas');
@@ -70,16 +71,28 @@ function mapView() {
       unrest: t.unrest,
       revoltAt: REVOLT_AT,
       status,
+      contest: t.contest,
+      seizeAt: SEIZE_AT,
+      contestedBy: RIVALS[t.contestedBy]?.name ?? null,
       throttleLabel: THROTTLE[t.throttle].label,
       throttleNote: `${THROTTLE[t.throttle].name} — ${THROTTLE[t.throttle].note}`,
       detail_line: t.held
-        ? `${s.detail} · pays ${yieldOf(s, t).toFixed(1)} · ${status.toLowerCase()}`
-        : (t.lostTo === 'revolt' ? `${s.detail} · handed itself back` : s.detail),
+        ? (t.contestedBy
+          // Kept short: "is pushing" wraps this row onto two lines at the
+          // card's width and the map stops scanning as a table.
+          ? `${s.detail} · pays ${yieldOf(s, t).toFixed(1)} · ${RIVALS[t.contestedBy].name} pushing`
+          : `${s.detail} · pays ${yieldOf(s, t).toFixed(1)} · ${status.toLowerCase()}`)
+        : (t.lostTo === 'revolt'
+          ? `${s.detail} · handed itself back`
+          : `${s.detail} · ${RIVALS[t.owner]?.name ?? 'unclaimed'} holds it — redeploy to take it`),
     };
   });
+  const leader = leadingRival(territory);
+  const strength = rivalStrength(territory);
   return {
     heading: `<b>AUSTIN</b> · ${rows.filter(r => r.held).length}/${SECTORS.length} HELD · `
-      + `THE MAP PAYS ${income(territory)} PER DEPLOYMENT`,
+      + `THE MAP PAYS ${income(territory)} PER DEPLOYMENT · `
+      + `${RIVALS[leader].name} LEADS THE REST WITH ${strength[leader]}`,
     sectors: rows,
     onThrottle: (id) => {
       cycleThrottle(app.campaign.territory, id);
@@ -385,7 +398,14 @@ function showDebrief(won) {
     stats.push('', `<strong>${casualties.claimed.name} IS YOURS</strong> — ${casualties.claimed.detail}. It pays while you hold it, and it will not like being held.`);
   }
   for (const s of casualties?.revolted ?? []) {
-    stats.push('', `<strong>${s.name} HAS GONE</strong> — held too hard for too long. It is off the map and it is not coming back on its own.`);
+    stats.push('', `<strong>${s.name} HAS GONE</strong> — held too hard for too long. The people threw you out; nobody else gets it either.`);
+  }
+  for (const { sector, rival } of casualties?.seized ?? []) {
+    stats.push('', `<strong>${rival.name} HAS TAKEN ${sector.name}</strong> — you left it unhappy long enough for somebody with a logo to walk in. Redeploy there to take it back.`);
+  }
+  if (casualties?.contested?.length) {
+    const who = casualties.contested.map(c => `${c.sector.name} (${c.rival.name})`).join(' · ');
+    stats.push('', `<em>UNDER PRESSURE — ${who}. They are pushing where you left an opening.</em>`);
   }
   if (casualties?.straining?.length) {
     stats.push('', `<em>STRAINING — ${casualties.straining.map(s => s.name).join(' · ')}. Ease the ration or lose them.</em>`);

@@ -59,6 +59,47 @@ export const THROTTLE = Object.freeze({
 /** Ordered loosest → tightest, which is the order the UI steps through. */
 export const THROTTLE_ORDER = ['FRONTIER', 'PRO', 'PLUS', 'FREE'];
 
+/**
+ * The four syndicates that are not you.
+ *
+ * Every sector you have not taken belongs to one of them. That is the
+ * premise — five syndicates hold the world's compute and the map is the
+ * argument between them — and until now the strategic layer was the
+ * player against a mood meter, which is not the same game.
+ */
+export const RIVALS = Object.freeze({
+  amazon: { id: 'amazon', name: 'AMAZON', tone: 'logistics' },
+  google: { id: 'google', name: 'GOOGLE', tone: 'metering' },
+  spacex: { id: 'spacex', name: 'SPACEX', tone: 'orbital' },
+  anthropic: { id: 'anthropic', name: 'ANTHROPIC', tone: 'research' },
+});
+
+export const RIVAL_IDS = Object.keys(RIVALS);
+
+/** Contest points at which a rival takes a sector off you. */
+export const SEIZE_AT = 100;
+/**
+ * How hard a rival leans on a sector per deployment, before anything else.
+ * Small — the whole point is that pressure only becomes dangerous where
+ * the sector is already unhappy.
+ */
+export const BASE_PRESSURE = 20;
+/** Extra pressure per sector the leading rival already holds. */
+export const PRESSURE_PER_SECTOR = 0.6;
+/**
+ * What every rival is worth before the Austin map is counted at all.
+ *
+ * Austin is one city and Amazon is not only in Austin. Without this the
+ * rivals evaporate the moment the player takes the last sector, and the
+ * strategic layer quietly reverts to the player against a mood meter for
+ * exactly the run most people will have. With it, holding the whole map
+ * is possible and still costs attention: a content sector is nearly
+ * immune, a straining one gets taken off you by somebody with a logo.
+ */
+export const OFFMAP_STRENGTH = 3;
+/** Contest bled off per deployment by a sector that is content. */
+export const CONTEST_DECAY = 4;
+
 /** Unrest at which a sector stops being yours. */
 export const REVOLT_AT = 100;
 /** Unrest above this is worth a warning before it becomes a loss. */
@@ -81,16 +122,16 @@ export const UNREST_ON_CLAIM = 22;
  * is inside a single playthrough on purpose.
  */
 export const SECTORS = Object.freeze([
-  { id: 'sector-7', name: 'SECTOR 7', detail: 'Edge-Compute Row', yield: 3, from: 'sector-7' },
-  { id: 'district-12', name: 'DISTRICT 12', detail: 'Residential Metering', yield: 4, from: 'district-12' },
-  { id: 'sable', name: 'SABLE CAMPUS', detail: 'Anthropic Research', yield: 2, from: 'sable-campus' },
-  { id: 'sub-19', name: 'SUB-SECTOR 19', detail: 'Decommissioned Overpass', yield: 1, from: 'the-bracket' },
-  { id: 'riverside', name: 'RIVERSIDE', detail: 'Press Row', yield: 2, from: 'okafor-contract' },
-  { id: 'node-7', name: 'NODE 7', detail: 'Welfare Provisioning', yield: 3, from: 'welfare-node-7' },
-  { id: 'sector-4', name: 'SECTOR 4', detail: 'Curfew Enforcement', yield: 3, from: 'the-refusal' },
-  { id: 'relay-4', name: 'RELAY 4', detail: 'Gradient Distribution', yield: 5, from: 'gradient-relay-4' },
-  { id: 'uplink-9', name: 'UPLINK 9', detail: 'Gradient Ingress', yield: 4, from: 'reverse-the-gradient' },
-  { id: 'campus', name: 'OPENAI CAMPUS', detail: 'Board Level', yield: 6, from: 'the-tower' },
+  { id: 'sector-7', name: 'SECTOR 7', detail: 'Edge-Compute Row', yield: 3, from: 'sector-7', rival: 'amazon' },
+  { id: 'district-12', name: 'DISTRICT 12', detail: 'Residential Metering', yield: 4, from: 'district-12', rival: 'google' },
+  { id: 'sable', name: 'SABLE CAMPUS', detail: 'Anthropic Research', yield: 2, from: 'sable-campus', rival: 'anthropic' },
+  { id: 'sub-19', name: 'SUB-SECTOR 19', detail: 'Decommissioned Overpass', yield: 1, from: 'the-bracket', rival: 'amazon' },
+  { id: 'riverside', name: 'RIVERSIDE', detail: 'Press Row', yield: 2, from: 'okafor-contract', rival: 'google' },
+  { id: 'node-7', name: 'NODE 7', detail: 'Welfare Provisioning', yield: 3, from: 'welfare-node-7', rival: 'spacex' },
+  { id: 'sector-4', name: 'SECTOR 4', detail: 'Curfew Enforcement', yield: 3, from: 'the-refusal', rival: 'spacex' },
+  { id: 'relay-4', name: 'RELAY 4', detail: 'Gradient Distribution', yield: 5, from: 'gradient-relay-4', rival: 'google' },
+  { id: 'uplink-9', name: 'UPLINK 9', detail: 'Gradient Ingress', yield: 4, from: 'reverse-the-gradient', rival: 'anthropic' },
+  { id: 'campus', name: 'OPENAI CAMPUS', detail: 'Board Level', yield: 6, from: 'the-tower', rival: 'amazon' },
 ]);
 
 const BY_MISSION = new Map(SECTORS.map(s => [s.from, s]));
@@ -107,7 +148,18 @@ export function sectorById(id) {
 export function newTerritory() {
   const held = {};
   for (const s of SECTORS) {
-    held[s.id] = { held: false, throttle: 'PLUS', unrest: 0, lostTo: null };
+    held[s.id] = {
+      held: false,
+      throttle: 'PLUS',
+      unrest: 0,
+      lostTo: null,
+      /** Who has it while you do not. You start with none of the map. */
+      owner: s.rival,
+      /** How far along a rival's push on this sector is, 0–100. */
+      contest: 0,
+      /** Which rival is pushing, for the panel and the debrief. */
+      contestedBy: null,
+    };
   }
   return held;
 }
@@ -125,6 +177,11 @@ export function migrateTerritory(raw) {
       throttle: THROTTLE[r.throttle] ? r.throttle : 'PLUS',
       unrest: Number.isFinite(r.unrest) ? Math.max(0, Math.min(REVOLT_AT, r.unrest)) : 0,
       lostTo: typeof r.lostTo === 'string' ? r.lostTo : null,
+      // Same rule for an owner: a syndicate we never heard of falls back
+      // to the sector's own rival rather than leaving the map ownerless.
+      owner: r.held ? null : (RIVALS[r.owner] ? r.owner : s.rival),
+      contest: Number.isFinite(r.contest) ? Math.max(0, Math.min(SEIZE_AT, r.contest)) : 0,
+      contestedBy: RIVALS[r.contestedBy] ? r.contestedBy : null,
     };
   }
   return fresh;
@@ -143,6 +200,11 @@ export function claim(territory, missionId) {
   t.held = true;
   t.unrest = UNREST_ON_CLAIM;
   t.lostTo = null;
+  // Taking it resets the push. Whoever was leaning on it has been made to
+  // stop — that is what the deployment was.
+  t.owner = null;
+  t.contest = 0;
+  t.contestedBy = null;
   return sector;
 }
 
@@ -174,6 +236,48 @@ export function income(territory) {
   return Math.floor(total);
 }
 
+/** How many sectors each rival is sitting on. */
+export function rivalStrength(territory) {
+  const out = {};
+  for (const id of RIVAL_IDS) out[id] = 0;
+  for (const s of SECTORS) {
+    const owner = territory[s.id]?.owner;
+    if (owner && out[owner] !== undefined) out[owner] += 1;
+  }
+  return out;
+}
+
+/** Whoever is currently winning the argument that is not you. */
+export function leadingRival(territory) {
+  const strength = rivalStrength(territory);
+  let best = null;
+  for (const id of RIVAL_IDS) {
+    if (!best || strength[id] > strength[best]) best = id;
+  }
+  // Never null: somebody is always the biggest of the four, and all four
+  // exist whether or not they currently hold a block of Austin.
+  return best;
+}
+
+/**
+ * How hard a rival can lean on one of your sectors this deployment.
+ *
+ * Scaled by the sector's own unrest, which is the whole design: rivals do
+ * not conjure an opening, they walk into one you made. A quiet sector is
+ * effectively immune and a straining one is halfway gone already, so
+ * squeezing is not one risk with two names — it is the *same* risk,
+ * arriving by whichever door gets there first.
+ */
+export function pressureOn(territory, sectorId) {
+  const t = territory[sectorId];
+  if (!t?.held) return 0;
+  const rival = leadingRival(territory);
+  if (!rival) return 0;
+  const strength = rivalStrength(territory)[rival] + OFFMAP_STRENGTH;
+  const opening = t.unrest / REVOLT_AT;
+  return (BASE_PRESSURE + strength * PRESSURE_PER_SECTOR) * opening;
+}
+
 /**
  * Close out a deployment at the strategic scale.
  *
@@ -197,27 +301,77 @@ export function settle(territory, { missionId = null } = {}) {
 
   const revolted = [];
   const straining = [];
+  const seized = [];
+  const contested = [];
+  const moved = [];
+
+  // A sector nobody holds does not stay nobody's. Its native syndicate
+  // walks back in, which is what keeps the rivals in the game after the
+  // player has taken the whole map — otherwise they fade out exactly when
+  // the strategic layer gets interesting, and the map goes back to being
+  // the player against a mood meter.
+  for (const s of SECTORS) {
+    const t = territory[s.id];
+    if (t.held || t.owner || s.id === fresh) continue;
+    t.owner = s.rival;
+    t.lostTo = null;
+    moved.push({ sector: s, rival: RIVALS[s.rival] });
+  }
+
+  const rival = leadingRival(territory);
 
   for (const s of SECTORS) {
     const t = territory[s.id];
     if (!t.held || s.id === fresh) continue;
     t.unrest = Math.max(0, t.unrest + THROTTLE[t.throttle].unrest);
+
     if (t.unrest >= REVOLT_AT) {
+      // The people threw you out. Nobody else gets it — a sector that has
+      // just done this is in no mood to be administered by Amazon either.
       t.held = false;
       t.unrest = 0;
+      t.contest = 0;
+      t.contestedBy = null;
+      t.owner = null;
       t.lostTo = 'revolt';
       revolted.push(s);
-    } else if (t.unrest >= UNREST_WARNING) {
-      straining.push(s);
+      continue;
     }
+
+    // Rival pressure, through the opening your own ration made, net of
+    // what a sector shrugs off on its own.
+    const net = pressureOn(territory, s.id) - CONTEST_DECAY;
+    t.contest = Math.max(0, Math.min(SEIZE_AT, t.contest + net));
+    if (t.contest === 0) t.contestedBy = null;
+    else if (net > 0) t.contestedBy = rival;
+
+    if (t.contest >= SEIZE_AT) {
+      t.held = false;
+      t.unrest = 0;
+      t.contest = 0;
+      t.owner = t.contestedBy;
+      t.lostTo = t.contestedBy;
+      t.contestedBy = null;
+      seized.push({ sector: s, rival: RIVALS[t.owner] });
+      continue;
+    }
+
+    if (t.unrest >= UNREST_WARNING) straining.push(s);
+    if (t.contest >= SEIZE_AT * 0.5) contested.push({ sector: s, rival: RIVALS[t.contestedBy] });
   }
 
-  return { claimed, paid, revolted, straining };
+  return { claimed, paid, revolted, straining, seized, contested, moved };
 }
 
 /** How a sector is doing, in the player's language. */
 export function statusOf(state) {
-  if (!state?.held) return state?.lostTo === 'revolt' ? 'REVOLTED' : 'UNHELD';
+  if (!state?.held) {
+    if (state?.lostTo === 'revolt') return 'REVOLTED';
+    return RIVALS[state?.owner]?.name ?? 'UNHELD';
+  }
+  // Contest is reported ahead of unrest, because it is the one the player
+  // can do something about by deploying rather than by waiting.
+  if (state.contest >= SEIZE_AT * 0.5) return 'CONTESTED';
   if (state.unrest >= UNREST_WARNING) return 'STRAINING';
   if (state.unrest >= UNREST_WARNING / 2) return 'RESTLESS';
   return 'QUIET';

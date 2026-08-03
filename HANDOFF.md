@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~15s, 225 checks, no dependencies
+node tests/run.mjs        # the gate — ~15s, 234 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -205,6 +205,22 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   Third face of the briefing card, alongside the roster and the cryovat,
   because they are one decision: who you risk, what you spend, and what
   you squeeze to afford it.
+- **Rival syndicates** (`RIVALS` in `territory.js`) — every sector you have
+  not taken belongs to one of the four, and they push back. Pressure is
+  scaled by the sector's own **unrest** and is **net of `CONTEST_DECAY`**,
+  which is the whole design: rivals do not conjure an opening, they walk
+  into one you made, and a content sector out-shrugs anything they can
+  apply. That makes unrest and rival pressure the same risk arriving by
+  two doors rather than two meters to watch.
+  Squeeze hardest → the people throw you out (revolt). Ration at the Board
+  rate forever → a competitor walks in (seizure). A test plays the whole
+  campaign at each ration and asserts both actually fire.
+  **`OFFMAP_STRENGTH` is not decoration.** Austin is one city; without it
+  the rivals evaporate the moment the player takes the last sector, and
+  the strategic layer reverts to the player against a mood meter for
+  exactly the run most people will have.
+  A revolted sector goes to nobody, then its own syndicate walks back in —
+  otherwise the rivals quietly drain out of a long campaign.
 - **`Asset.fated`** — immune to collateral. `securable: false` stops a
   named person being *captured* by accident; this stops them being
   *killed* by one. Yelin and the authority root are fated: a kiosk coming
@@ -332,7 +348,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 225 checks, ~15s, zero dependencies. Covers city
+`node tests/run.mjs` — 234 checks, ~15s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -381,9 +397,13 @@ the stance at all. Eight more cover the strategic layer: making squeezing
 free, making the loosest ration pay as much as the tightest, never
 revolting, re-claiming a sector on a replay, keeping a retired throttle id
 from a save, having the map pay nothing, never loading a saved map, and
-making the cryovat cheap again. It is load-bearing, not decorative.
+making the cryovat cheap again. Seven more cover the rivals: making a
+quiet sector pushable, letting them evaporate when you hold everything,
+never seizing, dropping the contest decay, never re-occupying a revolted
+sector, leaving an owner set on a sector you just took, and keeping an
+unknown syndicate id from a save. It is load-bearing, not decorative.
 
-`node tests/browser.mjs` — 57 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 59 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -423,12 +443,11 @@ depth: `GAP_ANALYSIS.md` is the ranked backlog, and gaps 1, 2, 3, 4, 5, 7
 and 10 are now closed. What is left is vehicles, sound, camera occlusion
 and interiors — plus the halves of 1 and 4 noted there.
 
-1. **Rival syndicates on the map.** The strategic layer currently pits the
-   player against *unrest* rather than against Amazon, Google, SpaceX and
-   Anthropic — which is the half of gap 1 that is still open, and the
-   thing that would make the map feel contested rather than administered.
-   Missions generated *by* the map rather than only feeding it is the
-   same piece of work.
+1. **The four rivals play identically.** They take ground and nothing
+   else, which is precisely the flaw `GAP_ANALYSIS.md` §4 warns about
+   inheriting — the original's two factions were "largely cosmetic". Give
+   each a way of pushing that changes what the player does about it, and
+   let the map *generate* missions rather than only feeding them.
 2. **The offensive strange tools** (gap 4's remainder) — psycho gas,
    razor wire, satellite rain, the graviton gun. Additive now that
    `devices.js` exists; none of them need new architecture.

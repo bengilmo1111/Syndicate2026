@@ -118,9 +118,25 @@ earns more than PLUS and loses seven of ten sectors doing it, and a test
 asserts the margin stays small enough that squeezing is not simply
 correct — which is the failure state for a tax mechanic.
 
-*Still open:* rival syndicates contesting sectors (the map is currently
-you against unrest, not you against Amazon), and missions generated *by*
-the map rather than only feeding it.
+**Rivals shipped too.** Every sector you have not taken belongs to one of
+the four, and they push back — but only through the opening your own
+ration made. Pressure scales with a sector's unrest and is net of what a
+content sector shrugs off, so a quiet block is effectively immune and an
+unhappy one is halfway gone.
+
+That gives the two ways to lose a sector different rations. Squeeze
+hardest and the people throw you out before any rival gets the chance;
+ration at the Board rate forever and a competitor walks into what you
+left unhappy. Same cause, two doors, and a test plays the whole campaign
+at each ration to prove both fire.
+
+Rivals carry off-map reach, so taking all of Austin does not make them
+evaporate — holding everything is possible and still costs attention. A
+sector that revolts goes to nobody, then its own syndicate walks back in.
+
+*Still open:* missions generated *by* the map rather than only feeding
+it, and rivals doing something other than take ground — the four play
+identically, which is the flaw §4 warns about inheriting.
 
 ### 2. Buildings are indestructible — **closed**
 "Level a city block" is the original's headline. We destroyed street

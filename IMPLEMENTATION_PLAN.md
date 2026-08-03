@@ -103,6 +103,8 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] **The strategic layer** (`GAP_ANALYSIS.md` gap 1) — ten sectors,
       four rations, unrest, revolt, and an income that pays into the same
       research the cryovat spends. Save v4 with migration from v3.
+- [x] **Rival syndicates on the map** — the four hold everything you have
+      not taken and push back through the opening your ration made
 - [x] **Fire discipline** — the control the non-lethal devices made
       necessary; before it, the only way to stop the squad shooting was to
       hold the Aligner, which worked but was a side effect

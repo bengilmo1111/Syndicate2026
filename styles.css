@@ -149,6 +149,12 @@ button.implant.offer:disabled {
 .unrest i.warn { background: var(--warn); }
 .unrest i.crit { background: var(--crit); }
 
+/* The second bar is a rival's push, not the sector's mood. Different
+   accent so the two are never read as one meter with a gap in it. */
+.unrest.contest { width: 44px; border-color: rgba(143, 164, 255, 0.35); }
+.unrest.contest i { background: #8fa4ff; }
+.unrest.contest i.crit { background: var(--crit); }
+
 button.implant.throttle {
   font-family: inherit;
   cursor: pointer;
