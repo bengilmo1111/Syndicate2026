@@ -625,7 +625,13 @@ function resolveProjectile(sim, p) {
 
   // Friendly fire on bystanders. Never intentional, always expensive.
   for (const c of sim.civilians) {
-    if (c.aligned || !p.hits(c)) continue;
+    // …except for the handful of people whose fate is the mission's
+    // decision. A stray round killing Yelin mid-firefight silently
+    // converts the capture and walk-away endings into a corpse, and the
+    // player never finds out why. Same rule as `securable: false` and the
+    // collapse exemption: what happens to a person with a name has to be
+    // something the player chose, in as many words.
+    if (c.aligned || c.fated || !p.hits(c)) continue;
     const killed = c.takeDamage(damageAgainst(sim, p, c));
     c.scare(5);
     const spent = p.consumeHit(c);

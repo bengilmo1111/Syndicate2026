@@ -152,6 +152,16 @@ function renderMap(map) {
   head.innerHTML = map.heading;
   host.appendChild(head);
 
+  // Who the other four are and how each of them comes at you. Without
+  // this the doctrines are invisible mechanics and the syndicates are
+  // four names on the same behaviour.
+  if (map.dossier) {
+    const d = document.createElement('p');
+    d.className = 'rival-dossier';
+    d.innerHTML = map.dossier;
+    host.appendChild(d);
+  }
+
   for (const s of map.sectors) {
     const row = document.createElement('div');
     row.className = `roster-row sector-row ${s.status.toLowerCase()}`;

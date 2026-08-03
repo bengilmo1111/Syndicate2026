@@ -1102,3 +1102,47 @@ test('the syndicate files a sedated cell and a dead one identically', () => {
   eq(sim.neutralised, sim.kills + sim.downed, 'the report does not distinguish');
   ok(sim.kills < sim.neutralised, 'but the game still knows');
 });
+
+test('a fated character cannot be killed by a stray round', () => {
+  // Found by looping the suite after an intermittent failure rather than
+  // shrugging at it. Assets live in the civilian array, so Yelin was
+  // taking incidental friendly fire during a forty-second firefight —
+  // which silently converted the capture and walk-away endings into a
+  // corpse, and the player would never have found out why.
+  const sim = createSim('yelin');
+  const y = sim.assets.find(a => a.isYelin);
+  ok(y.fated, 'his fate is the mission\'s decision');
+
+  const before = y.health;
+  for (let i = 0; i < 40; i++) {
+    const p = new Projectile(y.x, y.z - 1, 0, 60, sim.squad.agents[0]);
+    p.friendly = true;
+    sim.projectiles.push(p);
+    step(sim, 1 / 60, idle);
+  }
+  eq(y.health, before, 'forty rounds through him and he is untouched');
+  notOk(y.dead, 'and still standing when the console asks');
+
+  // The deliberate route still works — that is the whole point.
+  const kill = getMissionDef('yelin').interludes
+    .find(i => i.id === 'fate').options.find(o => o.id === 'kill');
+  kill.effect(sim);
+  ok(y.dead, 'but choosing it on purpose does exactly what it says');
+});
+
+test('an ordinary named non-combatant is still killable, deliberately', () => {
+  // The exemption must be narrow. Priya Okafor is the whole point of her
+  // mission and the squad will not auto-target her — but a player who
+  // aims at her has to be able to do it.
+  const sim = createSim('okafor-contract');
+  const target = sim.quarry[0];
+  notOk(target.fated, 'she is not fated');
+  const before = target.health;
+  for (let i = 0; i < 12; i++) {
+    const p = new Projectile(target.x, target.z - 1, 0, 20, sim.squad.agents[0]);
+    p.friendly = true;
+    sim.projectiles.push(p);
+    step(sim, 1 / 60, idle);
+  }
+  lt(target.health, before, 'and a round that reaches her lands');
+});

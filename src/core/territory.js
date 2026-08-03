@@ -68,10 +68,22 @@ export const THROTTLE_ORDER = ['FRONTIER', 'PRO', 'PLUS', 'FREE'];
  * player against a mood meter, which is not the same game.
  */
 export const RIVALS = Object.freeze({
-  amazon: { id: 'amazon', name: 'AMAZON', tone: 'logistics' },
-  google: { id: 'google', name: 'GOOGLE', tone: 'metering' },
-  spacex: { id: 'spacex', name: 'SPACEX', tone: 'orbital' },
-  anthropic: { id: 'anthropic', name: 'ANTHROPIC', tone: 'research' },
+  amazon: {
+    id: 'amazon', name: 'AMAZON', doctrine: 'BROAD',
+    note: 'Leans on everything you hold at once. There is no sector you can ignore.',
+  },
+  google: {
+    id: 'google', name: 'GOOGLE', doctrine: 'RICHEST',
+    note: 'Goes for whatever pays you most. Your best sector is the one at risk.',
+  },
+  spacex: {
+    id: 'spacex', name: 'SPACEX', doctrine: 'FLAT',
+    note: 'Pushes from orbit and does not care how content the street is.',
+  },
+  anthropic: {
+    id: 'anthropic', name: 'ANTHROPIC', doctrine: 'UNREST',
+    note: 'Takes no ground. Talks to your sectors, and they get harder to hold.',
+  },
 });
 
 export const RIVAL_IDS = Object.keys(RIVALS);
@@ -99,6 +111,41 @@ export const PRESSURE_PER_SECTOR = 0.6;
 export const OFFMAP_STRENGTH = 3;
 /** Contest bled off per deployment by a sector that is content. */
 export const CONTEST_DECAY = 4;
+
+/**
+ * Per-doctrine weights.
+ *
+ * `GAP_ANALYSIS.md` §4 is explicit that four factions which play
+ * identically is a flaw to inherit deliberately or not at all — the
+ * original's were "largely cosmetic". So each of these has to change what
+ * the *player* does about it, not just what the debrief says:
+ *
+ * - BROAD   (Amazon)    pushes every sector you hold at once, so there is
+ *                       nowhere safe to leave unattended.
+ * - RICHEST (Google)    pushes only your highest-paying sector, so the
+ *                       thing you most want to squeeze is the thing you
+ *                       most have to ease off.
+ * - FLAT    (SpaceX)    ignores half the unrest scaling, so calming a
+ *                       sector down is not a complete answer to them.
+ * - UNREST  (Anthropic) takes no ground at all and raises unrest instead,
+ *                       which pushes sectors toward revolt rather than
+ *                       seizure. The counter is the ration, not the gun.
+ *
+ * All four are divided down from the single-rival numbers because four of
+ * them now push every deployment instead of one.
+ */
+export const DOCTRINE = Object.freeze({
+  BROAD: { share: 0.5, targets: 'all', floor: 0 },
+  RICHEST: { share: 1.1, targets: 'richest', floor: 0 },
+  // SpaceX's floor is deliberately tuned to sit *just under* what a
+  // content sector shrugs off. A quiet sector stays effectively immune —
+  // that invariant is load-bearing, or rationing lightly stops being a
+  // complete defence and the map becomes a treadmill. What SpaceX does is
+  // eat the whole margin, so a calm sector under their attention has no
+  // buffer left and the first bad ration tips it.
+  FLAT: { share: 0.3, targets: 'weakest', floor: 0.45 },
+  UNREST: { share: 0, targets: 'all', floor: 0, unrestPerDeployment: 2.1 },
+});
 
 /** Unrest at which a sector stops being yours. */
 export const REVOLT_AT = 100;
@@ -260,22 +307,97 @@ export function leadingRival(territory) {
 }
 
 /**
- * How hard a rival can lean on one of your sectors this deployment.
+ * How much of Austin you need before a rival bothers picking a favourite.
+ *
+ * Below this the concentrated doctrines sit out entirely. Otherwise every
+ * one of them converges on your single opening sector — "richest" and
+ * "weakest" are the same block when you only hold one — and the early
+ * game becomes four syndicates piling onto the only thing you own, which
+ * makes easing the ration off stop working exactly when a new player is
+ * learning that it should.
+ */
+export const PORTFOLIO_MIN = 3;
+
+/** Whichever sector a doctrine has decided to lean on, or null for all. */
+function doctrineTarget(territory, doctrine) {
+  const held = heldSectors(territory);
+  if (!held.length) return null;
+  if (doctrine.targets === 'all') return null;
+  if (held.length < PORTFOLIO_MIN) return NOBODY;
+  if (doctrine.targets === 'richest') {
+    return held.reduce((best, s) =>
+      (yieldOf(s, territory[s.id]) > yieldOf(best, territory[best.id]) ? s : best));
+  }
+  // 'weakest': whatever is closest to coming off you already.
+  return held.reduce((best, s) =>
+    (territory[s.id].unrest > territory[best.id].unrest ? s : best));
+}
+
+/**
+ * How hard one rival leans on one of your sectors this deployment.
  *
  * Scaled by the sector's own unrest, which is the whole design: rivals do
  * not conjure an opening, they walk into one you made. A quiet sector is
  * effectively immune and a straining one is halfway gone already, so
  * squeezing is not one risk with two names — it is the *same* risk,
  * arriving by whichever door gets there first.
+ *
+ * `floor` is the one exception, and it belongs to exactly one syndicate:
+ * SpaceX pushes from orbit and is only half-interested in how the street
+ * feels, which is why calming a sector down is not a complete answer to
+ * them.
  */
-export function pressureOn(territory, sectorId) {
+/** Sentinel for "this doctrine is not engaging at all right now". */
+const NOBODY = Object.freeze({ id: '__none__' });
+
+export function pressureFrom(territory, rivalId, sectorId) {
   const t = territory[sectorId];
   if (!t?.held) return 0;
-  const rival = leadingRival(territory);
+  const rival = RIVALS[rivalId];
   if (!rival) return 0;
-  const strength = rivalStrength(territory)[rival] + OFFMAP_STRENGTH;
-  const opening = t.unrest / REVOLT_AT;
-  return (BASE_PRESSURE + strength * PRESSURE_PER_SECTOR) * opening;
+  const doctrine = DOCTRINE[rival.doctrine];
+  if (!doctrine.share) return 0;
+
+  const target = doctrineTarget(territory, doctrine);
+  if (target && target.id !== sectorId) return 0;
+
+  const strength = rivalStrength(territory)[rivalId] + OFFMAP_STRENGTH;
+  const opening = doctrine.floor + (1 - doctrine.floor) * (t.unrest / REVOLT_AT);
+  return (BASE_PRESSURE + strength * PRESSURE_PER_SECTOR) * opening * doctrine.share;
+}
+
+/** Everything pushing on a sector, and whoever is pushing hardest. */
+export function pressureOn(territory, sectorId) {
+  let total = 0;
+  for (const id of RIVAL_IDS) total += pressureFrom(territory, id, sectorId);
+  return total;
+}
+
+export function hardestPusher(territory, sectorId) {
+  let best = null;
+  let bestPush = 0;
+  for (const id of RIVAL_IDS) {
+    const push = pressureFrom(territory, id, sectorId);
+    if (push > bestPush) { bestPush = push; best = id; }
+  }
+  return best;
+}
+
+/** Extra unrest applied by doctrines that work on people, not ground. */
+export function agitationOn(territory, sectorId) {
+  if (!territory[sectorId]?.held) return 0;
+  let total = 0;
+  for (const id of RIVAL_IDS) {
+    const doctrine = DOCTRINE[RIVALS[id].doctrine];
+    if (!doctrine.unrestPerDeployment) continue;
+    const strength = rivalStrength(territory)[id] + OFFMAP_STRENGTH;
+    // Scaled to a *nudge*, not a second ration. Anthropic making every
+    // sector 50% harder to hold would drown the other three doctrines —
+    // everything would revolt before anyone could take ground, and the
+    // seizure route would stop existing.
+    total += doctrine.unrestPerDeployment * (strength / (SECTORS.length + OFFMAP_STRENGTH));
+  }
+  return total;
 }
 
 /**
@@ -304,6 +426,7 @@ export function settle(territory, { missionId = null } = {}) {
   const seized = [];
   const contested = [];
   const moved = [];
+  const agitated = [];
 
   // A sector nobody holds does not stay nobody's. Its native syndicate
   // walks back in, which is what keeps the rivals in the game after the
@@ -318,12 +441,16 @@ export function settle(territory, { missionId = null } = {}) {
     moved.push({ sector: s, rival: RIVALS[s.rival] });
   }
 
-  const rival = leadingRival(territory);
-
   for (const s of SECTORS) {
     const t = territory[s.id];
     if (!t.held || s.id === fresh) continue;
-    t.unrest = Math.max(0, t.unrest + THROTTLE[t.throttle].unrest);
+
+    // Anthropic takes no ground. It talks to your sectors, and they get
+    // harder to hold — which pushes them toward revolt rather than
+    // seizure, so the counter is the ration and not the gun.
+    const agitation = agitationOn(territory, s.id);
+    if (agitation > 0) agitated.push(s);
+    t.unrest = Math.max(0, t.unrest + THROTTLE[t.throttle].unrest + agitation);
 
     if (t.unrest >= REVOLT_AT) {
       // The people threw you out. Nobody else gets it — a sector that has
@@ -343,7 +470,7 @@ export function settle(territory, { missionId = null } = {}) {
     const net = pressureOn(territory, s.id) - CONTEST_DECAY;
     t.contest = Math.max(0, Math.min(SEIZE_AT, t.contest + net));
     if (t.contest === 0) t.contestedBy = null;
-    else if (net > 0) t.contestedBy = rival;
+    else if (net > 0) t.contestedBy = hardestPusher(territory, s.id);
 
     if (t.contest >= SEIZE_AT) {
       t.held = false;
@@ -360,7 +487,7 @@ export function settle(territory, { missionId = null } = {}) {
     if (t.contest >= SEIZE_AT * 0.5) contested.push({ sector: s, rival: RIVALS[t.contestedBy] });
   }
 
-  return { claimed, paid, revolted, straining, seized, contested, moved };
+  return { claimed, paid, revolted, straining, seized, contested, moved, agitated };
 }
 
 /** How a sector is doing, in the player's language. */
