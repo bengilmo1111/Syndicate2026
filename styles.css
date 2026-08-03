@@ -292,6 +292,31 @@ button.implant.offer:disabled {
 
 @keyframes pulse { 50% { opacity: 0.25; } }
 
+/* Fire discipline. Always on screen — a stance the player has to remember
+   they set is a stance they will blame the game for. */
+#hud-stance {
+  position: absolute;
+  top: 62px;
+  right: 14px;
+  padding: 4px 12px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  pointer-events: none;
+  color: var(--text-dim);
+  border: 1px solid rgba(111, 227, 208, 0.22);
+  background: var(--panel);
+}
+
+#hud-stance.holding {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+#hud-stance.returning {
+  color: var(--accent);
+  border-color: rgba(111, 227, 208, 0.5);
+}
+
 /* ----------------------------------------------------------------- Compute */
 
 #hud-compute {

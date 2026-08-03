@@ -25,6 +25,43 @@ export const ALIGNER = Object.freeze({
 export const ALIGNER_RADIUS = 13.5;
 
 /**
+ * Fire discipline.
+ *
+ * The non-lethal devices made the gap obvious: before this, the only way
+ * to stop the squad shooting was to hold the Aligner, which suppresses
+ * fire as a side effect of being a broadcast device. That works, and it
+ * is a nice discovery, but it is not a control — you cannot hold the
+ * Aligner *and* aim, and a player who wants to walk past a patrol should
+ * not have to know a trick.
+ *
+ * Three settings, because two would be a toggle and four would be a menu.
+ */
+export const STANCE = Object.freeze({
+  /** Shoot anything hostile in range. The default, and Act I's whole mood. */
+  ENGAGE: 'engage',
+  /** Shoot only what has already shot at you. */
+  RETURN: 'return',
+  /** Never auto-fire. Left-click still works — this is discipline, not disarmament. */
+  HOLD: 'hold',
+});
+
+const STANCE_CYCLE = [STANCE.ENGAGE, STANCE.RETURN, STANCE.HOLD];
+
+export const STANCE_LABEL = Object.freeze({
+  [STANCE.ENGAGE]: 'ENGAGE AT WILL',
+  [STANCE.RETURN]: 'RETURN FIRE',
+  [STANCE.HOLD]: 'HOLD FIRE',
+});
+
+/**
+ * How long after being shot at an agent stays willing to shoot back.
+ *
+ * Long enough to finish the exchange, short enough that RETURN FIRE does
+ * not quietly become ENGAGE for the rest of the mission.
+ */
+export const PROVOKED_FOR = 4;
+
+/**
  * How far from the ordered point an agent may be placed to keep the
  * squad's shape. A little larger than the diamond, so a tight squad
  * arrives in formation and a scattered one regroups.
@@ -60,6 +97,7 @@ export class Squad {
   constructor(x, z, loadout = null) {
     this.agents = FORMATION.map((off, i) => new Agent(x + off.x, z + off.z, i, loadout?.[i]));
     this.alignerMode = ALIGNER.OFF;
+    this.stance = STANCE.ENGAGE;
     // Jailbreak mode unlocks in Act IV. Until then Space only toggles bind.
     this.jailbreakUnlocked = false;
     this.compute = new Compute();
@@ -113,6 +151,19 @@ export class Squad {
 
   selectAll() {
     this.agents.forEach(a => { a.selected = !a.dead; });
+  }
+
+  cycleStance() {
+    const i = STANCE_CYCLE.indexOf(this.stance);
+    this.stance = STANCE_CYCLE[(i + 1) % STANCE_CYCLE.length];
+    return this.stance;
+  }
+
+  /** May this agent open fire on its own account right now? */
+  mayEngage(agent) {
+    if (this.stance === STANCE.ENGAGE) return true;
+    if (this.stance === STANCE.HOLD) return false;
+    return (agent.provoked ?? 0) > 0;
   }
 
   cycleAligner() {

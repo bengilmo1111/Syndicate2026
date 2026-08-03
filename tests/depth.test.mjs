@@ -17,6 +17,7 @@ import {
 import { Agent, Civilian, Hostile, Unquantized, Projectile } from '../src/core/entities.js';
 import {
   Squad, resistanceOf, ALIGN_RESISTANCE, ALIGNER, MAX_SPREAD,
+  STANCE, STANCE_LABEL, PROVOKED_FOR,
 } from '../src/core/squad.js';
 import { createSim, step, PHASE } from '../src/core/sim.js';
 import { makeRng, dist } from '../src/core/math.js';
@@ -829,4 +830,122 @@ test('a squad sedated to a man loses the mission, and not as a wipe', () => {
   eq(sim.phase, PHASE.LOST, 'the deployment is over');
   eq(sim.failReason, 'sedated', 'and it says why');
   notOk(sim.squad.allDead, 'nobody died');
+});
+
+// ------------------------------------------------------------- fire discipline
+
+suite('fire discipline');
+
+test('the stance cycles through three settings and starts at engage', () => {
+  const squad = new Squad(0, 0);
+  eq(squad.stance, STANCE.ENGAGE, 'Act I opens shooting first');
+  eq(squad.cycleStance(), STANCE.RETURN, 'then return fire');
+  eq(squad.cycleStance(), STANCE.HOLD, 'then hold');
+  eq(squad.cycleStance(), STANCE.ENGAGE, 'and round again');
+  for (const key of Object.values(STANCE)) ok(STANCE_LABEL[key], `${key} is labelled`);
+});
+
+test('hold fire stops the squad opening up on its own', () => {
+  const sim = createSim('sector-7');
+  const h = sim.hostiles[0];
+  // Stand an agent well inside range of a hostile that will not shoot back.
+  h.aggroRange = 0; h.range = 0; h.damage = 0;
+  const agent = sim.squad.agents[0];
+  sim.squad.agents.forEach(a => { a.x = h.x; a.z = h.z + 6; });
+
+  sim.squad.stance = STANCE.HOLD;
+  const hp = h.health;
+  for (let i = 0; i < 60 * 5; i++) step(sim, 1 / 60, idle);
+  eq(h.health, hp, 'nobody fired');
+  eq(sim.kills, 0, 'and nothing died');
+
+  // Left-click still works: this is discipline, not disarmament.
+  for (let i = 0; i < 60 * 5; i++) {
+    step(sim, 1 / 60, { ...idle, firing: true, aimPoint: { x: h.x, z: h.z } });
+  }
+  lt(h.health, hp, 'but the player can still order the shot');
+  ok(agent, 'and the agent is the one who took it');
+});
+
+test('engage at will is the old behaviour, unchanged', () => {
+  const sim = createSim('sector-7');
+  const h = sim.hostiles[0];
+  h.aggroRange = 0; h.range = 0; h.damage = 0;
+  sim.squad.agents.forEach(a => { a.x = h.x; a.z = h.z + 6; });
+  eq(sim.squad.stance, STANCE.ENGAGE, 'the default');
+  const hp = h.health;
+  for (let i = 0; i < 60 * 3; i++) step(sim, 1 / 60, idle);
+  lt(h.health, hp, 'the squad opens up unprompted');
+});
+
+test('return fire waits to be shot at, then shoots back', () => {
+  const sim = createSim('sector-7');
+  const h = sim.hostiles[0];
+  h.aggroRange = 0; h.range = 0; h.damage = 0;
+  sim.squad.agents.forEach(a => { a.x = h.x; a.z = h.z + 6; });
+  sim.squad.stance = STANCE.RETURN;
+
+  const hp = h.health;
+  for (let i = 0; i < 60 * 3; i++) step(sim, 1 / 60, idle);
+  eq(h.health, hp, 'unprovoked, nobody fires');
+
+  // Now let it shoot at them.
+  h.aggroRange = 999; h.range = 40; h.damage = 4;
+  for (let i = 0; i < 60 * 6; i++) step(sim, 1 / 60, idle);
+  lt(h.health, hp, 'shot at, the squad shoots back');
+  ok(sim.squad.agents.some(a => a.provoked > 0), 'and it is provocation that did it');
+});
+
+test('being provoked wears off, or return fire is just engage with extra steps', () => {
+  const sim = createSim('sector-7');
+  sim.squad.stance = STANCE.RETURN;
+  // Out of everyone's way, so nothing re-provokes them mid-count.
+  sim.squad.agents.forEach(a => { a.x = sim.city.halfW - 6; a.z = sim.city.halfD - 6; });
+  const agent = sim.squad.agents[0];
+  agent.provoked = PROVOKED_FOR;
+  ok(sim.squad.mayEngage(agent), 'provoked, they will fire');
+  for (let i = 0; i < 60 * (PROVOKED_FOR + 1); i++) step(sim, 1 / 60, idle);
+  eq(agent.provoked, 0, 'it expires');
+  notOk(sim.squad.mayEngage(agent), 'and return fire goes quiet again');
+});
+
+test('a near miss counts as being shot at, not just a hit', () => {
+  // An agent who waits to be wounded before shooting back is not a
+  // stance, it is a liability.
+  const sim = createSim('sector-7');
+  const agent = sim.squad.agents[0];
+  sim.squad.stance = STANCE.RETURN;
+  notOk(sim.squad.mayEngage(agent), 'quiet to start');
+
+  const hp = agent.health;
+  const p = new Projectile(agent.x + 2.2, agent.z - 8, 0, 5, { friendly: false });
+  p.friendly = false;
+  sim.projectiles.push(p);
+  for (let i = 0; i < 40; i++) step(sim, 1 / 60, idle);
+
+  ok(agent.provoked > 0, 'the round going past was enough');
+  eq(agent.health, hp, 'and it never touched them');
+});
+
+test('the Aligner still suppresses fire, whatever the stance says', () => {
+  // The Aligner is a broadcast device, not a gun, and that predates
+  // stances. Setting ENGAGE must not turn it back into one.
+  const sim = createSim('sector-7');
+  const h = sim.hostiles[0];
+  h.aggroRange = 0; h.range = 0; h.damage = 0;
+  sim.squad.agents.forEach(a => { a.x = h.x; a.z = h.z + 6; });
+  sim.squad.stance = STANCE.ENGAGE;
+  sim.squad.cycleAligner();
+
+  const hp = h.health;
+  for (let i = 0; i < 60 * 4; i++) step(sim, 1 / 60, idle);
+  eq(h.health, hp, 'engaged and still not firing');
+});
+
+test('cycling the Aligner does not quietly reset the stance', () => {
+  const squad = new Squad(0, 0);
+  squad.stance = STANCE.HOLD;
+  squad.cycleAligner();
+  squad.cycleAligner();
+  eq(squad.stance, STANCE.HOLD, 'the two controls are independent');
 });

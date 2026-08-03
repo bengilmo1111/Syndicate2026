@@ -126,8 +126,10 @@ following now ship:
   while you hold it, and it climbs heat the whole time
 - **E** — choke field · **T** — standdown aerosol. Thrown at the cursor,
   two charges each, and neither asks whose side you are on. Hold the
-  Aligner while the aerosol works — it suppresses your own fire, which is
-  the only way a deployment ends with nobody dead
+  aerosol works best under **HOLD FIRE** — that is what lets a deployment
+  end with nobody dead
+- **H** — fire discipline: engage at will / return fire / hold fire. Shown
+  top right at all times. Left-click fires in every stance
 - **Tab** — objectives panel
 - **Z / X** — rotate the city · **R / F** — tilt · **Wheel** — zoom ·
   **Middle-drag** — free orbit

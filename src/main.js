@@ -465,6 +465,8 @@ window.addEventListener('keydown', (e) => {
     squad.compute.shiftInto('resilience');
   } else if (k === 'g') {
     squad.compute.toggleSurge();
+  } else if (k === 'h') {
+    squad.cycleStance();
   } else if (k === 'e' || k === 't') {
     // Devices go where the cursor is, and they are consumed on the frame
     // the sim places them — queued here so the fixed-step loop applies it

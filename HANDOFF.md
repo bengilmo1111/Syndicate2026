@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~10s, 206 checks, no dependencies
+node tests/run.mjs        # the gate — ~15s, 214 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -190,6 +190,15 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   off the throttle and stop following you. Using the thing that makes you
   the protagonist dismantles the crowd you spent ten missions building.
   The Router warns you in the briefing. **Do not "balance" this away.**
+- **Fire discipline** (`STANCE` in `src/core/squad.js`, cycled with `H`) —
+  ENGAGE AT WILL / RETURN FIRE / HOLD FIRE, always on screen top right.
+  Left-click fires in every stance: HOLD FIRE is discipline, not
+  disarmament. RETURN FIRE reads `agent.provoked`, which is set by a **near
+  miss** rather than a hit — an agent who waits to be wounded before
+  shooting back is a liability, not a stance — and expires after 4s, or
+  the stance quietly becomes ENGAGE for the rest of the mission.
+  The Aligner still suppresses fire independently of all of this; the two
+  controls do not touch each other and a test says so.
 - **Field devices** (`src/core/devices.js`) — the first things the player
   puts *on the map*. Thrown at the cursor, two charges each, no restock.
   **CHOKE FIELD**: half speed and 1.9× spread for anything inside.
@@ -203,11 +212,11 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   `sim.neutralised` (shot + sedated), because the syndicate files a
   sedated cell and a dead one identically. `sim.kills` is where the
   difference is kept. **Do not collapse these.** The joke is the game.
-- **Holding the Aligner is how a non-lethal run works.** It suppresses
-  friendly fire entirely, which is what stops the squad shooting the
-  people the aerosol is putting to sleep. A test clears The Bracket six-
-  for-six with zero kills; without the Aligner the same run is not
-  bloodless. Documented on the controls card, because it is not obvious.
+- **HOLD FIRE is how a non-lethal run works.** It is what stops the squad
+  shooting the people the aerosol is putting to sleep. A test clears The
+  Bracket six-for-six with zero kills; without it the same run is not
+  bloodless. (Holding the Aligner also works and did the job before
+  stances existed — keep that, it is a nice thing to discover.)
 - **Full building destruction** — every tower and slab is destructible.
   Health scales on volume (2–15s of full-squad fire) and so does
   `structure.occupancy`, which is the cost model: a tower is ninety
@@ -303,7 +312,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 206 checks, ~10s, zero dependencies. Covers city
+`node tests/run.mjs` — 214 checks, ~15s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -345,10 +354,12 @@ uncounted, removing the structural warning, flattening enforcement to one
 wave regardless of the dead, making rubble harmless, and leaving
 survivors stuck inside it. Five more cover the devices: making them free,
 arming them instantly, making sedation never wear off, removing the
-agents' hardening, and letting the fields spare your own squad. It is
-load-bearing, not decorative.
+agents' hardening, and letting the fields spare your own squad. Five more cover fire
+discipline: making HOLD FIRE do nothing, making RETURN FIRE identical to
+ENGAGE, never expiring `provoked`, ignoring a near miss, and not reading
+the stance at all. It is load-bearing, not decorative.
 
-`node tests/browser.mjs` — 52 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 54 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -391,13 +402,12 @@ depth: `GAP_ANALYSIS.md` is the ranked backlog, and gaps 2, 3, 4, 5, 7 and
    (`GAP_ANALYSIS.md` gap 1) — the strategic half, and the largest thing
    left. Research already exists as a currency and the cryovat already
    spends it, so the economy has one end built.
-2. **Squad stances** (hold / advance / engage-at-will). The non-lethal
-   tools made the gap obvious: the only way to stop the squad auto-firing
-   is to hold the Aligner, which works but is a side effect rather than a
-   control. This is small and it unblocks a lot.
-3. **The offensive strange tools** (gap 4's remainder) — psycho gas,
-   razor wire, satellite rain. Additive now that `devices.js` exists;
-   none of them need new architecture.
+2. **The offensive strange tools** (gap 4's remainder) — psycho gas,
+   razor wire, satellite rain, the graviton gun. Additive now that
+   `devices.js` exists; none of them need new architecture.
+3. **Sound** (gap 9) and **camera occlusion** (gap 11). Occlusion has been
+   flagged pre-emptively since before towers were destructible; it has not
+   bitten because the camera is constrained and towers top out at 22m.
 3. **Between-mission interstitials for Acts I–III** — Yelin's notes and
    the street graffiti. Act IV got its beats *inside* missions, which is
    where they belonged, but the Act I→II tonal turn still has nothing

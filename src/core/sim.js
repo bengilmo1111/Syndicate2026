@@ -5,7 +5,7 @@
 
 import { makeRng, dist, segmentPointDistance } from './math.js';
 import { Civilian, Enforcer } from './entities.js';
-import { Squad, ALIGNER, ALIGNER_RADIUS } from './squad.js';
+import { Squad, ALIGNER, ALIGNER_RADIUS, PROVOKED_FOR } from './squad.js';
 import {
   randomStreetPoint, resolveCollision, damageStructure, structureInPath,
   coverAgainst, STREET,
@@ -190,7 +190,12 @@ export function step(sim, dt, intent) {
 
   squad.applyCompute();
   squad.tick(dt);
-  for (const a of squad.agents) decaySuppression(a, dt);
+  for (const a of squad.agents) {
+    decaySuppression(a, dt);
+    // RETURN FIRE reads this. It has to expire, or one stray round early
+    // in a mission quietly turns the stance into ENGAGE for good.
+    if (a.provoked > 0) a.provoked = Math.max(0, a.provoked - dt);
+  }
   if (!squad.drive(dt, intent.moveX, intent.moveZ, city)) {
     squad.followOrders(dt, city);
   }
@@ -259,7 +264,12 @@ export function step(sim, dt, intent) {
   if (!squad.alignerEngaged) {
     for (const a of squad.alive) {
       const manual = intent.firing && intent.aimPoint;
-      const target = manual ? null : a.pickTarget(city, stillHostile, squad.compute);
+      // Fire discipline. Left-click always works — HOLD FIRE is
+      // discipline, not disarmament — but what an agent does on its own
+      // account is the player's call.
+      const target = (manual || !squad.mayEngage(a))
+        ? null
+        : a.pickTarget(city, stillHostile, squad.compute);
       // Spin-up winds while there is something worth firing at, so a
       // minigun agent is useless the instant they arrive and lethal once
       // they've committed to the corner.
@@ -571,7 +581,14 @@ function suppressNearMisses(sim, p) {
   for (const t of pool) {
     if (t.dead) continue;
     const d = segmentPointDistance(p.prevX, p.prevZ, p.x, p.z, t.x, t.z);
-    if (d < 3.2 && d > t.radius) applySuppression(t, 0.35);
+    if (d < 3.2 && d > t.radius) {
+      applySuppression(t, 0.35);
+      // A round past your ear counts as being shot at. RETURN FIRE reads
+      // this, and it deliberately triggers on the near miss rather than
+      // on the hit — an agent who waits to be wounded before shooting
+      // back is not a stance, it is a liability.
+      if (!p.friendly) t.provoked = PROVOKED_FOR;
+    }
   }
 }
 
@@ -598,6 +615,7 @@ function resolveProjectile(sim, p) {
 
   for (const t of targets) {
     if (!p.hits(t)) continue;
+    if (!p.friendly) t.provoked = PROVOKED_FOR;
     if (p.friendly && t.dormant) wakeDormant(sim, 'the squad fired on its own side');
     const killed = t.takeDamage(damageAgainst(sim, p, t));
     const spent = p.consumeHit(t);

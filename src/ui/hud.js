@@ -5,6 +5,7 @@ import { activeObjective, objectiveText, STATUS } from '../core/mission.js';
 import { heatRatio } from '../core/sim.js';
 import { CHANNELS, BUDGET } from '../core/compute.js';
 import { DEVICE, DEVICE_IDS } from '../core/devices.js';
+import { STANCE, STANCE_LABEL } from '../core/squad.js';
 import { AGENT_COLORS } from '../render/actorView.js';
 
 const el = id => document.getElementById(id);
@@ -151,6 +152,12 @@ export function updateHUD(sim) {
 
   renderCompute(sim);
   renderDevices(sim);
+
+  const stance = sim.squad.stance;
+  const stanceEl = el('hud-stance');
+  stanceEl.textContent = STANCE_LABEL[stance] ?? stance;
+  stanceEl.classList.toggle('holding', stance === STANCE.HOLD);
+  stanceEl.classList.toggle('returning', stance === STANCE.RETURN);
 
   const mode = el('hud-mode');
   if (sim.squad.alignerEngaged) {

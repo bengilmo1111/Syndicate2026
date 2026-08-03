@@ -19,7 +19,7 @@ build step, no npm dependencies, deployed to Vercel from `main`.
 **`node tests/run.mjs` must pass before you push. No exceptions.**
 
 ```
-node tests/run.mjs            # ~10s, 206 checks, no dependencies
+node tests/run.mjs            # ~15s, 214 checks, no dependencies
 node tests/run.mjs nav        # filter by suite or test name
 node tests/browser.mjs        # optional: real browser, needs Playwright
 ```
