@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~15s, 214 checks, no dependencies
+node tests/run.mjs        # the gate — ~15s, 225 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -190,6 +190,26 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   off the throttle and stop following you. Using the thing that makes you
   the protagonist dismantles the crowd you spent ten missions building.
   The Router warns you in the briefing. **Do not "balance" this away.**
+- **The strategic layer** (`src/core/territory.js`) — ten sectors, taken by
+  winning their missions, each held at one of four **rations**. The ration
+  is SURGE one scale up: take more, pay for it socially. FRONTIER calms a
+  sector and pays almost nothing; FREE pays best and hands the sector back
+  in about eight deployments. It pays into `research`, so the map and the
+  cryovat are one economy rather than two systems side by side.
+  **The tuning is the feature.** A tax mechanic fails when maximum tax is
+  always correct, and a test plays the whole campaign at each ration to
+  prove it is not: FREE earns more than PLUS and loses seven of ten
+  sectors doing it. Another asserts no ration pays for a full kit.
+  A sector claimed *during* a deployment neither pays for it nor gets
+  angrier about it — you took it this mission, the meter runs from next.
+  Third face of the briefing card, alongside the roster and the cryovat,
+  because they are one decision: who you risk, what you spend, and what
+  you squeeze to afford it.
+- **`Asset.fated`** — immune to collateral. `securable: false` stops a
+  named person being *captured* by accident; this stops them being
+  *killed* by one. Yelin and the authority root are fated: a kiosk coming
+  down on Yelin mid-firefight would silently break the capture and
+  walk-away endings. Deliberate fire still works, which is the point.
 - **Fire discipline** (`STANCE` in `src/core/squad.js`, cycled with `H`) —
   ENGAGE AT WILL / RETURN FIRE / HOLD FIRE, always on screen top right.
   Left-click fires in every stance: HOLD FIRE is discipline, not
@@ -312,7 +332,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 214 checks, ~15s, zero dependencies. Covers city
+`node tests/run.mjs` — 225 checks, ~15s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -357,9 +377,13 @@ arming them instantly, making sedation never wear off, removing the
 agents' hardening, and letting the fields spare your own squad. Five more cover fire
 discipline: making HOLD FIRE do nothing, making RETURN FIRE identical to
 ENGAGE, never expiring `provoked`, ignoring a near miss, and not reading
-the stance at all. It is load-bearing, not decorative.
+the stance at all. Eight more cover the strategic layer: making squeezing
+free, making the loosest ration pay as much as the tightest, never
+revolting, re-claiming a sector on a replay, keeping a retired throttle id
+from a save, having the map pay nothing, never loading a saved map, and
+making the cryovat cheap again. It is load-bearing, not decorative.
 
-`node tests/browser.mjs` — 54 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 57 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console.
@@ -395,13 +419,16 @@ campaign in order — every field mission autoplayed to a win, gated the
 way a player meets them, ending on the epilogue.
 
 The arc is done and the progression loop under it is done. What is left is
-depth: `GAP_ANALYSIS.md` is the ranked backlog, and gaps 2, 3, 4, 5, 7 and
-10 are now closed.
+depth: `GAP_ANALYSIS.md` is the ranked backlog, and gaps 1, 2, 3, 4, 5, 7
+and 10 are now closed. What is left is vehicles, sound, camera occlusion
+and interiors — plus the halves of 1 and 4 noted there.
 
-1. **The world map / territory / tax / research meta-game**
-   (`GAP_ANALYSIS.md` gap 1) — the strategic half, and the largest thing
-   left. Research already exists as a currency and the cryovat already
-   spends it, so the economy has one end built.
+1. **Rival syndicates on the map.** The strategic layer currently pits the
+   player against *unrest* rather than against Amazon, Google, SpaceX and
+   Anthropic — which is the half of gap 1 that is still open, and the
+   thing that would make the map feel contested rather than administered.
+   Missions generated *by* the map rather than only feeding it is the
+   same piece of work.
 2. **The offensive strange tools** (gap 4's remainder) — psycho gas,
    razor wire, satellite rain, the graviton gun. Additive now that
    `devices.js` exists; none of them need new architecture.

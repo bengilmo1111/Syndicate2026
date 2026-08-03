@@ -100,6 +100,9 @@ the 2D logic onto a 3D engine instead of losing it.
       interludes, and the console that picks the ending
 - [x] **`epilogue`** (Act IV·15) — a third mission kind: no world, no
       choice, reads the ending back off the campaign flags
+- [x] **The strategic layer** (`GAP_ANALYSIS.md` gap 1) — ten sectors,
+      four rations, unrest, revolt, and an income that pays into the same
+      research the cryovat spends. Save v4 with migration from v3.
 - [x] **Fire discipline** — the control the non-lethal devices made
       necessary; before it, the only way to stop the squad shooting was to
       hold the Aligner, which worked but was a side effect
@@ -255,6 +258,7 @@ src/
     interlude.js        mid-mission dialog beats — freeze, ask, record
     devices.js          choke / standdown — the first things you place
     roster.js           who is in the suits, what is fitted, who is gone
+    territory.js        the map: what you hold, how hard you squeeze it
     sim.js              the simulation — owns all mutable game state
   missions/             one file per mission, self-registering
     sector-7.js         Act I·1  ELIMINATE + DEMOLISH

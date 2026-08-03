@@ -4,7 +4,7 @@
 const el = id => document.getElementById(id);
 
 export function setOverlay({
-  eyebrow, title, body, tabs, onSelectTab, button, altButton, choices, roster, hint,
+  eyebrow, title, body, tabs, onSelectTab, button, altButton, choices, roster, map, hint,
 }) {
   el('overlay-eyebrow').textContent = eyebrow ?? '';
   el('overlay-title').textContent = title;
@@ -32,6 +32,7 @@ export function setOverlay({
     .join('');
 
   renderRoster(roster);
+  renderMap(map);
 
   // A decision mission renders its options instead of a deploy button.
   const choiceHost = el('overlay-choices');
@@ -124,6 +125,79 @@ function renderRoster(roster) {
       if (!item.blocker) b.addEventListener('click', () => roster.onFit(op.id, item.id));
       kit.appendChild(b);
     }
+    row.appendChild(kit);
+    host.appendChild(row);
+  }
+}
+
+/**
+ * The sector map.
+ *
+ * Deliberately the same visual grammar as the roster — a row per thing
+ * you own, its state, and the controls that change it — because the two
+ * panels are asking the same question in different currencies: who is
+ * worth spending on, and what is worth squeezing.
+ *
+ * The throttle button is the whole panel. Everything else is the
+ * consequence of pressing it, said out loud.
+ */
+function renderMap(map) {
+  const host = el('overlay-map');
+  host.innerHTML = '';
+  host.classList.toggle('hidden', !map);
+  if (!map) return;
+
+  const head = document.createElement('p');
+  head.className = 'roster-head';
+  head.innerHTML = map.heading;
+  host.appendChild(head);
+
+  for (const s of map.sectors) {
+    const row = document.createElement('div');
+    row.className = `roster-row sector-row ${s.status.toLowerCase()}`;
+
+    const who = document.createElement('span');
+    who.className = 'roster-who';
+    who.innerHTML = s.held
+      ? `<b>${s.name}</b>`
+      : `<b class="unheld">${s.name}</b>`;
+    who.title = s.detail;
+    row.appendChild(who);
+
+    const stat = document.createElement('span');
+    stat.className = 'roster-stat';
+    stat.textContent = s.detail_line;
+    row.appendChild(stat);
+
+    const kit = document.createElement('span');
+    kit.className = 'roster-kit';
+
+    if (s.held) {
+      // Unrest, as a bar rather than a number. The player needs to feel
+      // how close a sector is to handing itself back, not do arithmetic.
+      const meter = document.createElement('span');
+      meter.className = 'unrest';
+      meter.title = `UNREST ${Math.round(s.unrest)} / ${s.revoltAt}`;
+      const fill = document.createElement('i');
+      fill.style.width = `${Math.min(100, (s.unrest / s.revoltAt) * 100)}%`;
+      if (s.status === 'STRAINING') fill.classList.add('crit');
+      else if (s.status === 'RESTLESS') fill.classList.add('warn');
+      meter.appendChild(fill);
+      kit.appendChild(meter);
+
+      const b = document.createElement('button');
+      b.className = 'implant throttle';
+      b.textContent = s.throttleLabel;
+      b.title = s.throttleNote;
+      b.addEventListener('click', () => map.onThrottle(s.id));
+      kit.appendChild(b);
+    } else {
+      const tag = document.createElement('span');
+      tag.className = 'implant unheld-tag';
+      tag.textContent = s.status;
+      kit.appendChild(tag);
+    }
+
     row.appendChild(kit);
     host.appendChild(row);
   }

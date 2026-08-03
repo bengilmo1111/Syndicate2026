@@ -311,6 +311,7 @@ export const theCore = registerMission({
       tier: TIER.FRONTIER,
       health: 9999,
       securable: false,
+      fated: true,
       leash: 0,
     });
     cube.isRoot = true;

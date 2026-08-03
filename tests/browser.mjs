@@ -219,6 +219,38 @@ check('fitting one spends research and persists to the save',
   fitted.research < bankedBefore && fitted.implants === 1 && fitted.saved === 1,
   `${bankedBefore} → ${fitted.research} research · ${fitted.implants} fitted · ${fitted.saved} in the save`);
 
+// The sector map is the third face of the same card.
+await page.evaluate(() => {
+  const c = window.__syndicate.campaign;
+  c.territory['sector-7'].held = true;
+  c.territory['sector-7'].unrest = 80;
+  c.territory['district-12'].held = true;
+});
+await page.click('#overlay-alt-button');           // SECTOR MAP
+await page.waitForTimeout(400);
+const mapRows = await page.$$eval('.sector-row', els => els.map(e => e.textContent.trim()));
+check('the sector map lists Austin', mapRows.length >= 8, `${mapRows.length} sectors`);
+check('and marks the ones you hold as straining',
+  (await page.$$('.unrest i.crit')).length >= 1,
+  (await page.$$eval('.unrest i', els => els.map(e => e.className || 'calm'))).join(','));
+
+const throttleBefore = await page.evaluate(() =>
+  window.__syndicate.campaign.territory['sector-7'].throttle);
+await page.click('.implant.throttle');
+await page.waitForTimeout(400);
+const throttleAfter = await page.evaluate(() => ({
+  throttle: window.__syndicate.campaign.territory['sector-7'].throttle,
+  saved: JSON.parse(localStorage.getItem('syndicate2026.campaign')).territory['sector-7'].throttle,
+}));
+check('clicking a throttle changes the ration and persists it',
+  throttleAfter.throttle !== throttleBefore && throttleAfter.saved === throttleAfter.throttle,
+  `${throttleBefore} → ${throttleAfter.throttle} (saved ${throttleAfter.saved})`);
+
+await page.click('#overlay-button');               // BACK TO BRIEFING
+await page.waitForTimeout(300);
+await page.click('#overlay-alt-button');           // CRYOVAT
+await page.waitForTimeout(400);
+
 // A fitting with nothing left to spend must be refused, not silently free.
 await page.evaluate(() => { window.__syndicate.campaign.roster.research = 0; });
 await page.click('#overlay-button');               // CLOSE CRYOVAT

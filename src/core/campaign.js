@@ -10,8 +10,9 @@
 // firefights.
 
 import { newRoster, migrateRoster, researchFor, recordDeployment } from './roster.js';
+import { newTerritory, migrateTerritory, settle } from './territory.js';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export function newCampaign() {
   return {
@@ -27,6 +28,12 @@ export function newCampaign() {
      * this is what makes a squad wipe cost something — see `roster.js`.
      */
     roster: newRoster(),
+    /**
+     * The strategic layer: which sectors are held, how hard each is
+     * rationed, and how close each is to handing itself back. See
+     * `territory.js` — the throttle is SURGE's argument one scale up.
+     */
+    territory: newTerritory(),
   };
 }
 
@@ -41,6 +48,10 @@ export function migrate(raw) {
   // thrown away — a player mid-campaign should not lose their progress to
   // a feature being added behind them.
   c.roster = migrateRoster(raw.roster);
+  // v3 and earlier have no map. They get an empty one and reclaim sectors
+  // as they replay — the alternative is handing a returning player ten
+  // sectors they never took.
+  c.territory = migrateTerritory(raw.territory);
   return c;
 }
 
@@ -102,10 +113,17 @@ export function recordWin(campaign, id, result = {}) {
  */
 export function recordCasualties(campaign, missionId, result = {}) {
   const roster = campaign.roster ??= newRoster();
+  const territory = campaign.territory ??= newTerritory();
+
+  // Two sources of research: what the deployment itself earned, and what
+  // the map paid while it was happening. The second is the whole point of
+  // holding ground.
   const earned = researchFor(result);
-  roster.research += earned;
+  const strategic = settle(territory, { missionId });
+  roster.research += earned + strategic.paid;
+
   const { lost, drawn } = recordDeployment(roster, missionId, result);
-  return { earned, lost, drawn };
+  return { earned, lost, drawn, ...strategic };
 }
 
 export function setFlag(campaign, key, value) {

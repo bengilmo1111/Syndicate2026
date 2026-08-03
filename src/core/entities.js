@@ -657,6 +657,17 @@ export class Asset extends Civilian {
      * person with a name has to be something the player chose.
      */
     this.securable = opts.securable ?? true;
+    /**
+     * Immune to collateral — collapsing structures, and anything else
+     * that kills without being aimed.
+     *
+     * Same rule as `securable: false`, one step further. Yelin's fate is
+     * the mission's decision; a kiosk coming down on him mid-firefight
+     * would silently break the capture and walk-away endings and read as
+     * the game losing track of its own plot. Deliberate fire still works
+     * — that is the point.
+     */
+    this.fated = opts.fated ?? false;
     this.followSpeed = 9.5;
     this.panicSpeed = 9.5;
     // Said once, on being secured. Never referenced by anyone afterwards.

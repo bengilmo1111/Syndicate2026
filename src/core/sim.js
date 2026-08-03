@@ -546,7 +546,7 @@ function collapseCasualties(sim, s, byPlayer) {
   // footprint by the time this runs.
   const caught = [...sim.squad.agents, ...sim.hostiles, ...sim.civilians];
   for (const a of caught) {
-    if (a.dead) continue;
+    if (a.dead || a.fated) continue;
     const inside = Math.abs(a.x - s.x) <= s.w / 2 + a.radius
       && Math.abs(a.z - s.z) <= s.d / 2 + a.radius;
     if (!inside) continue;
