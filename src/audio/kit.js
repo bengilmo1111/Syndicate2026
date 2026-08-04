@@ -157,3 +157,43 @@ export function sizeOf(event) {
   const mass = Math.min(1, (event.structure?.maxHp ?? 0) / 4000);
   return 0.45 + mass * 0.55;
 }
+
+// ------------------------------------------------------------- the room
+
+/**
+ * The bed under everything: what the block sounds like when nothing is
+ * happening, and what it sounds like when something is.
+ *
+ * Austin at 2041 street level is a compute district — the ambience is
+ * cooling plant, not traffic. So the bed is a low filtered rush that opens
+ * up as the sector gets agitated, plus a sub drone that is only really
+ * felt. It is deliberately not a music cue: the game has no score, and a
+ * stinger arriving with enforcement would tell the player how to feel
+ * about something the debrief is going to be dry about.
+ *
+ * `heat` is 0..1. What it opens is the *filter*, much more than the gain —
+ * a bed that just gets louder reads as a volume bug, and a bed that gets
+ * brighter reads as a street getting nervous.
+ */
+export const BED = Object.freeze({
+  gain: 0.055,
+  gainAtFull: 0.13,
+  cutoff: 240,
+  cutoffAtFull: 1500,
+  drone: 44,
+  droneGain: 0.35,
+});
+
+export function bedFor(heat = 0, { playing = true } = {}) {
+  // Off the field entirely — briefing cards, the debrief, an interlude.
+  // A room tone under a card the player is reading is just a hum.
+  if (!playing) return { gain: 0, cutoff: BED.cutoff, drone: BED.drone };
+  const h = Math.max(0, Math.min(1, heat));
+  return {
+    gain: BED.gain + (BED.gainAtFull - BED.gain) * h,
+    // Exponential, so the top of the meter is where most of the change
+    // happens. Enforcement arriving should be audible before it is visible.
+    cutoff: BED.cutoff * Math.pow(BED.cutoffAtFull / BED.cutoff, h),
+    drone: BED.drone,
+  };
+}
