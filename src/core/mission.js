@@ -31,6 +31,25 @@ export function registerMission(def) {
   return def;
 }
 
+/**
+ * Register a mission the *map* wrote, rather than one an author did.
+ *
+ * Two differences from `registerMission`, both load-bearing:
+ *
+ * - It replaces instead of throwing on a duplicate id. The retake of
+ *   Sector 7 is a different deployment every time the block changes hands,
+ *   and it is the same deployment slot each time.
+ * - It stays out of `order`, so a generated mission never appears in the
+ *   tab strip, never counts toward campaign progress, and is never swept
+ *   up by the suite's "every authored mission is completable" pass. The
+ *   fifteen are the campaign. These are what the campaign does afterwards.
+ */
+export function registerGenerated(def) {
+  const stored = { ...def, generated: true };
+  registry.set(stored.id, stored);
+  return stored;
+}
+
 export function getMissionDef(id) {
   const def = registry.get(id);
   if (!def) throw new Error(`Unknown mission: ${id}`);

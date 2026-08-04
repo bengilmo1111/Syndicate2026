@@ -155,8 +155,29 @@ Concentrated doctrines sit out below `PORTFOLIO_MIN` sectors held —
 four converging on a new player's only sector makes easing the ration off
 stop working exactly when they are learning that it should.
 
-*Still open:* missions generated *by* the map rather than only feeding
-it.
+**And the map now writes missions**, which was the last piece of this gap
+and the one that turns the strategic layer from a spreadsheet the campaign
+feeds into a loop. A sector you took and lost gets a **retake deployment**
+generated on demand (`src/core/retake.js`): the same city seed, so the
+streets are the ones you already fought down; repainted to whoever holds
+it now; garrisoned by them, in their own field culture from NARRATIVE §5;
+and briefed by an unsigned sector-desk bulletin that names them. Before
+this, the only way to win a block back was to replay the mission that took
+it the first time — with its original briefing, its original garrison, and
+its original paint. Amazon holding a block still described as "an Amazon
+field cell squatting on our racks" was the whole problem in one sentence.
+
+The four garrisons are the four doctrines said in the field rather than on
+the map: Amazon posts numbers, Google posts fewer and harder behind more
+concrete, SpaceX charges and does not take cover, and an Anthropic block
+is off the update channel entirely — the one defence in the game the
+Aligner cannot answer. A sector that *revolted* is different again: no
+garrison, only residents, no ELIMINATE objective at all, and a longer hold.
+Nothing there has to die.
+
+A retake is deliberately **not campaign progress**. It never enters
+`completed`, never appears in the tab strip, never moves the deployment
+counter. The arc is fifteen missions; this is what the map does around it.
 
 ### 2. Buildings are indestructible — **closed**
 "Level a city block" is the original's headline. We destroyed street

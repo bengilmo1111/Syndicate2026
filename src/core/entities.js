@@ -397,11 +397,18 @@ const BRACKET_LINES = [
  * The Aligner cannot touch them. That is how the player finds out.
  */
 export class Unquantized extends Hostile {
-  constructor(x, z, rng, group) {
+  /**
+   * `opts.lines` and `opts.label` exist because the same *kind* of person
+   * turns up in more than one place. The Bracket's cell is pleading to be
+   * left alone; the residents of a sector that just threw the player out
+   * are not, and giving them The Bracket's script would have them begging
+   * for their lives while they advance on the squad.
+   */
+  constructor(x, z, rng, group, opts = {}) {
     super(x, z, {
       faction: 'unquantized',
       syndicate: null,
-      label: 'UNQUANTIZED',
+      label: opts.label ?? 'UNQUANTIZED',
       health: 26,
       damage: 6,
       speed: 7.6,
@@ -417,7 +424,7 @@ export class Unquantized extends Hostile {
     this.group = group;
     this.fleeing = false;
     this.spoke = false;
-    this.lines = BRACKET_LINES;
+    this.lines = opts.lines ?? BRACKET_LINES;
     this.rng = rng;
   }
 

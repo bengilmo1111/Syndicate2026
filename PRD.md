@@ -75,7 +75,9 @@ the job stops looking like the job. Full arc in `NARRATIVE.md`.
 - Compute upgrades: latency (speed), throughput (heavy weapons),
   context window (HP), attention range (sensor/aim range)
 - World map with datacenter nodes, mission selection, territory-based
-  compute income
+  compute income — **shipped**, including deployments the map generates
+  itself to take back a block a rival seized or a revolt lost. The map
+  both feeds the campaign and writes work for it.
 - Compute research tree gated by seized capacity and time
 - Saved syndicate state (localStorage)
 - Briefing / debrief screens in corporate-memo tone, PS1-era UI chrome

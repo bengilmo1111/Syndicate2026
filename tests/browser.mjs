@@ -257,8 +257,70 @@ check('clicking a throttle changes the ration and persists it',
   throttleAfter.throttle !== throttleBefore && throttleAfter.saved === throttleAfter.throttle,
   `${throttleBefore} → ${throttleAfter.throttle} (saved ${throttleAfter.saved})`);
 
-await page.click('#overlay-button');               // BACK TO BRIEFING
+// ---- the map answering back ------------------------------------------
+// A retake is only reachable through this button. Nothing headless can
+// press it, which is exactly why it is checked here.
+await page.evaluate(() => {
+  const c = window.__syndicate.campaign;
+  c.territory['sub-19'].held = false;
+  c.territory['sub-19'].owner = 'google';
+  c.territory['sub-19'].lostTo = 'google';
+});
+await page.click('#overlay-button');                // BACK TO BRIEFING
 await page.waitForTimeout(300);
+await page.click('#overlay-alt-button');            // CRYOVAT
+await page.waitForTimeout(250);
+await page.click('#overlay-alt-button');            // SECTOR MAP again
+await page.waitForTimeout(400);
+
+const retakeRow = await page.$$eval('.sector-row', els => els.findIndex(
+  e => e.textContent.includes('SUB-SECTOR 19') && e.querySelector('button.retake')));
+check('a block you lost offers a deployment to take it back', retakeRow >= 0,
+  `row ${retakeRow}`);
+check('and a block you hold does not',
+  await page.$$eval('.sector-row', els => !els.some(
+    e => e.textContent.includes('DISTRICT 12') && e.querySelector('button.retake'))));
+
+// That row's button specifically — several blocks are offered at once here,
+// and clicking "the first retake button" would deploy to a different sector.
+await page.locator('.sector-row', { hasText: 'SUB-SECTOR 19' })
+  .locator('button.retake').click();
+await page.waitForTimeout(900);
+const retakeCard = await page.evaluate(() => ({
+  title: document.getElementById('overlay-title').textContent,
+  eyebrow: document.getElementById('overlay-eyebrow').textContent,
+  body: document.getElementById('overlay-body').textContent,
+  selected: window.__syndicate.selectedMissionId,
+}));
+check('clicking it writes a briefing against whoever holds the block',
+  /RETAKE/.test(retakeCard.title) && /GOOGLE/.test(retakeCard.body)
+    && retakeCard.selected === 'retake:sub-19',
+  `${retakeCard.title} · ${retakeCard.selected}`);
+check('and it is not one of the fifteen',
+  !(await page.$$eval('.mission-tab', els => els.some(e => e.className.includes('active')))),
+  retakeCard.eyebrow);
+
+await page.click('#overlay-button');               // DEPLOY
+await page.waitForTimeout(1200);
+const inRetake = await page.evaluate(() => {
+  const s = window.__syndicate.sim;
+  return {
+    mission: s.mission.id,
+    syndicate: s.city.syndicate,
+    hostiles: s.hostiles.length,
+    holder: s.hostiles[0]?.syndicate,
+    zone: !!s.holdZone,
+    frames: window.__syndicate.phase,
+  };
+});
+check('and deploying drops the squad into the same block under new colours',
+  inRetake.mission === 'retake:sub-19' && inRetake.syndicate === 'google'
+    && inRetake.holder === 'google' && inRetake.hostiles > 0 && inRetake.zone,
+  `${inRetake.hostiles} hostiles · ${inRetake.syndicate}`);
+
+// Back out to the briefing so the checks below start where they expect to.
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(1200);
 await page.click('#overlay-alt-button');           // CRYOVAT
 await page.waitForTimeout(400);
 

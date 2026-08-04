@@ -187,17 +187,27 @@ the 2D logic onto a 3D engine instead of losing it.
 - [ ] Compute + funds currency persisted in localStorage
 - [ ] Research screen with timer-based unlocks
 
-## Phase 5 — World map and meta-loop
-> The single biggest gap against the original — the entire strategic half
-> is absent (`GAP_ANALYSIS.md` gap 1). Steal the tax mechanic specifically:
-> raising a sector's rate funds research and raises rebellion risk, which
-> is the same argument SURGE makes at the tactical scale.
-- [ ] World map screen with datacenter nodes
-- [ ] Per-sector compute income while held
-- [ ] Per-sector rate-limit setting: income traded against unrest
-- [ ] Mission selection from the world map
-- [ ] Rival syndicate AI that contests held sectors
-- [ ] Save / load syndicate state across sessions
+## Phase 5 — World map and meta-loop (DONE)
+> Was the single biggest gap against the original (`GAP_ANALYSIS.md` gap
+> 1). The tax mechanic was stolen specifically: raising a sector's ration
+> funds research and raises unrest, which is the same argument SURGE makes
+> at the tactical scale — one scale up.
+- [x] World map, as the third face of the briefing card rather than a
+      separate screen. It is one decision with the roster and the cryovat:
+      who you risk, what you spend, what you squeeze to afford it.
+- [x] Per-sector compute income while held, paid into `research`, so the
+      map and the cryovat are one economy
+- [x] Per-sector ration: income traded against unrest, tuned so that
+      squeezing hardest is *not* the winning move — a test plays the whole
+      campaign at each ration to prove it
+- [x] **Missions written by the map** (`src/core/retake.js`) — a block you
+      took and lost gets a generated retake deployment: same city seed,
+      repainted, garrisoned by whoever holds it now, briefed by an
+      unsigned sector-desk bulletin. Not campaign progress; the arc stays
+      fifteen missions.
+- [x] Rival syndicate AI that contests held sectors — four of them, with
+      four doctrines that need four different remedies
+- [x] Save / load syndicate state across sessions (save v4)
 
 ## Phase 2.5 — Verification (DONE)
 - [x] Dependency-free Node test harness; `src/core/` runs headless
@@ -263,6 +273,7 @@ src/
     devices.js          choke / standdown — the first things you place
     roster.js           who is in the suits, what is fitted, who is gone
     territory.js        the map: what you hold, how hard you squeeze it
+    retake.js           deployments the map writes to take a block back
     sim.js              the simulation — owns all mutable game state
   missions/             one file per mission, self-registering
     sector-7.js         Act I·1  ELIMINATE + DEMOLISH

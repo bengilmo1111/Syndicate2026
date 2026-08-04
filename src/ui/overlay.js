@@ -218,6 +218,19 @@ function renderMap(map) {
       tag.className = 'implant unheld-tag';
       tag.textContent = s.status;
       kit.appendChild(tag);
+
+      // A block you held once and do not hold now. The button is the whole
+      // reason the map is not a spreadsheet: it writes a deployment against
+      // whoever is standing in it, rather than sending you back through the
+      // briefing that took it the first time.
+      if (s.retake) {
+        const b = document.createElement('button');
+        b.className = 'implant throttle retake';
+        b.textContent = s.status === 'REVOLTED' ? 'GO BACK' : 'RETAKE';
+        b.title = 'Write a deployment for this block and open its briefing';
+        b.addEventListener('click', () => map.onRetake(s.id));
+        kit.appendChild(b);
+      }
     }
 
     row.appendChild(kit);

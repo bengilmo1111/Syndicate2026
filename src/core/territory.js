@@ -184,12 +184,40 @@ export const SECTORS = Object.freeze([
 const BY_MISSION = new Map(SECTORS.map(s => [s.from, s]));
 const BY_ID = new Map(SECTORS.map(s => [s.id, s]));
 
-export function sectorFor(missionId) {
-  return BY_MISSION.get(missionId) ?? null;
-}
-
 export function sectorById(id) {
   return BY_ID.get(id) ?? null;
+}
+
+/**
+ * Mission ids for the deployments the map generates.
+ *
+ * A sector is taken by an authored mission once. Getting it *back* is a
+ * different deployment against different people, and it needs its own id
+ * so the campaign can tell the two apart — a retake is not a replay, and
+ * it must not read as one on the record. The convention lives here rather
+ * than in `retake.js` because it is a fact about sectors, and putting it
+ * there would make the two modules import each other.
+ */
+export const RETAKE_PREFIX = 'retake:';
+
+export function retakeId(sectorId) {
+  return `${RETAKE_PREFIX}${sectorId}`;
+}
+
+export function isRetakeId(id) {
+  return typeof id === 'string' && id.startsWith(RETAKE_PREFIX);
+}
+
+export function sectorOfRetake(id) {
+  return isRetakeId(id) ? sectorById(id.slice(RETAKE_PREFIX.length)) : null;
+}
+
+/**
+ * Which sector a mission id takes. Retakes resolve here too, which is what
+ * makes `claim()` and `settle()` work for them without knowing they exist.
+ */
+export function sectorFor(missionId) {
+  return sectorOfRetake(missionId) ?? BY_MISSION.get(missionId) ?? null;
 }
 
 export function newTerritory() {
@@ -217,16 +245,24 @@ export function migrateTerritory(raw) {
   for (const s of SECTORS) {
     const r = raw[s.id];
     if (!r || typeof r !== 'object') continue;
+    const lostTo = typeof r.lostTo === 'string' ? r.lostTo : null;
+    // A sector that has just revolted is *deliberately* ownerless: nobody
+    // gets it, and its own syndicate walks back in on the next deployment.
+    // Without this, the owner fallback below hands it straight to that
+    // syndicate on load, and any player who saves between deployments —
+    // which is every player, the save is written on every debrief — never
+    // sees the beat at all.
+    const revolted = lostTo === 'revolt' && !r.owner;
     fresh[s.id] = {
       held: !!r.held,
       // A throttle id we retired must not survive as a dangling string —
       // it would read as PLUS in the UI and yield nothing in the maths.
       throttle: THROTTLE[r.throttle] ? r.throttle : 'PLUS',
       unrest: Number.isFinite(r.unrest) ? Math.max(0, Math.min(REVOLT_AT, r.unrest)) : 0,
-      lostTo: typeof r.lostTo === 'string' ? r.lostTo : null,
+      lostTo,
       // Same rule for an owner: a syndicate we never heard of falls back
       // to the sector's own rival rather than leaving the map ownerless.
-      owner: r.held ? null : (RIVALS[r.owner] ? r.owner : s.rival),
+      owner: (r.held || revolted) ? null : (RIVALS[r.owner] ? r.owner : s.rival),
       contest: Number.isFinite(r.contest) ? Math.max(0, Math.min(SEIZE_AT, r.contest)) : 0,
       contestedBy: RIVALS[r.contestedBy] ? r.contestedBy : null,
     };
