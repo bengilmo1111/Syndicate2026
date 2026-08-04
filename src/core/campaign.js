@@ -10,7 +10,7 @@
 // firefights.
 
 import { newRoster, migrateRoster, researchFor, recordDeployment } from './roster.js';
-import { newTerritory, migrateTerritory, settle } from './territory.js';
+import { newTerritory, migrateTerritory, settle, isRetakeId } from './territory.js';
 
 export const SAVE_VERSION = 4;
 
@@ -93,6 +93,12 @@ export function lockReason(campaign, def, lookup) {
 
 /** Record a win. Idempotent — replaying a mission keeps the better record. */
 export function recordWin(campaign, id, result = {}) {
+  // A retake is not campaign progress. The map generated it, the map is
+  // paid by it, and it closes when the sector is back — but the arc is
+  // fifteen missions and it stays fifteen missions. Letting these into
+  // `completed` would push the deployment counter past its own total and
+  // put a mission nobody wrote in the middle of the record.
+  if (isRetakeId(id)) return campaign;
   if (!isComplete(campaign, id)) campaign.completed.push(id);
   const prev = campaign.records[id];
   const better = !prev || (result.civilianDeaths ?? 0) < (prev.civilianDeaths ?? Infinity);

@@ -185,6 +185,19 @@ button.implant.throttle:hover {
   background: none;
 }
 
+/* The one control on an unheld row. Warm rather than the panel's cyan,
+   because everything else on this card spends or squeezes and this is the
+   only button that sends the squad somewhere. */
+button.implant.throttle.retake {
+  min-width: 8ch;
+  color: var(--warn);
+  border-color: rgba(255, 171, 74, 0.45);
+}
+
+button.implant.throttle.retake:hover {
+  background: rgba(255, 171, 74, 0.18);
+}
+
 /* ---------------------------------------------------------- field devices */
 
 /* Above the compute panel, which sits above the full-width squad bar.

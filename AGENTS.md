@@ -115,6 +115,12 @@ the full statement; the short version:
    **epilogue** (`def.epilogue` — no city, no decision, reads a campaign
    flag back). `isFieldMission()` is what tells them apart; anything that
    iterates missions has to respect it.
+   A fourth kind exists that you do **not** write by hand: a **generated**
+   mission, registered by `registerGenerated()` and deliberately kept out
+   of the authored list. `src/core/retake.js` is the only one. If you are
+   iterating missions, `getAllMissions()` gives you the fifteen and
+   nothing else — which is the point; a generated deployment must never
+   land in the tab strip, in `completed`, or in the progress counter.
 3. `setup(rng)` returns `{ city, hostiles, civilianCount, assets?, extraction? }`.
    Use the seeded `rng` — worlds must be reproducible.
 4. New objective type? Handle it in `updateMissionStatus()` in

@@ -21,8 +21,10 @@ import {
 } from './core/roster.js';
 import {
   SECTORS, THROTTLE, RIVALS, RIVAL_IDS, cycleThrottle, income, statusOf,
-  yieldOf, REVOLT_AT, SEIZE_AT, leadingRival, rivalStrength,
+  yieldOf, REVOLT_AT, SEIZE_AT, leadingRival, rivalStrength, isRetakeId,
+  sectorOfRetake,
 } from './core/territory.js';
+import { retakeTargets, retakeFor } from './core/retake.js';
 
 const canvas = document.getElementById('game-canvas');
 const view = new View(canvas);
@@ -60,10 +62,17 @@ const pointer = { nx: 0.5, ny: 0.5, firing: false, orbiting: false, lastX: 0, la
 /** The sector map: what you hold, how hard, and how close it is to going. */
 function mapView() {
   const territory = app.campaign.territory;
+  // Blocks the map can write a deployment for: taken once, not held now.
+  // A sector the player has never taken is not one of these — it still has
+  // an authored mission with a briefing that means something.
+  const retakeable = new Set(
+    retakeTargets(territory, app.campaign.completed).map(s => s.id),
+  );
   const rows = SECTORS.map(s => {
     const t = territory[s.id];
     const status = statusOf(t);
     return {
+      retake: retakeable.has(s.id),
       id: s.id,
       name: s.name,
       detail: s.detail,
@@ -82,9 +91,11 @@ function mapView() {
           // card's width and the map stops scanning as a table.
           ? `${s.detail} · pays ${yieldOf(s, t).toFixed(1)} · ${RIVALS[t.contestedBy].name} pushing`
           : `${s.detail} · pays ${yieldOf(s, t).toFixed(1)} · ${status.toLowerCase()}`)
-        : (t.lostTo === 'revolt'
-          ? `${s.detail} · handed itself back`
-          : `${s.detail} · ${RIVALS[t.owner]?.name ?? 'unclaimed'} holds it — redeploy to take it`),
+        // Kept to one line each. The map only scans as a table while every
+        // row is one row — the same reason "is pushing" became "pushing".
+        : (t.owner
+          ? `${s.detail} · ${RIVALS[t.owner].name} holds it`
+          : `${s.detail} · it threw you out`),
     };
   });
   const leader = leadingRival(territory);
@@ -104,6 +115,16 @@ function mapView() {
     onThrottle: (id) => {
       cycleThrottle(app.campaign.territory, id);
       saveCampaign(app.campaign);
+      showBriefing();
+    },
+    // The map answering back. Written here, now, against whoever is
+    // standing in the block — a cached one would send the squad after the
+    // wrong syndicate on a sector that changed hands twice.
+    onRetake: (id) => {
+      const def = retakeFor(app.campaign.territory, id);
+      if (!def) return;
+      app.selectedMissionId = def.id;
+      panel = PANEL.BRIEF;
       showBriefing();
     },
   };
@@ -380,6 +401,14 @@ function showDebrief(won) {
     // Roll the selection forward so RETURN TO BRIEFING lands on what's next.
     const next = nextMission(app.campaign, MISSIONS);
     if (next) app.selectedMissionId = next.id;
+    // A retake finished with nothing left in the arc — which is the normal
+    // case, since retakes are most of what a finished campaign has left to
+    // do. Land on the sector's own mission rather than leaving the card on
+    // a deployment for a block the player now holds.
+    else if (isRetakeId(def.id)) {
+      const sector = sectorOfRetake(def.id);
+      if (sector) app.selectedMissionId = sector.from;
+    }
   }
   // A mission can be lost specifically — the escorted asset died, the
   // target got away — and the debrief should say which.

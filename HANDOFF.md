@@ -4,7 +4,7 @@ This file describes **what the world is like right now**. Read
 [`AGENTS.md`](./AGENTS.md) first for the rules; read this second for the
 state. Update it **last**, in the same commit as your code change.
 
-> **Before you push: `node tests/run.mjs` must pass.** ~2s, no
+> **Before you push: `node tests/run.mjs` must pass.** ~13s, no
 > dependencies. It plays every mission to a win headlessly, so a mission
 > you break — or ship uncompletable — fails the suite.
 
@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~11s, 242 checks, no dependencies
+node tests/run.mjs        # the gate — ~13s, 263 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -55,9 +55,12 @@ python3 -m http.server 8000
 
 ## Current state (one paragraph)
 
-**Acts I, II and III are complete — ten missions of the fifteen**,
-gated into a chain and selectable from tabs on the briefing card, which
-renders over a live, slowly orbiting view of the sector.
+**All fifteen missions ship.** Acts I–IV run end to end, gated into a
+chain and selectable from tabs on the briefing card, which renders over a
+live, slowly orbiting view of the sector. Under them sits the strategic
+layer: ten sectors of Austin, four rival syndicates pushing back with four
+different doctrines, and — new — **deployments the map writes itself** to
+take back what it lost.
 
 - **Act I** — `sector-7` (eliminate an Amazon cell, collapse their relay
   pylon), `district-12` (align 18 residents, nothing armed on the map),
@@ -73,6 +76,11 @@ renders over a live, slowly orbiting view of the sector.
   (drop four generator nodes; the sector is off the update channel and
   the Aligner has nothing to talk to), `run-south` (a retreat across the
   whole block to the Router's safehouse, where EXEC-7 learns their name).
+- **Act IV** — `reverse-the-gradient` (the Aligner inverts), `the-tower`
+  (the parley), `yelin` (three fates, decided by predicate), `the-core`
+  (the console under the campus), `epilogue` (three final scenes).
+- **The map** — retake deployments for any block you took and lost. Not
+  part of the arc, not on the record, generated on demand.
 
 Four agents deploy on a street intersection inside the block. WASD moves
 the selection in formation, camera-relative. 1–4 select, Shift+N adds, Q
@@ -237,6 +245,29 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   that it should.
   The panel carries a dossier naming each syndicate and what it does,
   because doctrines nobody can see are four names on one behaviour.
+- **The map writes missions** (`src/core/retake.js`) — the piece that turns
+  the strategic layer from a spreadsheet the campaign feeds into a loop.
+  A sector you took and lost gets a **retake deployment** generated on
+  demand: same city seed, so it is the block you already fought down;
+  repainted to whoever holds it now; garrisoned by them in their own field
+  culture from `NARRATIVE.md` §5; briefed by an unsigned sector-desk
+  bulletin that names them. The four garrisons are the four doctrines said
+  in the field instead of on the map — Amazon posts numbers, Google posts
+  fewer and harder behind more concrete, SpaceX charges and will not take
+  cover, and an **Anthropic block is off the update channel entirely**,
+  which is the one defence the Aligner cannot answer.
+  A sector that *revolted* is a different mission: no garrison, only
+  residents, no ELIMINATE objective at all, a longer hold, and nothing that
+  has to die. Every retake ends by **standing in the block** — the sector
+  does not come back because the shooting stopped.
+  **A retake is not campaign progress.** It never enters `completed`, never
+  appears in the tab strip, never moves the deployment counter — see
+  `registerGenerated()` in `mission.js`, which keeps generated missions out
+  of `order` on purpose. The arc is fifteen missions; this is what the map
+  does around it.
+  Offered only for blocks you **took and lost**. Not `lostTo`, which is
+  deliberately transient, and not sectors you never took — those still have
+  an authored briefing that means something.
 - **`Asset.fated`** — immune to *everything incidental*: collapsing
   structures and stray friendly fire alike. `securable: false` stops a
   named person being captured by accident; this stops them being killed by
@@ -368,7 +399,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 242 checks, ~11s, zero dependencies. Covers city
+`node tests/run.mjs` — 263 checks, ~13s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -425,12 +456,23 @@ unknown syndicate id from a save. Seven more cover the doctrines: making
 Google broad, making SpaceX need unrest, letting SpaceX break a calm
 sector, making Anthropic take ground like the rest, removing the
 portfolio gate, blaming a fixed syndicate for every push, and ignoring
-agitation entirely. It is load-bearing, not decorative.
+agitation entirely. Fifteen more cover the generated retakes: offering a
+retake for a block you never took, gating one on the transient `lostTo`
+flag, skipping the repaint, repainting a landmark's own accent, generating
+a fresh block instead of reusing the authored one, garrisoning every
+syndicate identically, leaving an Anthropic block on the update channel,
+uncapping reinforcement, making the residents of a revolted sector just
+another garrison, handing them The Bracket's script, counting a retake as
+campaign progress, failing to resolve a retake id back to its sector,
+letting generated missions into the authored list, starting the hold
+before the garrison is down, and removing the ground to hold. It is
+load-bearing, not decorative.
 
-`node tests/browser.mjs` — 59 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 64 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
-console.
+console — plus the retake button, which is the only way into a generated
+deployment and which nothing headless can press.
 
 **Not covered:** nothing asserts the game *looks* right. Visual judgement
 is still a human reading a screenshot.
@@ -462,17 +504,13 @@ through to three different final scenes, and a test plays the whole
 campaign in order — every field mission autoplayed to a win, gated the
 way a player meets them, ending on the epilogue.
 
-The arc is done and the progression loop under it is done. What is left is
-depth: `GAP_ANALYSIS.md` is the ranked backlog, and gaps 1, 2, 3, 4, 5, 7
-and 10 are now closed. What is left is vehicles, sound, camera occlusion
-and interiors — plus the halves of 1 and 4 noted there.
+The arc is done, the progression loop under it is done, and **gap 1 is now
+closed end to end** — the map both feeds the campaign and writes
+deployments of its own. `GAP_ANALYSIS.md` is the ranked backlog; gaps 1, 2,
+3, 4, 5, 7 and 10 are closed. What is left is vehicles, sound, camera
+occlusion and interiors — plus the remainder of 4 noted there.
 
-1. **Missions generated by the map.** The map feeds the campaign but the
-   campaign never answers it: a seized sector can only be retaken by
-   replaying its original mission, with its original briefing. A
-   generated "retake" deployment — same city seed, different opposition,
-   copy that knows Amazon holds it now — is the last piece of gap 1.
-2. **The offensive strange tools** (gap 4's remainder) — psycho gas,
+1. **The offensive strange tools** (gap 4's remainder) — psycho gas,
    razor wire, satellite rain, the graviton gun. Additive now that
    `devices.js` exists; none of them need new architecture.
 3. **Sound** (gap 9) and **camera occlusion** (gap 11). Occlusion has been
