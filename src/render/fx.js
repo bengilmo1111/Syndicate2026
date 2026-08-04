@@ -92,13 +92,22 @@ export class Fx {
 
     // Field devices. Pooled rings, because the belt is small and the
     // fields are the only thing on the ground the player *placed*.
-    this.deviceMats = {
-      CHOKE: glow(0x8fa4ff, { transparent: true, opacity: 0.4, side: THREE.DoubleSide }),
-      STANDDOWN: glow(0xd9a066, { transparent: true, opacity: 0.4, side: THREE.DoubleSide }),
+    // A colour per tool, and a material per *ring* — opacity is animated
+    // per device, and sharing one material across rings meant whichever
+    // one drew last set the fade for every field of that type on the map.
+    this.deviceColors = {
+      CHOKE: 0x8fa4ff,
+      STANDDOWN: 0xd9a066,
+      RAZOR: 0xc7ccd4,
+      PSYCHO: 0xff7ad9,
+      GRAVITON: 0x9b7bff,
+      RAIN: 0xff5a4a,
     };
     this.deviceRings = [];
-    for (let i = 0; i < 6; i++) {
-      const m = new THREE.Mesh(RING, this.deviceMats.CHOKE);
+    for (let i = 0; i < 10; i++) {
+      const m = new THREE.Mesh(RING, glow(0x8fa4ff, {
+        transparent: true, opacity: 0.4, side: THREE.DoubleSide,
+      }));
       m.rotation.x = -Math.PI / 2;
       m.position.y = 0.13;
       m.visible = false;
@@ -201,14 +210,22 @@ export class Fx {
       const d = devices[i];
       ring.visible = !!d;
       if (!d) return;
-      ring.material = this.deviceMats[d.id] ?? this.deviceMats.CHOKE;
+      ring.material.color.setHex(this.deviceColors[d.id] ?? this.deviceColors.CHOKE);
       ring.position.x = d.x;
       ring.position.z = d.z;
       const arming = !d.armed;
       const pulse = 0.92 + Math.sin(performance.now() / (arming ? 90 : 260) + i) * 0.06;
-      ring.scale.setScalar(d.radius * (arming ? 0.55 : 1) * pulse);
+      // A strike device draws its *full* footprint while it arms, because
+      // the ring is the warning and a warning that starts small is a lie
+      // about where it is safe to stand.
+      const warning = d.type?.strike;
+      ring.scale.setScalar(d.radius * (arming && !warning ? 0.55 : 1) * pulse);
       // Fade out over the last two seconds so it never simply vanishes.
-      ring.material.opacity = arming ? 0.22 : Math.min(0.45, 0.12 + d.life * 0.22);
+      // The warning has to be the loudest thing on the ground. Everything
+      // else here is a field you placed; this one is a countdown.
+      ring.material.opacity = arming
+        ? (warning ? 0.42 + Math.sin(performance.now() / 70) * 0.26 : 0.22)
+        : Math.min(0.45, 0.12 + d.life * 0.22);
     });
   }
 
@@ -289,6 +306,12 @@ export class Fx {
           break;
         case 'collapse':
           this.collapse(e.structure);
+          break;
+        // An orbital impact. Loud on purpose: the ring on the ground was
+        // the promise and this is the thing keeping it, so it has to be
+        // legible from the far side of the block.
+        case 'strike':
+          this.spark(e.x, e.z, 6.5, 0xff5a4a);
           break;
         case 'align':
           this.spark(e.x, e.z, 2.4, 0xfff0c0);

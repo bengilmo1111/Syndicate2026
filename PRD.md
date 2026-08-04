@@ -72,6 +72,9 @@ the job stops looking like the job. Full arc in `NARRATIVE.md`.
   demolish, hold zone
 - The Aligner, with the late-game jailbreak mode
 - Weapon roster: sidearm, SMG, minigun, incendiary, rail rifle, laser, plasma
+- Field devices — **shipped**: choke field, standdown aerosol, razor wire,
+  misalignment aerosol, graviton charge, satellite rain. None of them is a
+  bigger gun and every one applies to the squad as well.
 - Compute upgrades: latency (speed), throughput (heavy weapons),
   context window (HP), attention range (sensor/aim range)
 - World map with datacenter nodes, mission selection, territory-based

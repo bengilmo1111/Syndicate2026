@@ -19,6 +19,7 @@ import { loadCampaign, saveCampaign, clearCampaign } from './ui/storage.js';
 import {
   CYBERNETICS, CYBERNETIC_IDS, deployed, fit, fitBlocker,
 } from './core/roster.js';
+import { DEVICE, DEVICE_IDS } from './core/devices.js';
 import {
   SECTORS, THROTTLE, RIVALS, RIVAL_IDS, cycleThrottle, income, statusOf,
   yieldOf, REVOLT_AT, SEIZE_AT, leadingRival, rivalStrength, isRetakeId,
@@ -554,6 +555,11 @@ if (!shell.requestFullscreen) fsButton.classList.add('hidden');
 
 const MOVE_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
 
+/** Every device's hotkey, read off the table so the two cannot drift. */
+const DEVICE_KEYS = Object.fromEntries(
+  DEVICE_IDS.map(id => [DEVICE[id].key.toLowerCase(), id]),
+);
+
 window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   keys.add(k);
@@ -590,11 +596,13 @@ window.addEventListener('keydown', (e) => {
     squad.compute.toggleSurge();
   } else if (k === 'h') {
     squad.cycleStance();
-  } else if (k === 'e' || k === 't') {
+  } else if (DEVICE_KEYS[k]) {
     // Devices go where the cursor is, and they are consumed on the frame
     // the sim places them — queued here so the fixed-step loop applies it
-    // exactly once regardless of frame rate.
-    pendingDevice = k === 'e' ? 'CHOKE' : 'STANDDOWN';
+    // exactly once regardless of frame rate. A key for a tool the squad
+    // has not been issued yet is a no-op: the belt has no entry, so
+    // `deploy()` refuses it.
+    pendingDevice = DEVICE_KEYS[k];
   }
 });
 
@@ -708,6 +716,11 @@ function frame(now) {
           if (ev.type === 'collapse') {
             const mass = Math.min(1, (ev.structure?.maxHp ?? 0) / 5000);
             view.rig.kick(0.6 + mass * 1.7);
+          } else if (ev.type === 'strike') {
+            // Five of these land at once. Kept well under a collapse so the
+            // barrage reads as a barrage rather than as the camera falling
+            // over.
+            view.rig.kick(0.45);
           }
         }
       }

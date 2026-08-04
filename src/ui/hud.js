@@ -39,13 +39,15 @@ function buildSquadStrip() {
   squadBuilt = true;
 }
 
-let deviceBuilt = false;
-const deviceRows = {};
+/** Which belt the panel was built for, so a shorter one rebuilds it. */
+let deviceSignature = null;
+let deviceRows = {};
 
-function buildDevicePanel() {
+function buildDevicePanel(carried) {
   const host = el('hud-devices');
   host.innerHTML = '';
-  for (const id of DEVICE_IDS) {
+  deviceRows = {};
+  for (const id of carried) {
     const d = DEVICE[id];
     const row = document.createElement('div');
     row.className = 'device-row';
@@ -57,13 +59,25 @@ function buildDevicePanel() {
     host.appendChild(row);
     deviceRows[id] = { row, pips: row.querySelector('.device-charges') };
   }
-  deviceBuilt = true;
 }
 
+/**
+ * Only what the squad is actually carrying.
+ *
+ * The belt grows act by act, so a mission that has not been issued the
+ * graviton charge should not be showing an empty row for it — an empty row
+ * reads as "spent", which is a different and much more annoying thing than
+ * "not yours yet".
+ */
 function renderDevices(sim) {
-  if (!deviceBuilt) buildDevicePanel();
-  for (const id of DEVICE_IDS) {
-    const left = sim.belt?.[id] ?? 0;
+  const carried = DEVICE_IDS.filter(id => sim.belt?.[id] !== undefined);
+  const signature = carried.join(',');
+  if (signature !== deviceSignature) {
+    buildDevicePanel(carried);
+    deviceSignature = signature;
+  }
+  for (const id of carried) {
+    const left = sim.belt[id];
     const { row, pips } = deviceRows[id];
     pips.innerHTML = Array.from({ length: DEVICE[id].charges }, (_, i) =>
       `<i class="${i < left ? 'on' : ''}"></i>`).join('');
