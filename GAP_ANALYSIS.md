@@ -374,6 +374,18 @@ What the numbers are asked to guarantee, in tests:
 - **Panning follows the camera, not the world**, because this game lets
   you spin the city.
 
+There is a **room tone** as well: one looping graph for the session,
+ridden by heat. What heat opens is the *filter*, far more than the gain —
+a bed that only gets louder reads as a volume bug; a bed that gets
+brighter reads as a street getting nervous, which is what the heat meter
+is actually about. Back-loaded, so enforcement arriving is audible before
+it is visible, and silent off the field, because a room tone under a card
+somebody is reading is just a hum.
+
+Deliberately not a score. The game has none, and a stinger arriving with
+enforcement would tell the player how to feel about something the debrief
+is going to be dry about.
+
 `M` mutes, and the setting is stored separately from the campaign — it is
 a property of the machine somebody is sitting at, not of the run, so
 wiping the record does not turn the audio back on.

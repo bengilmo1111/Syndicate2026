@@ -8,7 +8,9 @@
 // `sound.js` where Node cannot reach it.
 
 import { suite, test, ok, notOk, eq, near, lt, gt, gte } from './lib/harness.mjs';
-import { cueFor, place, mix, sizeOf, CUE, EARSHOT, CLOSE } from '../src/audio/kit.js';
+import {
+  cueFor, place, mix, sizeOf, bedFor, CUE, EARSHOT, CLOSE,
+} from '../src/audio/kit.js';
 
 const here = { x: 0, z: 0, yaw: 0 };
 const at = (x, z, type = 'shot', extra = {}) => ({ type, x, z, ...extra });
@@ -162,4 +164,45 @@ test('every cue the table can emit has a gain and a cap', () => {
     lt(cue.gain, 1.01, `${id}: does not clip on its own`);
     gte(cue.limit, 1, `${id}: can play at all`);
   }
+});
+
+suite('the room');
+
+test('a quiet block and a block on fire do not sound the same', () => {
+  const calm = bedFor(0);
+  const hot = bedFor(1);
+  gt(hot.gain, calm.gain, 'busier is louder');
+  gt(hot.cutoff, calm.cutoff * 3, 'and much brighter');
+});
+
+test('what heat opens is the filter, not the volume', () => {
+  // A bed that only gets louder reads as a volume bug. A bed that gets
+  // brighter reads as a street getting nervous, which is the thing the
+  // heat meter is actually about.
+  const calm = bedFor(0);
+  const hot = bedFor(1);
+  const louder = hot.gain / calm.gain;
+  const brighter = hot.cutoff / calm.cutoff;
+  gt(brighter, louder * 2, `×${brighter.toFixed(1)} brighter vs ×${louder.toFixed(1)} louder`);
+  lt(hot.gain, 0.2, 'and it never gets loud enough to compete with the guns');
+});
+
+test('most of the change happens at the top of the meter', () => {
+  // Enforcement arriving should be audible before it is visible, which
+  // means the curve has to be back-loaded rather than linear.
+  const low = bedFor(0.5).cutoff - bedFor(0).cutoff;
+  const high = bedFor(1).cutoff - bedFor(0.5).cutoff;
+  gt(high, low, `${Math.round(high)}Hz in the top half vs ${Math.round(low)}Hz in the bottom`);
+});
+
+test('the room is silent off the field', () => {
+  // Briefing cards, the debrief, an interlude. A room tone under a card
+  // somebody is reading is just a hum.
+  eq(bedFor(1, { playing: false }).gain, 0, 'nothing while a card is up');
+  gt(bedFor(0, { playing: true }).gain, 0, 'and something the moment it is not');
+});
+
+test('heat outside the meter does not break the room', () => {
+  eq(bedFor(-4).gain, bedFor(0).gain, 'clamped low');
+  eq(bedFor(99).gain, bedFor(1).gain, 'and clamped high');
 });

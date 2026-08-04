@@ -231,7 +231,8 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] **Sound** (`src/audio/`) — synthesised at runtime, no asset files.
       `kit.js` is the pure, tested mix; `sound.js` is the WebAudio half.
       Sixteen cues, per-voice caps, distance rolloff, camera-relative
-      panning, sub-linear stacking. `M` mutes.
+      panning, sub-linear stacking, and a room tone ridden by heat.
+      `M` mutes.
 - [ ] **Full building destruction** (`GAP_ANALYSIS.md` gap 2) — levelling
       a block is the original's headline feature. Collapse-to-cover
       already works; this is scope, not design.

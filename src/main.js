@@ -6,7 +6,7 @@ import './missions/index.js';
 import {
   getAllMissions, getMissionDef, debriefLines, epilogueFor,
 } from './core/mission.js';
-import { createSim, step, PHASE } from './core/sim.js';
+import { createSim, step, PHASE, heatRatio } from './core/sim.js';
 import { answerInterlude } from './core/interlude.js';
 import {
   isUnlocked, isComplete, lockReason, recordWin, nextMission, progress,
@@ -381,6 +381,7 @@ function startMission() {
 
 function showDebrief(won) {
   app.phase = won ? PHASE.WON : PHASE.LOST;
+  audio.room(0, false);
   const def = getMissionDef(app.sim.mission.id);
 
   // Who did not come back. Read before anything else touches the roster.
@@ -485,6 +486,7 @@ function showDebrief(won) {
  */
 function showInterlude(beat) {
   app.phase = PHASE.BRIEFING;
+  audio.room(0, false);
   setOverlay({
     eyebrow: 'CHANNEL OPEN',
     title: beat.speaker,
@@ -774,6 +776,9 @@ function frame(now) {
       else if (app.sim.phase === PHASE.LOST) showDebrief(false);
       else if (app.sim.interlude) showInterlude(app.sim.interlude);
 
+      // The room, riding the sector's mood. Off the field it goes silent —
+      // a bed under a card the player is reading is just a hum.
+      audio.room(heatRatio(app.sim), true);
       audio.consume(app.sim.events, {
         x: view.rig.smoothTarget.x,
         z: view.rig.smoothTarget.z,

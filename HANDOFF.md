@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~15s, 312 checks, no dependencies
+node tests/run.mjs        # the gate — ~15s, 317 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -281,6 +281,12 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   game.
   Audio reads the same `sim.events` feed the renderer does and must run
   **before** it — `view.render` drains the array.
+  There is a **room tone** too: one looping graph for the whole session,
+  ridden by heat. What heat opens is the *filter*, far more than the gain —
+  a bed that only gets louder reads as a volume bug, a bed that gets
+  brighter reads as a street getting nervous. Back-loaded, so enforcement
+  arriving is audible before it is visible. Silent off the field, because a
+  room tone under a card somebody is reading is just a hum.
   `M` mutes; the setting is stored apart from the campaign, because it
   belongs to the machine and not to the run.
 - **Camera occlusion** (`occludersBetween` in `src/core/city.js`) — the
@@ -454,7 +460,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 312 checks, ~15s, zero dependencies. Covers city
+`node tests/run.mjs` — 317 checks, ~15s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -511,7 +517,10 @@ unknown syndicate id from a save. Seven more cover the doctrines: making
 Google broad, making SpaceX need unrest, letting SpaceX break a calm
 sector, making Anthropic take ground like the rest, removing the
 portfolio gate, blaming a fixed syndicate for every push, and ignoring
-agitation entirely. Ten cover the sound mix: a kill with its own voice,
+agitation entirely. Five more cover the room tone: heat that only raises
+the volume, a room that plays under the cards, a linear heat curve,
+unclamped heat, and a bed loud enough to compete with the guns. Ten cover
+the sound mix: a kill with its own voice,
 friendly and enemy fire sounding alike, distance not mattering, panning
 that ignores the camera, uncapped voices, a cap that keeps whatever came
 first, arithmetic stacking, a kiosk and a tower landing the same,
@@ -540,7 +549,7 @@ letting generated missions into the authored list, starting the hold
 before the garrison is down, and removing the ground to hold. It is
 load-bearing, not decorative.
 
-`node tests/browser.mjs` — 79 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 81 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console — plus the retake button, which is the only way into a generated
@@ -583,9 +592,11 @@ all in, offensive ones included. `GAP_ANALYSIS.md` is the ranked backlog;
 gaps 1, 2, 3, 4, 5, 7, 9, 10 and 11 are closed. What is left is vehicles
 and interiors.
 
-1. **Ambient sound.** The event feed is covered; the *room* is not. A low
-   city bed that thickens with heat, and something for the briefing card,
-   would finish what `src/audio/` started.
+1. **The seven flags nothing reads.** `bravoCalibrated`,
+   `playerSuspicion`, `defectedAtRefusal`, `heardYelin`, `pressedYelin`,
+   `toldBravoItWasHers`, `askedTheReplacement` are all recorded and none
+   of them is ever mentioned again. The game promises consequence and
+   banks it without spending it.
 3. **Between-mission interstitials for Acts I–III** — Yelin's notes and
    the street graffiti. Act IV got its beats *inside* missions, which is
    where they belonged, but the Act I→II tonal turn still has nothing

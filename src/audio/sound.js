@@ -10,7 +10,7 @@
 // The mixing decisions live in `kit.js` and are tested in Node. This file
 // only knows how to make a cue audible.
 
-import { mix } from './kit.js';
+import { mix, bedFor, BED } from './kit.js';
 
 /** Browsers refuse to start audio until the player has clicked something. */
 const NEEDS_GESTURE = 'suspended';
@@ -24,6 +24,8 @@ export class Sound {
     /** Rolling count, so a test can prove a cue actually reached the graph. */
     this.played = 0;
     this.lastCues = [];
+    /** The room tone. One graph for the whole session, gain-ridden. */
+    this.bed = null;
   }
 
   get available() {
@@ -44,6 +46,7 @@ export class Sound {
       this.master.gain.value = this.muted ? 0 : 0.7;
       this.master.connect(this.ctx.destination);
       this.noise = this.buildNoise();
+      this.bed = this.buildBed();
     }
     if (this.ctx.state === NEEDS_GESTURE) this.ctx.resume().catch(() => {});
     return true;
@@ -56,6 +59,58 @@ export class Sound {
   }
 
   toggleMute() { return this.setMuted(!this.muted); }
+
+  /**
+   * The room.
+   *
+   * A looping noise source through a lowpass, plus a sub sine nobody
+   * consciously hears. Built once and left running for the session — a bed
+   * that starts and stops with each deployment clicks, and the click is
+   * more noticeable than the bed.
+   */
+  buildBed() {
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noise;
+    src.loop = true;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = BED.cutoff;
+    filter.Q.value = 0.4;
+
+    const gain = this.ctx.createGain();
+    gain.gain.value = 0;
+
+    const drone = this.ctx.createOscillator();
+    drone.type = 'sine';
+    drone.frequency.value = BED.drone;
+    const droneGain = this.ctx.createGain();
+    droneGain.gain.value = BED.droneGain;
+
+    src.connect(filter);
+    filter.connect(gain);
+    drone.connect(droneGain);
+    droneGain.connect(gain);
+    gain.connect(this.master);
+    src.start();
+    drone.start();
+    return { src, filter, gain, drone };
+  }
+
+  /**
+   * Ride the bed toward where the sector is.
+   *
+   * Ramped rather than set: heat moves every frame, and a filter cutoff
+   * snapping sixty times a second is a zipper noise, not an atmosphere.
+   */
+  room(heat, playing) {
+    this.lastBed = bedFor(heat, { playing });
+    if (!this.bed) return this.lastBed;
+    const t = this.ctx.currentTime;
+    this.bed.gain.gain.setTargetAtTime(this.lastBed.gain, t, 0.35);
+    this.bed.filter.frequency.setTargetAtTime(this.lastBed.cutoff, t, 0.5);
+    return this.lastBed;
+  }
 
   /** One second of white noise, reused by everything percussive. */
   buildNoise() {

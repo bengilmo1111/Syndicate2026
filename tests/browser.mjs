@@ -537,13 +537,25 @@ check('and every tool has its own key on the panel',
   act4Rows.map(r => r[0]).join(''));
 
 const canvasBox = await (await page.$('#game-canvas')).boundingBox();
+const landedOn = id => page.evaluate(
+  x => window.__syndicate.sim.devices.some(d => d.id === x), id);
 for (const [key, id] of [['u', 'RAZOR'], ['y', 'PSYCHO'], ['o', 'GRAVITON']]) {
-  await page.mouse.move(canvasBox.x + canvasBox.width * 0.45, canvasBox.y + canvasBox.height * 0.4);
-  await page.waitForTimeout(120);
-  await page.keyboard.press(key);
-  await page.waitForTimeout(300);
-  check(`${key.toUpperCase()} places a ${id.toLowerCase()}`,
-    await page.evaluate(x => window.__syndicate.sim.devices.some(d => d.id === x), id));
+  // Two attempts. A device is placed on the next simulation step, and the
+  // cursor has to have produced a ground point by then — one slow frame
+  // between the pointer move and the keypress swallows the throw, which
+  // is a race in the test, not a bug in the game.
+  let placed = false;
+  for (let attempt = 0; attempt < 2 && !placed; attempt++) {
+    await page.mouse.move(
+      canvasBox.x + canvasBox.width * (0.45 + attempt * 0.03),
+      canvasBox.y + canvasBox.height * 0.4,
+    );
+    await page.waitForTimeout(200);
+    await page.keyboard.press(key);
+    await page.waitForTimeout(350);
+    placed = await landedOn(id);
+  }
+  check(`${key.toUpperCase()} places a ${id.toLowerCase()}`, placed);
 }
 
 // Satellite rain is the one that has to be *seen* before it happens: the
@@ -599,6 +611,30 @@ check('the audio context starts on the deploy click',
 check('and a frame of events reaches the graph as cues',
   sound.played === 3 && sound.cues.includes('COLLAPSE') && !sound.cues.includes('LINE'),
   sound.cues.join(', '));
+
+// The room tone is one graph for the whole session, ridden by heat.
+// Driven through the *game*, not by calling `room()` directly: the frame
+// loop rides the bed every frame off the real heat, so anything the test
+// sets by hand is overwritten before it can be read back.
+const room = await page.evaluate(async () => {
+  const app = window.__syndicate;
+  const settle = ms => new Promise(r => setTimeout(r, ms));
+  app.sim.heat = 0;
+  await settle(1500);
+  const calm = { cutoff: app.audio.bed.filter.frequency.value, gain: app.audio.bed.gain.gain.value };
+  app.sim.heat = 55;
+  await settle(1800);
+  return {
+    calm,
+    hot: { cutoff: app.audio.bed.filter.frequency.value, gain: app.audio.bed.gain.gain.value },
+    looping: app.audio.bed.src.loop,
+    off: app.audio.room(0, false).gain,
+  };
+});
+check('the room tone is running and rides the sector',
+  room.looping && room.hot.cutoff > room.calm.cutoff * 1.5 && room.hot.gain > room.calm.gain,
+  `${Math.round(room.calm.cutoff)}Hz → ${Math.round(room.hot.cutoff)}Hz`);
+check('and goes quiet the moment a card is up', room.off === 0);
 
 const muted = await page.evaluate(async () => {
   const a = window.__syndicate.audio;
