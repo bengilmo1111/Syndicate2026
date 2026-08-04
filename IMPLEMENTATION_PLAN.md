@@ -228,7 +228,10 @@ the 2D logic onto a 3D engine instead of losing it.
 ## Phase 6 — Polish
 - [x] Particle effects: tracers, impact sparks, collapse debris
 - [x] Camera follow with smoothing; screen shake on collapse
-- [ ] Sound: weapons, ambient city, mission stingers (CC0 or original)
+- [x] **Sound** (`src/audio/`) — synthesised at runtime, no asset files.
+      `kit.js` is the pure, tested mix; `sound.js` is the WebAudio half.
+      Sixteen cues, per-voice caps, distance rolloff, camera-relative
+      panning, sub-linear stacking. `M` mutes.
 - [ ] **Full building destruction** (`GAP_ANALYSIS.md` gap 2) — levelling
       a block is the original's headline feature. Collapse-to-cover
       already works; this is scope, not design.
@@ -282,6 +285,9 @@ src/
     territory.js        the map: what you hold, how hard you squeeze it
     retake.js           deployments the map writes to take a block back
     sim.js              the simulation — owns all mutable game state
+  audio/                every sound, synthesised at runtime
+    kit.js              the mix — pure, and therefore tested
+    sound.js            WebAudio: how a cue is made audible
   missions/             one file per mission, self-registering
     sector-7.js         Act I·1  ELIMINATE + DEMOLISH
     district-12.js      Act I·2  ALIGN

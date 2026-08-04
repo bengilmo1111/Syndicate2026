@@ -573,6 +573,50 @@ check('and then it lands, and the block wears it',
   landed.gone && landed.scarred > scarredBefore,
   `${scarredBefore} → ${landed.scarred} structures damaged`);
 
+// --- sound. The mix is tested headlessly; only a browser run proves an
+// --- AudioContext actually starts and cues actually reach the graph.
+const sound = await page.evaluate(async () => {
+  const app = window.__syndicate;
+  const a = app.audio;
+  const before = a.played;
+  // A frame's worth of events, straight into the audio path. Not synthetic
+  // ones — the same shapes `sim.events` carries.
+  a.consume([
+    { type: 'shot', x: 0, z: 0, friendly: true },
+    { type: 'hit', x: 2, z: 0 },
+    { type: 'collapse', x: 4, z: 0, structure: { maxHp: 3200 } },
+    { type: 'line', speaker: 'nobody', text: 'not a sound' },
+  ], { x: 0, z: 0, yaw: 0 });
+  return {
+    available: a.available,
+    state: a.ctx && a.ctx.state,
+    played: a.played - before,
+    cues: a.lastCues.map(c => c.id),
+  };
+});
+check('the audio context starts on the deploy click',
+  sound.available && sound.state === 'running', `context ${sound.state}`);
+check('and a frame of events reaches the graph as cues',
+  sound.played === 3 && sound.cues.includes('COLLAPSE') && !sound.cues.includes('LINE'),
+  sound.cues.join(', '));
+
+const muted = await page.evaluate(async () => {
+  const a = window.__syndicate.audio;
+  document.getElementById('hud-sound').click();
+  const off = { muted: a.muted, gain: a.master.gain.value, label: document.getElementById('hud-sound-label').textContent.trim() };
+  const before = a.played;
+  a.consume([{ type: 'shot', x: 0, z: 0, friendly: true }], { x: 0, z: 0, yaw: 0 });
+  const silent = a.played === before;
+  document.getElementById('hud-sound').click();
+  return { off, silent, back: a.muted, saved: localStorage.getItem('syndicate2026.muted') };
+});
+check('the mute control silences it and says so',
+  muted.off.muted && muted.off.gain === 0 && muted.silent && /OFF/.test(muted.off.label),
+  muted.off.label);
+check('and it survives as a machine setting, not a campaign one',
+  muted.back === false && muted.saved === '0',
+  `saved "${muted.saved}"`);
+
 // --- camera occlusion. The geometry is tested headlessly; only a browser
 // --- run proves the renderer actually ghosts the mesh and puts it back.
 const occlusion = await page.evaluate(async () => {

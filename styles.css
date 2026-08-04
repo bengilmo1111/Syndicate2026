@@ -178,6 +178,10 @@ button.implant.throttle:hover {
   background: rgba(111, 227, 208, 0.2);
 }
 
+/* The sound button when it is off. Dim, not hidden — a control that
+   disappears when you use it is a control you cannot find again. */
+#hud-sound.off #hud-sound-label { color: var(--text-dim); }
+
 .implant.unheld-tag {
   border-style: dashed;
   color: var(--text-dim);
@@ -278,15 +282,25 @@ button.implant.throttle.retake:hover {
   border-right: 1px solid rgba(111, 227, 208, 0.12);
   font-size: 13px;
   letter-spacing: 0.06em;
+  /* A stat that wraps doubles the height of the whole bar and pushes the
+     top of the world off screen. Truncate instead — every one of these is
+     a short number whose label is already above it. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.hud-panel.wide { flex: 2.4; }
+/* The objective is a sentence, not a number, and it is the one thing here
+   worth two lines. */
+.hud-panel.wide { flex: 2.4; white-space: normal; }
 .hud-panel:last-child { border-right: none; }
 
 /* A HUD panel that happens to be clickable. Styled as part of the bar
-   rather than as a button, so it doesn't read as a menu. */
+   rather than as a button, so it doesn't read as a menu. Sized to its
+   contents, because there are two of them now and a narrow window should
+   take the space out of the stats rather than out of the controls. */
 .hud-button {
-  flex: 0.7;
+  flex: 0 0 auto;
   background: none;
   border: none;
   border-right: 1px solid rgba(111, 227, 208, 0.12);

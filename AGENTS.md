@@ -55,10 +55,18 @@ anything you'd call a release.
 ## The one architectural rule
 
 ```
-src/core/   →  pure simulation. Imports NO Three.js, NO DOM, NO src/render, NO src/ui.
+src/core/   →  pure simulation. Imports NO Three.js, NO DOM, NO src/render,
+               NO src/ui, NO src/audio.
 src/render/ →  reads sim state. NEVER writes to it.
 src/ui/     →  DOM only.
+src/audio/  →  reads the event feed. NEVER writes to it.
 ```
+
+`src/audio/` splits the same way the rest does, and for the same reason:
+`kit.js` is pure — events in, cues out — so the *mix* is tested in Node,
+and `sound.js` is the WebAudio half that only has to make a cue audible.
+Almost every mistake in game audio is a mixing mistake, and mixing is
+numbers.
 
 This is why the 2D prototype's squad, mission, and heat logic survived the
 whole engine swap to 3D, and it is why the tests run in seconds instead of
