@@ -339,11 +339,44 @@ so the correct play is always to keep shooting.
 they create a reason to break contact and reposition, which is exactly
 the "cold tactical pacing" pillar.
 
-### 9. No sound
+### 9. No sound — **closed**
 Weapons, ambient city, mission stingers. Absent entirely. Disproportionate
 effect on feel for the work involved.
 
-*Where:* Phase 6.
+**Shipped** in `src/audio/`, and every sound in the game is **synthesised
+at runtime**. There are no audio files — there is no build step and no
+package manager to fetch them with, and a project whose whole look comes
+from clip-space vertex snapping and a 640×360 framebuffer should not be
+shipping 48kHz stereo samples. Short, dry, band-limited: a PS1 sound chip
+is the reference, not a film mix.
+
+Split the same way everything else here is. `kit.js` is pure — events in,
+cues out — so the **mix** is tested in Node like the rest of the
+simulation, and `sound.js` only has to make a cue audible. That split is
+the point: almost every mistake in game audio is a mixing mistake, and
+mixing is numbers.
+
+What the numbers are asked to guarantee, in tests:
+
+- **Per-voice caps.** Four agents fire eight rounds a step; three get
+  through. Uncapped, a firefight is white noise — which is not "loud", it
+  is *quiet*, because everything cancels and nothing reads.
+- **Loudest first, then capped**, so the three that survive are the three
+  nearest the player rather than the three pushed first.
+- **Sub-linear stacking.** Satellite rain lands five impacts on one frame;
+  summed arithmetically that is one device putting 4.5 of headroom into a
+  single step.
+- **A kiosk and a nine-floor tower do not land the same.** The collapse
+  cost model says they are different and the mix has to agree.
+- **A gunshot is never the loudest thing in the game.** It is the most
+  common by two orders of magnitude; if it is also the loudest, nothing
+  else is ever heard.
+- **Panning follows the camera, not the world**, because this game lets
+  you spin the city.
+
+`M` mutes, and the setting is stored separately from the campaign — it is
+a property of the machine somebody is sitting at, not of the run, so
+wiping the record does not turn the audio back on.
 
 ### 10. Campaign is 4 of 15 missions
 And mission gating still isn't implemented, so the four that exist can be

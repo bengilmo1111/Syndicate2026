@@ -265,5 +265,5 @@ export const CONTROLS_HINT = [
   'you three and a half seconds and a ring on the ground; that is the whole',
   'warning, and it is the same warning everyone else in the block gets.',
   '<b>Z / X</b> rotate city · <b>R / F</b> tilt · <b>Wheel</b> zoom · <b>Middle-drag</b> orbit',
-  '<b>Alt+Enter</b> fullscreen — or the <b>⛶ VIEW</b> panel, top right',
+  '<b>Alt+Enter</b> fullscreen · <b>M</b> sound — or the panels, top right',
 ].join('<br>');

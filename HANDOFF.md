@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~15s, 297 checks, no dependencies
+node tests/run.mjs        # the gate — ~15s, 312 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -268,6 +268,21 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   Offered only for blocks you **took and lost**. Not `lostTo`, which is
   deliberately transient, and not sectors you never took — those still have
   an authored briefing that means something.
+- **Sound** (`src/audio/`) — synthesised at runtime. There are no audio
+  files, and there should not be: no build step, no package manager, and
+  a game whose look comes from a 640×360 framebuffer should not ship 48kHz
+  samples. Short, dry, band-limited.
+  Split like everything else: `kit.js` is pure — events in, cues out — so
+  the **mix** is tested in Node, and `sound.js` only makes a cue audible.
+  That split is the point: almost every mistake in game audio is a mixing
+  mistake, and mixing is numbers. The tested guarantees are per-voice caps,
+  loudest-first before capping, sub-linear stacking, a kiosk and a tower
+  landing differently, and a gunshot never being the loudest thing in the
+  game.
+  Audio reads the same `sim.events` feed the renderer does and must run
+  **before** it — `view.render` drains the array.
+  `M` mutes; the setting is stored apart from the campaign, because it
+  belongs to the machine and not to the run.
 - **Camera occlusion** (`occludersBetween` in `src/core/city.js`) — the
   camera is the one thing in this game that can be *wrong* about the
   world. Structures standing between the lens and any living agent fade to
@@ -439,7 +454,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 297 checks, ~15s, zero dependencies. Covers city
+`node tests/run.mjs` — 312 checks, ~15s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -496,7 +511,12 @@ unknown syndicate id from a save. Seven more cover the doctrines: making
 Google broad, making SpaceX need unrest, letting SpaceX break a calm
 sector, making Anthropic take ground like the rest, removing the
 portfolio gate, blaming a fixed syndicate for every push, and ignoring
-agitation entirely. Twenty-one cover the offensive strange tools and the
+agitation entirely. Ten cover the sound mix: a kill with its own voice,
+friendly and enemy fire sounding alike, distance not mattering, panning
+that ignores the camera, uncapped voices, a cap that keeps whatever came
+first, arithmetic stacking, a kiosk and a tower landing the same,
+inaudible things still played, and a gunshot louder than everything else.
+Twenty-one cover the offensive strange tools and the
 accounting they exposed: handing every act the whole belt, letting an
 unknown act have everything, wire that neither slows nor hurts, wire
 deaths not charged to the player, misalignment that spares the squad or
@@ -520,7 +540,7 @@ letting generated missions into the authored list, starting the hold
 before the garrison is down, and removing the ground to hold. It is
 load-bearing, not decorative.
 
-`node tests/browser.mjs` — 75 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 79 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console — plus the retake button, which is the only way into a generated
@@ -560,12 +580,12 @@ The arc is done, the progression loop under it is done, and **gap 1 is now
 closed end to end** — the map both feeds the campaign and writes
 deployments of its own. **Gap 4 is closed too**: the six field devices are
 all in, offensive ones included. `GAP_ANALYSIS.md` is the ranked backlog;
-gaps 1, 2, 3, 4, 5, 7, 10 and 11 are closed. What is left is sound,
-vehicles and interiors.
+gaps 1, 2, 3, 4, 5, 7, 9, 10 and 11 are closed. What is left is vehicles
+and interiors.
 
-1. **Sound** (gap 9). Nothing in the game makes a noise. Procedural
-   WebAudio is the obvious route here — no assets, no build step, and it
-   suits the aesthetic.
+1. **Ambient sound.** The event feed is covered; the *room* is not. A low
+   city bed that thickens with heat, and something for the briefing card,
+   would finish what `src/audio/` started.
 3. **Between-mission interstitials for Acts I–III** — Yelin's notes and
    the street graffiti. Act IV got its beats *inside* missions, which is
    where they belonged, but the Act I→II tonal turn still has nothing

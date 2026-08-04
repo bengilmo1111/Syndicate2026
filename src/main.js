@@ -15,7 +15,8 @@ import {
 import { View } from './render/view.js';
 import { updateHUD, toggleObjectivePanel } from './ui/hud.js';
 import { setOverlay, showOverlay, hideOverlay, CONTROLS_HINT } from './ui/overlay.js';
-import { loadCampaign, saveCampaign, clearCampaign } from './ui/storage.js';
+import { loadCampaign, saveCampaign, clearCampaign, loadMuted, saveMuted } from './ui/storage.js';
+import { Sound } from './audio/sound.js';
 import {
   CYBERNETICS, CYBERNETIC_IDS, deployed, fit, fitBlocker,
 } from './core/roster.js';
@@ -29,6 +30,10 @@ import { retakeTargets, retakeFor } from './core/retake.js';
 
 const canvas = document.getElementById('game-canvas');
 const view = new View(canvas);
+// Every sound in the game is synthesised at runtime — see `src/audio/`.
+// The context cannot start until the player clicks something, which is
+// what DEPLOY is for.
+const audio = new Sound({ muted: loadMuted() });
 
 const MISSIONS = getAllMissions();
 
@@ -359,6 +364,9 @@ function resetCampaign() {
 
 function startMission() {
   panel = PANEL.BRIEF;
+  // The click that got us here is the gesture browsers require before
+  // they will let a page make a noise.
+  audio.start();
   app.sim = createSim(app.selectedMissionId, { roster: app.campaign.roster });
   view.loadCity(app.sim.city);
   view.rig.yaw = 0;
@@ -545,6 +553,34 @@ document.addEventListener('fullscreenchange', () => {
 
 fsButton.addEventListener('click', toggleFullscreen);
 
+// ---------------------------------------------------------------------------
+// Sound
+// ---------------------------------------------------------------------------
+
+const soundButton = document.getElementById('hud-sound');
+const soundLabel = document.getElementById('hud-sound-label');
+
+function renderSoundButton() {
+  soundLabel.textContent = audio.muted ? '♪ OFF' : '♪ ON';
+  soundButton.classList.toggle('off', audio.muted);
+  soundButton.title = audio.muted ? 'Sound off (M)' : 'Sound on (M)';
+}
+
+function toggleSound() {
+  // Unmuting is also a gesture, so it can be the thing that starts the
+  // context for a player who turned the sound off before their first
+  // deployment and back on halfway through one.
+  audio.start();
+  saveMuted(audio.toggleMute());
+  renderSoundButton();
+}
+
+soundButton.addEventListener('click', toggleSound);
+renderSoundButton();
+
+// A page that cannot make a noise should not advertise a mute button.
+if (!audio.available) soundButton.classList.add('hidden');
+
 // Fullscreen is unavailable in some embeds. Don't advertise a control
 // that cannot work.
 if (!shell.requestFullscreen) fsButton.classList.add('hidden');
@@ -570,6 +606,13 @@ window.addEventListener('keydown', (e) => {
   if (k === 'enter' && e.altKey) {
     e.preventDefault();
     toggleFullscreen();
+    return;
+  }
+
+  // Works from the briefing card too. Somebody who wants the sound off
+  // wants it off before the first shot, not after it.
+  if (k === 'm') {
+    toggleSound();
     return;
   }
 
@@ -697,6 +740,8 @@ function frame(now) {
     if (intent.aimPoint) view.fx.setCursor(intent.aimPoint.x, intent.aimPoint.z, app.phase === PHASE.PLAYING);
     else view.fx.setCursor(0, 0, false);
 
+    // Audio reads the same event feed the renderer does, and has to read
+    // it first: `view.render` drains the array.
     if (app.phase === PHASE.PLAYING) {
       accumulator += dt;
       let guard = 0;
@@ -728,6 +773,12 @@ function frame(now) {
       if (app.sim.phase === PHASE.WON) showDebrief(true);
       else if (app.sim.phase === PHASE.LOST) showDebrief(false);
       else if (app.sim.interlude) showInterlude(app.sim.interlude);
+
+      audio.consume(app.sim.events, {
+        x: view.rig.smoothTarget.x,
+        z: view.rig.smoothTarget.z,
+        yaw: view.rig.yaw,
+      });
     }
 
     view.render(app.sim, dt);
@@ -744,4 +795,5 @@ requestAnimationFrame(frame);
 // — are only observable from the render side, and a browser check that
 // cannot see them can only assert that nothing crashed.
 app.view = view;
+app.audio = audio;
 window.__syndicate = app;
