@@ -180,6 +180,11 @@ the 2D logic onto a 3D engine instead of losing it.
 - [ ] Pre-mission loadout screen: assign weapons per agent
 - [x] Weapon definitions: sidearm, SMG, rail rifle, minigun
 - [ ] Remaining roster: incendiary, laser, plasma
+- [x] **The strange tools** (`src/core/devices.js`, `GAP_ANALYSIS.md` gap
+      4) — six field devices, thrown at the cursor, applying to everyone
+      in the footprint including the squad. Choke field and standdown
+      aerosol (non-lethal), then razor wire, misalignment aerosol,
+      graviton charge and satellite rain. The belt grows act by act.
 - [x] Per-weapon stats: damage, fire rate, range, spread, penetration
 - [ ] Compute upgrade slots: latency / throughput / context window /
       attention range (3 tiers each)
@@ -270,7 +275,7 @@ src/
     campaign.js         completions, gating, records, branch flags
     tactics.js          hostile cover-seeking, repositioning, suppression
     interlude.js        mid-mission dialog beats — freeze, ask, record
-    devices.js          choke / standdown — the first things you place
+    devices.js          six field devices — the things you put on the map
     roster.js           who is in the suits, what is fitted, who is gone
     territory.js        the map: what you hold, how hard you squeeze it
     retake.js           deployments the map writes to take a block back

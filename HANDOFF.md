@@ -4,7 +4,7 @@ This file describes **what the world is like right now**. Read
 [`AGENTS.md`](./AGENTS.md) first for the rules; read this second for the
 state. Update it **last**, in the same commit as your code change.
 
-> **Before you push: `node tests/run.mjs` must pass.** ~13s, no
+> **Before you push: `node tests/run.mjs` must pass.** ~15s, no
 > dependencies. It plays every mission to a win headlessly, so a mission
 > you break — or ship uncompletable — fails the suite.
 
@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~13s, 263 checks, no dependencies
+node tests/run.mjs        # the gate — ~15s, 291 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -287,14 +287,42 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   The Aligner still suppresses fire independently of all of this; the two
   controls do not touch each other and a test says so.
 - **Field devices** (`src/core/devices.js`) — the first things the player
-  puts *on the map*. Thrown at the cursor, two charges each, no restock.
-  **CHOKE FIELD**: half speed and 1.9× spread for anything inside.
-  **STANDDOWN AEROSOL**: sedates to `downed` — alive, out for the mission,
-  never auto-targeted. Both affect **everyone in the footprint, squad
-  included**; a field that spared your own agents would be a gun with an
-  area of effect and the placement decision would evaporate.
-  Devices arm after a beat, so a panicked drop at your own feet is a
-  mistake you get to watch happen.
+  puts *on the map*. Thrown at the cursor, charges are per-mission and
+  never restock. Six of them, and **the belt grows act by act** — six
+  area-denial tools in Act I is a menu, not a toolkit, and the first ten
+  missions were tuned against a belt of two. A tool that has not been
+  issued is *absent* from the belt, not zeroed, so the HUD leaves the row
+  off entirely — an empty row reads as "spent", which is a different and
+  much more annoying thing than "not yours yet".
+  - **CHOKE FIELD** (`E`, Act I) — half speed and 1.9× spread inside, and
+    civilians in it are `throttled`, same as under SURGE.
+  - **STANDDOWN AEROSOL** (`T`, Act I) — sedates to `downed`: alive, out
+    for the mission, never auto-targeted.
+  - **RAZOR WIRE** (`U`, Act II) — damage per second and a hard slow.
+    Outlasts a firefight, which makes it the one you place *before* one.
+  - **MISALIGNMENT AEROSOL** (`Y`, Act III) — the alignment payload with
+    the sign flipped. Nobody inside can tell sides apart: a cell fights
+    itself, and so does your squad. Narrowed to whoever is **armed** on
+    purpose — "the squad never auto-targets a civilian" is an absolute the
+    contract missions are built on and this is not its exception.
+    HOLD FIRE is a real counter and it costs you your own guns to use.
+  - **GRAVITON CHARGE** (`O`, Act IV) — drags everything inside to one
+    place and does no damage at all. It decides where people are standing,
+    which is what makes it compose with everything else on the belt. The
+    pull is above every walking speed in the game, the squad's included;
+    it is allowed to be inescapable *because* it is harmless.
+  - **SATELLITE RAIN** (`I`, Act IV) — 3.5 seconds of ring on the ground,
+    then five impacts in a **fixed pattern**. The ring is a promise and a
+    player who cleared it must never be killed by a roll. The only thing
+    in the game that levels a block without the squad firing a round, and
+    deliberately not enough to drop a nine-floor tower: it clears a
+    street, it is not a demolition button.
+
+  Every one of them affects **everyone in the footprint, squad included**;
+  a field that spared your own agents would be a gun with an area of
+  effect and the placement decision would evaporate. Devices arm after a
+  beat, so a panicked drop at your own feet is a mistake you get to watch
+  happen.
 - **`neutralised` vs `kills`** — the objective model reads
   `sim.neutralised` (shot + sedated), because the syndicate files a
   sedated cell and a dead one identically. `sim.kills` is where the
@@ -399,7 +427,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 263 checks, ~13s, zero dependencies. Covers city
+`node tests/run.mjs` — 291 checks, ~15s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -456,7 +484,19 @@ unknown syndicate id from a save. Seven more cover the doctrines: making
 Google broad, making SpaceX need unrest, letting SpaceX break a calm
 sector, making Anthropic take ground like the rest, removing the
 portfolio gate, blaming a fixed syndicate for every push, and ignoring
-agitation entirely. Fifteen more cover the generated retakes: offering a
+agitation entirely. Twenty-one cover the offensive strange tools and the
+accounting they exposed: handing every act the whole belt, letting an
+unknown act have everything, wire that neither slows nor hurts, wire
+deaths not charged to the player, misalignment that spares the squad or
+whose rounds pass through their own side, a gassed cell that still knows
+its own side, misalignment that never wears off, a graviton charge that
+does not pull or that pulls to a single point or that does damage,
+satellite rain with no warning, rain that scatters instead of landing on
+the ring, rain that ignores structures or flattens everything, rain that
+does not fall off from the centre, a slowed actor who never gets their
+speed back, a choke field that misses civilians, a crushed body counted
+twice, and a sedated body that dies being counted twice. Fifteen more
+cover the generated retakes: offering a
 retake for a block you never took, gating one on the transient `lostTo`
 flag, skipping the repaint, repainting a landmark's own accent, generating
 a fresh block instead of reusing the authored one, garrisoning every
@@ -468,7 +508,7 @@ letting generated missions into the authored list, starting the hold
 before the garrison is down, and removing the ground to hold. It is
 load-bearing, not decorative.
 
-`node tests/browser.mjs` — 64 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 72 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console — plus the retake button, which is the only way into a generated
@@ -506,14 +546,12 @@ way a player meets them, ending on the epilogue.
 
 The arc is done, the progression loop under it is done, and **gap 1 is now
 closed end to end** — the map both feeds the campaign and writes
-deployments of its own. `GAP_ANALYSIS.md` is the ranked backlog; gaps 1, 2,
-3, 4, 5, 7 and 10 are closed. What is left is vehicles, sound, camera
-occlusion and interiors — plus the remainder of 4 noted there.
+deployments of its own. **Gap 4 is closed too**: the six field devices are
+all in, offensive ones included. `GAP_ANALYSIS.md` is the ranked backlog;
+gaps 1, 2, 3, 4, 5, 7 and 10 are closed. What is left is vehicles, sound,
+camera occlusion and interiors.
 
-1. **The offensive strange tools** (gap 4's remainder) — psycho gas,
-   razor wire, satellite rain, the graviton gun. Additive now that
-   `devices.js` exists; none of them need new architecture.
-3. **Sound** (gap 9) and **camera occlusion** (gap 11). Occlusion has been
+1. **Sound** (gap 9) and **camera occlusion** (gap 11). Occlusion has been
    flagged pre-emptively since before towers were destructible; it has not
    bitten because the camera is constrained and towers top out at 22m.
 3. **Between-mission interstitials for Acts I–III** — Yelin's notes and

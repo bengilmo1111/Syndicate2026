@@ -500,6 +500,79 @@ check('E throws a choke field, and the HUD counts down',
     && afterE.pips < beltBefore.CHOKE + beltBefore.STANDDOWN,
   `${afterE.devices} on the map · ${afterE.pips} charges lit`);
 
+// The belt grows act by act, and the panel has to follow it — an empty row
+// for a tool you have not been issued reads as "spent", which is a
+// different and much more annoying thing than "not yours yet".
+const act1Rows = await page.$$eval('.device-row', els => els.map(e => e.textContent.trim()));
+check('Act I shows only the two tools it carries', act1Rows.length === 2,
+  act1Rows.map(r => r.split('\n')[0]).join(' / '));
+
+// --- the offensive strange tools. Only a browser run proves the four new
+// --- keys are wired and the panel grows to meet them.
+await page.evaluate(() => {
+  const app = window.__syndicate;
+  app.selectedMissionId = 'reverse-the-gradient';
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(1200);
+await page.click('.mission-tab:nth-child(11)');
+await page.waitForTimeout(400);
+const act4Title = await page.textContent('#overlay-title');
+await page.click('#overlay-button');
+await page.waitForTimeout(1000);
+
+// Eight hostiles who come the whole time. This section is about whether
+// four keys are wired to four devices; a squad wipe halfway through it
+// stops the input handler and fails the check for the wrong reason.
+await page.evaluate(() => {
+  for (const a of window.__syndicate.sim.squad.agents) { a.health = 99999; a.maxHealth = 99999; }
+});
+
+const act4Rows = await page.$$eval('.device-row',
+  els => els.map(e => e.textContent.trim().replace(/\s+/g, ' ')));
+check('Act IV deploys with the whole belt', act4Rows.length === 6,
+  `${act4Title} — ${act4Rows.join(' / ')}`);
+check('and every tool has its own key on the panel',
+  ['E', 'T', 'U', 'Y', 'O', 'I'].every((k, i) => act4Rows[i]?.startsWith(k)),
+  act4Rows.map(r => r[0]).join(''));
+
+const canvasBox = await (await page.$('#game-canvas')).boundingBox();
+for (const [key, id] of [['u', 'RAZOR'], ['y', 'PSYCHO'], ['o', 'GRAVITON']]) {
+  await page.mouse.move(canvasBox.x + canvasBox.width * 0.45, canvasBox.y + canvasBox.height * 0.4);
+  await page.waitForTimeout(120);
+  await page.keyboard.press(key);
+  await page.waitForTimeout(300);
+  check(`${key.toUpperCase()} places a ${id.toLowerCase()}`,
+    await page.evaluate(x => window.__syndicate.sim.devices.some(d => d.id === x), id));
+}
+
+// Satellite rain is the one that has to be *seen* before it happens: the
+// ring is the whole warning, and a warning that is not on screen is not one.
+const scarredBefore = await page.evaluate(() =>
+  window.__syndicate.sim.city.structures.filter(s => s.hp < s.maxHp).length);
+await page.keyboard.press('i');
+await page.waitForTimeout(400);
+const warning = await page.evaluate(() => {
+  const d = window.__syndicate.sim.devices.find(x => x.id === 'RAIN');
+  return d && { arming: d.arming, fired: d.fired, radius: d.radius };
+});
+check('I calls a strike that spends its warning on the ground first',
+  warning && warning.arming > 2 && !warning.fired,
+  warning ? `${warning.arming.toFixed(1)}s of ring at ${warning.radius}m` : 'nothing placed');
+
+await page.waitForTimeout(5000);
+// What it *does* is covered by eight headless tests. What only a browser
+// run can show is that the whole lifecycle completes inside a real frame
+// loop: the ring spends its warning, the strike lands, and the block it
+// landed on is marked for it.
+const landed = await page.evaluate(() => ({
+  gone: !window.__syndicate.sim.devices.some(d => d.id === 'RAIN'),
+  scarred: window.__syndicate.sim.city.structures.filter(s => s.hp < s.maxHp).length,
+}));
+check('and then it lands, and the block wears it',
+  landed.gone && landed.scarred > scarredBefore,
+  `${scarredBefore} → ${landed.scarred} structures damaged`);
+
 // --- full building destruction. The sim tests prove the cost model; this
 // --- proves the renderer turns a nine-floor block into a rubble field
 // --- without losing the GL context on the way.

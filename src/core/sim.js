@@ -16,7 +16,7 @@ import { pumpInterludes } from './interlude.js';
 import { deployed, applyToAgent } from './roster.js';
 import {
   DEVICE, newDeviceBelt, deploy as deployDevice, tickDevices,
-  CHOKE_SPEED, CHOKE_SPREAD,
+  CHOKE_SPEED, CHOKE_SPREAD, RAZOR_SPEED,
 } from './devices.js';
 import {
   getMissionDef, buildMission, updateMissionStatus, isMissionComplete,
@@ -154,7 +154,9 @@ export function createSim(missionId, opts = {}) {
     /** Field devices currently on the map. See `src/core/devices.js`. */
     devices: [],
     /** Charges left, per device type. Not restocked mid-deployment. */
-    belt: newDeviceBelt(),
+    // The belt grows with the campaign. Act I deploys with two tools and
+    // the first ten missions were tuned against exactly that.
+    belt: newDeviceBelt(def.act),
     /** Sedated, not dead. Counts toward ELIMINATE; does not count as a kill. */
     downed: 0,
     /**
@@ -217,7 +219,21 @@ export function step(sim, dt, intent) {
   // Everybody on the map, because a field that only affected the enemy
   // would be a gun with an area of effect.
   const everyone = [...squad.agents, ...sim.hostiles, ...sim.civilians];
-  for (const a of tickDevices(sim.devices, everyone, dt)) {
+  // Every field that slows somebody writes `speed` directly, so the base
+  // has to be restored each frame or the scaling compounds. Agents are
+  // already reset by `applyCompute()` above; nobody else was reset at all,
+  // which meant a hostile who walked through a choke field spent the rest
+  // of the mission at a fraction of a metre per second — the field read as
+  // "stops you dead, permanently" rather than "half speed while you are in
+  // it", and no test noticed because slowing is what it is supposed to do.
+  for (const a of everyone) {
+    if (a.isAgent) continue;
+    if (a.baseSpeed == null) a.baseSpeed = a.speed;
+    else a.speed = a.baseSpeed;
+  }
+
+  const fields = tickDevices(sim.devices, everyone, dt, city);
+  for (const a of fields.downed) {
     sim.events.push({ type: 'downed', x: a.x, z: a.z, actor: a });
     if (a.isAgent) {
       say(sim, 'STANDDOWN', `${a.name} is down — sedated, not lost`, 5);
@@ -225,11 +241,23 @@ export function step(sim, dt, intent) {
       sim.downed += 1;
     }
   }
+  // Razor wire. Charged to the player because the player put it there —
+  // a civilian who walks into your wire is your civilian.
+  for (const { actor, amount } of fields.hurt) incidentalDamage(sim, actor, amount, true);
+  for (const s of fields.strikes) applyStrike(sim, s);
+
   // A choked Instance thinks at Free tier. It is SURGE pointed the other
   // way, and it does not care whose Instance it is.
   for (const a of everyone) {
+    if (a.snared) a.speed = (a.baseSpeed ?? a.speed) * RAZOR_SPEED;
     if (!a.choked) continue;
     a.speed = (a.baseSpeed ?? a.speed) * CHOKE_SPEED;
+    // A civilian's pace is not `speed` at all — it is three tier-derived
+    // speeds read through `throttled`, the same flag SURGE sets. Without
+    // this the field's own note ("drops every Instance in range to Free
+    // tier") was false for the only people on the street actually running
+    // a consumer Instance.
+    if (a.throttled !== undefined) a.throttled = true;
   }
 
   const center = squad.center();
@@ -267,9 +295,21 @@ export function step(sim, dt, intent) {
       // Fire discipline. Left-click always works — HOLD FIRE is
       // discipline, not disarmament — but what an agent does on its own
       // account is the player's call.
+      // Misalignment turns "who" into nobody in particular. Deliberately
+      // narrowed to whoever is armed: "the squad never auto-targets a
+      // civilian" is an absolute the contract missions are built on, and
+      // this must not become its exception. What it does reach is the
+      // other three suits, which is enough.
+      //
+      // Fire discipline still applies. Setting HOLD FIRE is a real answer
+      // to being gassed, and it costs you your own guns to use — which is
+      // the trade, not a loophole.
+      const pool = a.psycho > 0
+        ? [...stillHostile, ...squad.alive.filter(other => other !== a)]
+        : stillHostile;
       const target = (manual || !squad.mayEngage(a))
         ? null
-        : a.pickTarget(city, stillHostile, squad.compute);
+        : a.pickTarget(city, pool, squad.compute);
       // Spin-up winds while there is something worth firing at, so a
       // minigun agent is useless the instant they arrive and lethal once
       // they've committed to the corner.
@@ -292,7 +332,10 @@ export function step(sim, dt, intent) {
   // enforcer is worth something concrete, not just a counter going up.
   for (const h of stillHostile) {
     const out = [];
-    h.update(dt, city, squad.alive, out);
+    // Gassed, they stop being a side. `update` skips itself, so a cell
+    // caught in a misalignment cloud fights the nearest body it can see,
+    // which is usually one of its own.
+    h.update(dt, city, h.psycho > 0 ? [...squad.alive, ...stillHostile] : squad.alive, out);
     for (const shot of out) spawnProjectile(sim, shot);
     // Entities can't reach the subtitle channel from core; they queue a
     // line and the sim delivers it.
@@ -305,7 +348,7 @@ export function step(sim, dt, intent) {
   for (const h of converts) {
     const out = [];
     h.follow = center;
-    h.update(dt, city, stillHostile, out);
+    h.update(dt, city, h.psycho > 0 ? [...stillHostile, ...squad.alive] : stillHostile, out);
     for (const shot of out) {
       shot.friendly = true; // they are shooting for us now
       spawnProjectile(sim, shot);
@@ -379,6 +422,10 @@ export function step(sim, dt, intent) {
   // --- Reap -----------------------------------------------------------
   sim.hostiles = sim.hostiles.filter(h => {
     if (!h.dead) return true;
+    // Somebody who was sedated and then killed stops being a sedation.
+    // `neutralised` is kills + downed, so leaving both set would close an
+    // ELIMINATE objective off half the bodies it asked for.
+    if (h.downed) sim.downed = Math.max(0, sim.downed - 1);
     if (h.countsForObjective && !h.aligned) sim.kills += 1;
     if (h.pendingLine) { say(sim, h.pendingLine.speaker, h.pendingLine.text, 4.5); h.pendingLine = null; }
     sim.events.push({ type: 'kill', x: h.x, z: h.z, faction: h.faction });
@@ -559,15 +606,76 @@ function collapseCasualties(sim, s, byPlayer) {
     if (sim.civilians.includes(a)) {
       sim.civilianDeaths += 1;
       if (byPlayer) sim.heat += HEAT.CIVILIAN_KILL;
-    } else if (sim.hostiles.includes(a) && a.countsForObjective && byPlayer) {
-      sim.kills += 1;
     }
+    // A hostile crushed here is *not* counted as a kill on the spot. The
+    // reaper at the end of the step counts every dead hostile exactly
+    // once; doing it here as well meant dropping a building on a cell
+    // credited the player twice for each body, and an ELIMINATE for six
+    // could close on three.
   }
   // Nobody standing in a rubble field should be inside geometry, dead or
   // not — a survivor pushed into the mesh is a stuck agent for the rest
   // of the mission.
   for (const a of caught) if (!a.dead) resolveCollision(sim.city, a);
 }
+
+/**
+ * Damage from something the squad *placed* rather than fired.
+ *
+ * Razor wire and satellite rain both need the accounting a bullet gets —
+ * a civilian who dies in your wire is a civilian you killed — and neither
+ * of them is a projectile, so `resolveProjectile` cannot do it.
+ *
+ * Kills are deliberately *not* counted here. The reaper at the end of the
+ * step is the only place a dead hostile becomes a kill; anything that
+ * counts one early counts it twice.
+ */
+function incidentalDamage(sim, actor, amount, byPlayer) {
+  if (actor.dead || actor.fated) return false;
+  const killed = actor.takeDamage(amount);
+  sim.events.push({ type: 'hit', x: actor.x, z: actor.z, actor, killed, spent: true });
+  if (!killed) return false;
+  if (sim.civilians.includes(actor)) {
+    sim.civilianDeaths += 1;
+    if (byPlayer) sim.heat += HEAT.CIVILIAN_KILL;
+  }
+  return true;
+}
+
+/**
+ * One impact of a satellite strike.
+ *
+ * The only thing in the game that levels a block without the squad firing
+ * a round — and the block still has people in it, so it runs through the
+ * same collapse cost model everything else does. Deliberately not enough
+ * damage to drop a nine-floor tower on its own: orbital rain clears a
+ * street, it does not hand the player a demolition button.
+ */
+function applyStrike(sim, strike) {
+  sim.events.push({ type: 'strike', x: strike.x, z: strike.z, radius: strike.radius });
+
+  for (const s of [...sim.city.structures]) {
+    if (s.collapsed || !s.destructible) continue;
+    if (dist(s.x, s.z, strike.x, strike.z) > strike.radius + Math.max(s.w, s.d) / 2) continue;
+    warnStructure(sim, s);
+    if (damageStructure(s, strike.damage * STRIKE_STRUCTURE_SCALE, sim.city)) {
+      sim.events.push({ type: 'collapse', structure: s });
+      collapseCasualties(sim, s, true);
+    }
+  }
+
+  for (const a of [...sim.squad.agents, ...sim.hostiles, ...sim.civilians]) {
+    if (a.dead) continue;
+    const d = dist(a.x, a.z, strike.x, strike.z);
+    if (d > strike.radius) continue;
+    // Falls off from the centre, so the edge of an impact is survivable
+    // and standing on one is not.
+    incidentalDamage(sim, a, strike.damage * (1 - (d / strike.radius) * 0.6), true);
+  }
+}
+
+/** How much harder a strike hits concrete than it hits people. */
+const STRIKE_STRUCTURE_SCALE = 4;
 
 /** What being under a building costs. Survivable, but only just. */
 const COLLAPSE_DAMAGE = 85;
@@ -609,9 +717,16 @@ function resolveProjectile(sim, p) {
     return;
   }
 
-  const targets = p.friendly
-    ? sim.hostiles          // includes dormant loyalists — you can start it
-    : [...sim.squad.alive, ...sim.civilians.filter(c => c.aligned)];
+  // A round fired by somebody who cannot tell sides apart does not know
+  // whose side it is on either. Without this the aerosol would make a
+  // gassed agent *aim* at their own squad and the round would pass
+  // harmlessly through them, which is worse than not shipping it.
+  const confused = (p.owner?.psycho ?? 0) > 0;
+  const targets = confused
+    ? [...sim.hostiles, ...sim.squad.alive]
+    : (p.friendly
+      ? sim.hostiles          // includes dormant loyalists — you can start it
+      : [...sim.squad.alive, ...sim.civilians.filter(c => c.aligned)]);
 
   for (const t of targets) {
     if (!p.hits(t)) continue;

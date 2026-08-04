@@ -268,9 +268,34 @@ objective model reads — shot or sedated, the syndicate files CLEARED
 either way. `sim.kills` is kept separately, so the player is the only
 party to the deployment who knows which run they actually had.
 
-*Still open:* the *offensive* strange tools — psycho gas, razor wire,
-satellite rain, the graviton gun. Those are additive now that the device
-model exists; nothing about them needs new architecture.
+**And the offensive four shipped too**, which closes this gap. Every one
+of them is built to the rule that made the first two work — none is a
+bigger gun:
+
+- **RAZOR WIRE** (`U`, Act II). Crossing it is slow and it costs. It
+  outlasts a firefight, which makes it the one device you place *before*
+  one rather than during it. It shapes where a fight can happen.
+- **MISALIGNMENT AEROSOL** (`Y`, Act III). The alignment payload with the
+  sign flipped: nobody inside can tell sides apart. A cell caught in it
+  fights itself, and so does your squad. It changes *who* people shoot.
+  Deliberately narrowed to whoever is armed — "the squad never
+  auto-targets a civilian" is an absolute the contract missions are built
+  on and this is not its exception. HOLD FIRE is a real counter, and it
+  costs you your own guns for as long as it lasts.
+- **GRAVITON CHARGE** (`O`, Act IV). Drags everything inside to one place
+  and does no damage at all. It decides where people are standing, which
+  is what makes it compose with every other tool on the belt.
+- **SATELLITE RAIN** (`I`, Act IV). Borrowed from a constellation that is
+  not ours. Three and a half seconds of a ring on the ground and then five
+  impacts in a fixed pattern — the warning *is* the weapon, and it is the
+  same warning everyone else in the block gets. The only thing in the game
+  that levels a block without the squad firing a round, and tuned so that
+  one strike will not drop a nine-floor tower: it clears a street, it is
+  not a demolition button.
+
+The belt **grows act by act** rather than arriving whole. Six area-denial
+tools in Act I is a menu, not a toolkit, and the first ten missions were
+tuned against a belt of two.
 
 ### 5. The Persuadertron doesn't snowball — **largely closed**
 In the original, each target type has a persuade threshold — civilians
