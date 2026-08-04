@@ -13,6 +13,7 @@ import {
 } from '../src/core/compute.js';
 import {
   buildCity, coverAgainst, damageStructure, addLandmark, hasLineOfSight, COVER,
+  occludersBetween,
 } from '../src/core/city.js';
 import { Agent, Civilian, Hostile, Unquantized, Projectile } from '../src/core/entities.js';
 import {
@@ -948,4 +949,83 @@ test('cycling the Aligner does not quietly reset the stance', () => {
   squad.cycleAligner();
   squad.cycleAligner();
   eq(squad.stance, STANCE.HOLD, 'the two controls are independent');
+});
+
+// ------------------------------------------------------------- occlusion
+
+suite('camera occlusion');
+
+test('a building between the camera and an agent is an occluder', () => {
+  const city = { structures: [
+    { id: 1, x: 0, z: 0, w: 10, d: 10, h: 20, collapsed: false },
+  ] };
+  // Camera up and to the north, agent on the far side at head height.
+  const seen = occludersBetween(city, { x: 0, y: 26, z: -40 }, { x: 0, y: 1.7, z: 30 });
+  eq(seen.length, 1, 'the block is in the way');
+  eq(seen[0].id, 1, 'and it is that one');
+});
+
+test('a building the camera is looking over is not', () => {
+  // The reason this test is three-dimensional. A flat footprint test would
+  // fade every building the squad happened to be standing behind, which is
+  // most of them — the camera sits twenty-odd metres up.
+  const city = { structures: [
+    { id: 1, x: 0, z: 0, w: 10, d: 10, h: 4, collapsed: false },
+  ] };
+  eq(occludersBetween(city, { x: 0, y: 40, z: -40 }, { x: 0, y: 1.7, z: 30 }).length, 0,
+    'a four-metre shed does not hide anybody from forty metres up');
+});
+
+test('a building beside the sightline is not', () => {
+  const city = { structures: [
+    { id: 1, x: 40, z: 0, w: 10, d: 10, h: 20, collapsed: false },
+  ] };
+  eq(occludersBetween(city, { x: 0, y: 26, z: -40 }, { x: 0, y: 1.7, z: 30 }).length, 0,
+    'off to one side');
+});
+
+test('it is a segment, not a ray, at both ends', () => {
+  // Everything past the person you are looking at is behind them and
+  // cannot be hiding them; everything behind the lens is behind the lens.
+  // Tested level so the sightline stays inside both boxes' height range —
+  // a sloping ray leaves the world before it reaches them, which would
+  // pass for the wrong reason.
+  const city = { structures: [
+    { id: 1, x: 0, z: 60, w: 10, d: 10, h: 20, collapsed: false },
+    { id: 2, x: 0, z: -80, w: 10, d: 10, h: 20, collapsed: false },
+  ] };
+  const seen = occludersBetween(city, { x: 0, y: 5, z: -40 }, { x: 0, y: 5, z: 30 });
+  eq(seen.length, 0, 'neither past the far end nor behind the near one');
+});
+
+test('rubble is never an occluder', () => {
+  // 1.6m of slumped concrete hides nobody, and fading it would flicker the
+  // whole street every time something came down.
+  const city = { structures: [
+    { id: 1, x: 0, z: 0, w: 10, d: 10, h: 20, collapsed: true },
+    { id: 2, x: 0, z: 5, w: 10, d: 10, h: 1.6, collapsed: false },
+  ] };
+  eq(occludersBetween(city, { x: 0, y: 26, z: -40 }, { x: 0, y: 1.7, z: 30 }).length, 0,
+    'neither the collapsed one nor the low one');
+});
+
+test('a real block occludes from a low camera and not from a high one', () => {
+  const sim = createSim('sector-7');
+  const agent = sim.squad.agents[0];
+  const tower = sim.city.structures
+    .filter(s => s.kind === 'tower' && !s.collapsed)
+    .sort((a, b) => b.h - a.h)[0];
+
+  // Stand the agent directly behind the tower, seen from the deploy side.
+  const a = Math.atan2(sim.city.deploy.x - tower.x, sim.city.deploy.z - tower.z);
+  agent.x = tower.x - Math.sin(a) * (tower.w / 2 + 6);
+  agent.z = tower.z - Math.cos(a) * (tower.d / 2 + 6);
+  const near = { x: tower.x + Math.sin(a) * 60, y: 14, z: tower.z + Math.cos(a) * 60 };
+  const high = { x: tower.x + Math.sin(a) * 20, y: 200, z: tower.z + Math.cos(a) * 20 };
+  const target = { x: agent.x, y: 1.7, z: agent.z };
+
+  ok(occludersBetween(sim.city, near, target).some(s => s.id === tower.id),
+    'from below the roofline the tower is in the way');
+  notOk(occludersBetween(sim.city, high, target).some(s => s.id === tower.id),
+    'from straight overhead it is not');
 });

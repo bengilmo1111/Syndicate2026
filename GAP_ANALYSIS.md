@@ -351,13 +351,35 @@ played in any order — which will actively damage the Act I→II turn.
 
 *Where:* Phase 2. **Gating should land before Act II is written.**
 
-### 11. Camera occlusion is unhandled
-The original was criticised for skyscrapers hiding the squad. Our towers
-top out around 22m and the camera is constrained, so it hasn't bitten
-yet — but it will the moment buildings get taller or interiors arrive.
-Fading structures between camera and squad is the standard fix.
+### 11. Camera occlusion is unhandled — **closed**
+The original was criticised for skyscrapers hiding the squad. Ours were
+supposed to be safe: the camera is constrained to look *down* at the
+streets, which was the whole answer for a long time. It stopped being the
+answer when towers became destructible and started reaching thirty
+metres — at `PITCH_MIN` the lens sits below the roofline, and a block on
+the near side takes the squad off screen.
 
-*Where:* Phase 6, pre-emptive.
+**Shipped.** `occludersBetween()` in `src/core/city.js` answers which
+structures stand between two points, and the renderer ghosts them to 16%.
+
+Three decisions worth keeping:
+
+- **Three-dimensional, not a footprint test.** A flat test would fade
+  every building the squad happened to be standing behind, which is most
+  of them — the camera sits twenty-odd metres up and looks over nearly
+  everything. Height is the whole question.
+- **Faded, not hidden.** The building is still cover, still shootable,
+  still something you might drop on somebody. Removing it would lie about
+  the world in the opposite direction. It also stops writing depth while
+  ghosted, or it would hide the squad anyway.
+- **Eased, not switched.** Out fast, back in gently: losing sight of your
+  squad is urgent, getting a wall back is not. A hard toggle pops a
+  nine-floor block in and out every time the camera drifts a degree, which
+  is more distracting than the occlusion it fixes.
+
+Tested headlessly, because the geometry is pure core; the fade itself is
+checked in the browser suite, which is the only place a material's opacity
+is observable.
 
 ### 12. No interiors
 Every structure is a solid box. The original let you go inside.

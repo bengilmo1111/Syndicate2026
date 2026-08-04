@@ -573,6 +573,64 @@ check('and then it lands, and the block wears it',
   landed.gone && landed.scarred > scarredBefore,
   `${scarredBefore} → ${landed.scarred} structures damaged`);
 
+// --- camera occlusion. The geometry is tested headlessly; only a browser
+// --- run proves the renderer actually ghosts the mesh and puts it back.
+const occlusion = await page.evaluate(async () => {
+  const app = window.__syndicate;
+  const { rig, cityView } = app.view;
+  const tower = app.sim.city.structures
+    .filter(s => s.kind === 'tower' && !s.collapsed && s.h > 14)
+    .sort((a, b) => b.h - a.h)[0];
+
+  // Stand the squad just past the tower, then put the camera on the tower's
+  // side of them and drop it below the roofline. Now the block is between
+  // the lens and four people the player is steering.
+  const a = Math.atan2(tower.x, tower.z);
+  for (const g of app.sim.squad.agents) {
+    g.x = tower.x - Math.sin(a) * (tower.w / 2 + 7);
+    g.z = tower.z - Math.cos(a) * (tower.d / 2 + 7);
+  }
+  rig.yaw = a;
+  rig.pitch = 0.42;
+  rig.distance = 40;
+  rig.smoothTarget.set(app.sim.squad.agents[0].x, 0, app.sim.squad.agents[0].z);
+
+  const settle = ms => new Promise(r => setTimeout(r, ms));
+  await settle(900);
+  const hidden = [...cityView.byId.values()].filter(v => v.opacity < 0.99);
+  const ghosted = {
+    count: hidden.length,
+    min: hidden.length ? Math.min(...hidden.map(v => v.opacity)) : 1,
+    tower: cityView.byId.get(tower.id).opacity,
+    writesDepth: cityView.byId.get(tower.id).bodyMat.depthWrite,
+  };
+
+  // Now put the squad back on the open intersection they deployed onto and
+  // look at them from overhead, where nothing can be in the way.
+  for (const g of app.sim.squad.agents) {
+    g.x = app.sim.city.deploy.x;
+    g.z = app.sim.city.deploy.z;
+  }
+  rig.yaw = 0;
+  rig.pitch = 1.28;
+  rig.distance = 96;
+  rig.smoothTarget.set(app.sim.city.deploy.x, 0, app.sim.city.deploy.z);
+  await settle(1600);
+  return {
+    ghosted,
+    restored: cityView.byId.get(tower.id).opacity,
+    solidAgain: cityView.byId.get(tower.id).bodyMat.depthWrite,
+  };
+});
+check('a block between the camera and the squad is ghosted',
+  occlusion.ghosted.tower < 0.5 && occlusion.ghosted.count > 0,
+  `${occlusion.ghosted.count} faded · tower at ${occlusion.ghosted.tower.toFixed(2)}`);
+check('and it stops writing depth, so the squad renders through it',
+  occlusion.ghosted.writesDepth === false);
+check('and it comes back once it is out of the way',
+  occlusion.restored > 0.99 && occlusion.solidAgain === true,
+  `back to ${occlusion.restored.toFixed(2)}`);
+
 // --- full building destruction. The sim tests prove the cost model; this
 // --- proves the renderer turns a nine-floor block into a rubble field
 // --- without losing the GL context on the way.

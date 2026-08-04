@@ -232,8 +232,10 @@ the 2D logic onto a 3D engine instead of losing it.
 - [ ] **Full building destruction** (`GAP_ANALYSIS.md` gap 2) — levelling
       a block is the original's headline feature. Collapse-to-cover
       already works; this is scope, not design.
-- [ ] Camera occlusion — fade structures between camera and squad. Not a
-      problem yet at 22m towers; will be immediately once they grow.
+- [x] **Camera occlusion** — structures between the camera and any living
+      agent fade to 16% and stop writing depth, eased out fast and back in
+      gently. The geometry is `occludersBetween()` in `src/core/city.js`,
+      so it is pure and testable; the renderer only reads it.
 - [ ] Building interiors — currently every structure is a solid box
 - [x] Pathfinding — A* over the street-intersection graph (`src/core/nav.js`)
 - [ ] Followers and escorted assets path too; they still beeline for the
