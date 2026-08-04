@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~15s, 291 checks, no dependencies
+node tests/run.mjs        # the gate — ~15s, 297 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -268,6 +268,18 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   Offered only for blocks you **took and lost**. Not `lostTo`, which is
   deliberately transient, and not sectors you never took — those still have
   an authored briefing that means something.
+- **Camera occlusion** (`occludersBetween` in `src/core/city.js`) — the
+  camera is the one thing in this game that can be *wrong* about the
+  world. Structures standing between the lens and any living agent fade to
+  16% and stop writing depth, so the squad renders through them.
+  Three decisions to preserve: it is a **3D** test, not a footprint one
+  (a flat test fades every building the squad is standing behind, which is
+  most of them); it **fades rather than hides**, because the building is
+  still cover and still something you might drop on somebody; and it
+  **eases** — out fast, back in gently, because losing your squad is
+  urgent and getting a wall back is not.
+  The geometry is core and tested headlessly; the fade itself is only
+  observable in the browser suite, which is where it is checked.
 - **`Asset.fated`** — immune to *everything incidental*: collapsing
   structures and stray friendly fire alike. `securable: false` stops a
   named person being captured by accident; this stops them being killed by
@@ -427,7 +439,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 291 checks, ~15s, zero dependencies. Covers city
+`node tests/run.mjs` — 297 checks, ~15s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -508,7 +520,7 @@ letting generated missions into the authored list, starting the hold
 before the garrison is down, and removing the ground to hold. It is
 load-bearing, not decorative.
 
-`node tests/browser.mjs` — 72 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 75 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console — plus the retake button, which is the only way into a generated
@@ -548,12 +560,12 @@ The arc is done, the progression loop under it is done, and **gap 1 is now
 closed end to end** — the map both feeds the campaign and writes
 deployments of its own. **Gap 4 is closed too**: the six field devices are
 all in, offensive ones included. `GAP_ANALYSIS.md` is the ranked backlog;
-gaps 1, 2, 3, 4, 5, 7 and 10 are closed. What is left is vehicles, sound,
-camera occlusion and interiors.
+gaps 1, 2, 3, 4, 5, 7, 10 and 11 are closed. What is left is sound,
+vehicles and interiors.
 
-1. **Sound** (gap 9) and **camera occlusion** (gap 11). Occlusion has been
-   flagged pre-emptively since before towers were destructible; it has not
-   bitten because the camera is constrained and towers top out at 22m.
+1. **Sound** (gap 9). Nothing in the game makes a noise. Procedural
+   WebAudio is the obvious route here — no assets, no build step, and it
+   suits the aesthetic.
 3. **Between-mission interstitials for Acts I–III** — Yelin's notes and
    the street graffiti. Act IV got its beats *inside* missions, which is
    where they belonged, but the Act I→II tonal turn still has nothing

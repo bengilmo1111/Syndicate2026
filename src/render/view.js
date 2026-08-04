@@ -8,12 +8,16 @@
 import * as THREE from '../../vendor/three.module.min.js';
 import { makeFog, makeLights, FOG_COLOR } from './ps1.js';
 import { CityView } from './cityView.js';
+import { occludersBetween } from '../core/city.js';
 import { AgentView, HostileView, CivilianView, ActorLayer } from './actorView.js';
 import { Fx } from './fx.js';
 import { CameraRig } from './cameraRig.js';
 
 /** Internal render scale. 3 ≈ 640×360 on a 1080p canvas. */
 export const PIXEL_SCALE = 3;
+
+/** Where an agent's silhouette actually is, for the occlusion test. */
+const HEAD_HEIGHT = 1.7;
 
 export class View {
   constructor(canvas) {
@@ -84,6 +88,30 @@ export class View {
     return hit ? { x: hit.x, z: hit.z } : null;
   }
 
+  /**
+   * Fade whatever is between the camera and the people you are steering.
+   *
+   * Every living agent, not just the selection and not just the centre: a
+   * squad spread across an intersection has four separate sightlines, and
+   * losing one agent behind a facade is exactly as bad as losing all four.
+   * `occludersBetween` is pure core geometry — see `src/core/city.js`.
+   *
+   * Aimed at head height rather than the ground, because the ground under
+   * an agent standing tight against a wall is inside that wall's footprint
+   * and the whole block would ghost every time somebody took cover.
+   */
+  syncOcclusion(sim, dt) {
+    const cam = this.rig.camera.position;
+    const eye = { x: cam.x, y: cam.y, z: cam.z };
+    const hidden = new Set();
+    for (const a of sim.squad.alive) {
+      for (const s of occludersBetween(sim.city, eye, { x: a.x, y: HEAD_HEIGHT, z: a.z })) {
+        hidden.add(s.id);
+      }
+    }
+    this.cityView.syncOcclusion(hidden, dt);
+  }
+
   render(sim, dt) {
     this.fx.consume(sim.events);
     this.cityView.syncStructures();
@@ -104,6 +132,7 @@ export class View {
 
     this.rig.follow(sim.squad.selectedCenter() ?? sim.squad.center());
     this.rig.update(dt);
+    this.syncOcclusion(sim, dt);
     this.renderer.render(this.scene, this.rig.camera);
   }
 }

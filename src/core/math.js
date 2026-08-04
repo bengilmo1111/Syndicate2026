@@ -62,6 +62,44 @@ export function segmentHitsBox(ax, az, bx, bz, box) {
 }
 
 /**
+ * The same slab method, in three dimensions.
+ *
+ * Everything else in this game reasons on the XZ plane, because everything
+ * else is a person or a bullet and both of those live on the street. The
+ * camera does not: it sits twenty-odd metres up and looks down, so whether
+ * a building is between it and your squad is a question about height as
+ * much as about footprint. A flat test would fade every building the
+ * squad happened to be standing behind on the map, including the ones the
+ * camera is comfortably looking over.
+ *
+ * `from` and `to` are `{ x, y, z }`. The box is a structure: centred on
+ * `x, z`, `w × d` on the ground, standing from y=0 to y=h.
+ */
+export function segmentHitsVolume(from, to, box) {
+  const lo = [box.x - box.w / 2, 0, box.z - box.d / 2];
+  const hi = [box.x + box.w / 2, box.h, box.z + box.d / 2];
+  const a = [from.x, from.y, from.z];
+  const b = [to.x, to.y, to.z];
+
+  let t0 = 0;
+  let t1 = 1;
+  for (let i = 0; i < 3; i++) {
+    const delta = b[i] - a[i];
+    if (Math.abs(delta) < 1e-8) {
+      if (a[i] < lo[i] || a[i] > hi[i]) return false;
+      continue;
+    }
+    let tNear = (lo[i] - a[i]) / delta;
+    let tFar = (hi[i] - a[i]) / delta;
+    if (tNear > tFar) [tNear, tFar] = [tFar, tNear];
+    t0 = Math.max(t0, tNear);
+    t1 = Math.min(t1, tFar);
+    if (t0 > t1) return false;
+  }
+  return true;
+}
+
+/**
  * Closest distance from point P to segment AB.
  *
  * Needed because a projectile moving 78 m/s covers 1.3m in a frame while

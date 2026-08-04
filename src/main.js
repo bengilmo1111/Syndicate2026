@@ -739,5 +739,9 @@ function frame(now) {
 showBriefing();
 requestAnimationFrame(frame);
 
-// Surface the app for console poking during development.
+// Surface the app for console poking during development. The renderer
+// rides along because some things — occlusion fading, mesh reconciliation
+// — are only observable from the render side, and a browser check that
+// cannot see them can only assert that nothing crashed.
+app.view = view;
 window.__syndicate = app;

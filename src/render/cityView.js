@@ -124,7 +124,12 @@ export class CityView {
     }
     group.add(trim);
 
-    const view = { group, body, roof, trim, bodyMat, trimMat, collapsedApplied: false, struct: s };
+    const view = {
+      group, body, roof, trim, bodyMat, roofMat, trimMat,
+      collapsedApplied: false, struct: s,
+      /** 1 = solid. Driven by `syncOcclusion` below. */
+      opacity: 1,
+    };
     this.byId.set(s.id, view);
     return group;
   }
@@ -173,6 +178,36 @@ export class CityView {
     }
   }
 
+  /**
+   * Ghost whatever is standing between the camera and the squad.
+   *
+   * The camera rig is constrained precisely so this would not be needed —
+   * you look down at the streets, you never fly through them — and for a
+   * long time that was true enough. It stopped being true when towers
+   * became destructible and started reaching thirty metres: at the lowest
+   * pitch the camera sits below the roofline, and a block on the near side
+   * of the squad takes the whole squad off screen.
+   *
+   * Faded rather than hidden, because the building is still cover, still
+   * shootable and still a thing you might drop on somebody. Removing it
+   * would lie about the world in the opposite direction.
+   *
+   * Eased rather than switched: a hard toggle pops a nine-floor block in
+   * and out of existence every time the camera drifts a degree, which is
+   * more distracting than the occlusion was. Out fast, back in gently —
+   * losing sight of the squad is urgent, getting a wall back is not.
+   */
+  syncOcclusion(occluded, dt) {
+    for (const v of this.byId.values()) {
+      const want = occluded.has(v.struct.id) ? OCCLUDED_OPACITY : 1;
+      if (v.opacity === want) continue;
+      const rate = (want < v.opacity ? FADE_OUT : FADE_IN) * dt;
+      const gap = want - v.opacity;
+      v.opacity += Math.sign(gap) * Math.min(rate, Math.abs(gap));
+      applyOpacity(v);
+    }
+  }
+
   /** Structures the sim can still damage, for aim-assist highlighting. */
   viewFor(structure) {
     return this.byId.get(structure.id) ?? null;
@@ -182,6 +217,24 @@ export class CityView {
     for (const m of this.materials) m.dispose();
     this.root.clear();
     this.byId.clear();
+  }
+}
+
+/** How much of an occluding building is left. Enough to read as a shape. */
+const OCCLUDED_OPACITY = 0.16;
+/** Per second. Losing the squad is urgent; getting a wall back is not. */
+const FADE_OUT = 7;
+const FADE_IN = 2.4;
+
+function applyOpacity(v) {
+  const solidNow = v.opacity >= 1;
+  for (const m of [v.bodyMat, v.roofMat, v.trimMat]) {
+    m.opacity = v.opacity;
+    m.transparent = !solidNow;
+    // Without this the ghost still writes depth and the agents behind it
+    // are culled — a transparent building that hides the squad anyway.
+    m.depthWrite = solidNow;
+    m.needsUpdate = true;
   }
 }
 

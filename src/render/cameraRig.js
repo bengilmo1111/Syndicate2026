@@ -1,8 +1,15 @@
 // Constrained orbit camera, deliberately not a free-fly.
 //
 // Syndicate Wars let you spin the city and tilt it, but never fly through it.
-// That constraint is what keeps the block readable — you always look down at
-// the streets from above, so the squad never disappears behind a facade.
+// That constraint is what keeps the block readable: you always look down at
+// the streets from above.
+//
+// It used to be the whole answer to occlusion, and for a long time it was
+// enough. It stopped being enough when towers became destructible and
+// started reaching thirty metres — at PITCH_MIN the lens sits below the
+// roofline, and a block on the near side takes the squad off screen. What
+// covers the rest is `occludersBetween` in `src/core/city.js`, which the
+// renderer uses to ghost whatever is in the way.
 
 import * as THREE from '../../vendor/three.module.min.js';
 import { clamp } from '../core/math.js';

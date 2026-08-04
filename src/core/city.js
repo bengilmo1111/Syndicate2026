@@ -4,7 +4,9 @@
 // meshes; the simulation reads it for collision, line of sight, and pathing.
 // Everything lives on the XZ plane with +Y up.
 
-import { makeRng, range, pick, clamp, segmentHitsBox, pushOutOfBox, dist } from './math.js';
+import {
+  makeRng, range, pick, clamp, segmentHitsBox, segmentHitsVolume, pushOutOfBox, dist,
+} from './math.js';
 
 export const CELL = 22;
 export const STREET = 10;
@@ -267,6 +269,33 @@ export function addLandmark(city, { name, near = { x: 0, z: 0 }, hp = 520, heigh
   city.structures.push(st);
   city.landmarks.push(st);
   return st;
+}
+
+/**
+ * Which structures stand between two points in space.
+ *
+ * The camera is the one thing in this game that can be *wrong* about the
+ * world. Everything else — cover, line of sight, pathing — describes what
+ * is actually true on the street. The camera describes what the player can
+ * see, and when it drifts behind a tower the squad vanishes without
+ * anything having happened to them. `src/render` fades whatever this
+ * returns; the geometry is here because it is geometry, and because that
+ * makes it testable in Node like everything else.
+ *
+ * Deliberately three-dimensional. A flat footprint test would fade every
+ * building the squad happened to be standing behind, including the ones
+ * the camera is comfortably looking over — which is most of them, since it
+ * sits twenty-odd metres up.
+ */
+export function occludersBetween(city, from, to, { minHeight = 2 } = {}) {
+  const out = [];
+  for (const s of city.structures) {
+    // Rubble is 1.6m of slumped concrete. It does not hide anybody, and
+    // fading it would flicker the whole street every time something fell.
+    if (s.collapsed || s.h < minHeight) continue;
+    if (segmentHitsVolume(from, to, s)) out.push(s);
+  }
+  return out;
 }
 
 /** Structures that still stand at full height (block movement AND sight). */
