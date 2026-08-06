@@ -12,6 +12,7 @@ import { occludersBetween } from '../core/city.js';
 import { AgentView, HostileView, CivilianView, ActorLayer } from './actorView.js';
 import { Fx } from './fx.js';
 import { TrafficView } from './trafficView.js';
+import { ShadowLayer } from './shadows.js';
 import { CameraRig } from './cameraRig.js';
 
 /** Internal render scale. 3 ≈ 640×360 on a 1080p canvas. */
@@ -48,6 +49,7 @@ export class View {
     this.hostileLayer = new ActorLayer(this.scene, h => new HostileView(h));
     this.civilianLayer = new ActorLayer(this.scene, c => new CivilianView(c));
     this.trafficView = new TrafficView(this.scene);
+    this.shadows = new ShadowLayer(this.scene);
 
     this.raycaster = new THREE.Raycaster();
     this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -128,6 +130,7 @@ export class View {
     this.hostileLayer.sync(sim.hostiles, dt);
     this.civilianLayer.sync(sim.civilians, dt);
     this.trafficView.sync(sim.traffic ?? [], dt);
+    this.shadows.sync(sim);
 
     this.fx.syncSquad(sim.squad);
     this.fx.syncDevices(sim.devices ?? []);

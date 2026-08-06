@@ -53,6 +53,30 @@ html, body {
   cursor: crosshair;
 }
 
+/* The grade.
+
+   Two things a real screen of this era did that a browser canvas does not:
+   the corners of the tube were darker than the middle, and the picture was
+   never quite as contrasty at the edges as in the centre. Faking it costs
+   one composited gradient and it does more than it sounds like — the eye
+   goes to the squad in the middle instead of wandering to the HUD, and the
+   flat fog colour at the horizon stops reading as a blank wall.
+
+   Deliberately weak. A heavy vignette on a game this dark just eats the
+   block. Under the HUD in DOM order so nothing here dims the text, and
+   `pointer-events: none` so it never eats a click on the street. */
+#screen-grade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 76% 66% at 50% 46%,
+    rgba(0, 0, 0, 0) 45%,
+    rgba(3, 5, 10, 0.26) 78%,
+    rgba(3, 5, 10, 0.58) 100%
+  );
+}
+
 /* --------------------------------------------------------------- the roster */
 
 .overlay-roster {

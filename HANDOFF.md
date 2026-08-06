@@ -289,8 +289,28 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
     transparent quads for the pools is pure overdraw, and baked into a
     texture they cost nothing. It also happens to be how a PS1 game did
     it — light is paint.
+  - **Blob shadows** (`src/render/shadows.js`). Nothing in this game casts
+    one and without them everybody floats: at this camera a box standing
+    on the street and a box hovering a metre over it are the same picture.
+    One `InstancedMesh` for every body and every car on the block,
+    rewritten each frame — eighty actors, one draw call.
+    They are **near-black at 0.85 alpha**, which reads as far too heavy
+    written down and is not. The first version used the values a daylit
+    game would use (0x05070c at 0.42) and was *measurably invisible*: two
+    screenshots of the same frame with the layer on and off came back as
+    the same picture, and the deepest pixel it darkened was 58/765 against
+    159 now. There is only so much room below asphalt this dark, and a
+    contact shadow has to use all of it.
+    A sedated hostile gets a wider one, because they are lying across the
+    pavement rather than standing on a patch of it, and from up here the
+    shadow is how you tell.
+  - **The grade** (`#screen-grade` in `styles.css`) — a weak CSS vignette,
+    over the canvas and under the HUD. Deliberately weak: a heavy one on a
+    game this dark just eats the block. `pointer-events: none`, or it
+    would silently swallow every move order on the map.
   Costs about **10%** of the frame rate under software rasterisation
-  (36 → 33 fps median on this box, ±3 run to run). The browser check's
+  (36 → 33 fps median on this box, ±3 run to run; the shadow layer and the
+  grade together were inside the run-to-run noise). The browser check's
   floor is 20.
 - **Ambient traffic** (`src/core/traffic.js`) — cars driving the street
   grid the squad already paths over. Nothing is drivable.
@@ -612,26 +632,32 @@ uncapping reinforcement, making the residents of a revolted sector just
 another garrison, handing them The Bracket's script, counting a retake as
 campaign progress, failing to resolve a retake id back to its sector,
 letting generated missions into the authored list, starting the hold
-before the garrison is down, and removing the ground to hold. It is
+before the garrison is down, and removing the ground to hold. Seven cover
+the shadow layer and the grade — a pool that never gets re-uploaded so the
+shadows stay where they first landed, one that never gets trimmed so all
+260 slots draw at the origin, cars casting nothing, the dead keeping
+theirs, a sedated hostile throwing a standing shadow, shadows too faint to
+see, and a grade that swallows every click on the street. It is
 load-bearing, not decorative.
 
-`node tests/browser.mjs` — 89 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 95 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console — plus the retake button, which is the only way into a generated
 deployment and which nothing headless can press.
 
-**Not covered:** nothing asserts the game *looks* right. Visual judgement
-is still a human reading a screenshot.
+**Not covered:** nothing asserts the game *looks* right in the sense that
+matters — composition, palette, whether a block reads as a street. Visual
+judgement is still a human reading a screenshot, and every graphics chunk
+so far has had at least one problem the assertions were happy with.
+What *is* asserted, because it turned out to be assertable, is that the
+shadow layer visibly darkens the picture: the browser suite renders the
+same frame twice, with the layer and without, and reads the framebuffer
+back. The first version of that layer passed every count and was
+invisible on screen.
 
 ## What's stubbed / known gaps
 
-- No sound
-- No interstitials between missions — gating exists, but the beats
-  *between* the briefings (Yelin's notes, the graffiti) don't
-- `bravoCalibrated` and `playerSuspicion` are recorded but nothing reads
-  them yet. `defectedAtRefusal` has gating support but no mission uses it
-  — Act III·9 onward should.
 - **Followers and escorted assets don't path.** Agents route properly
   now; anyone following them still beelines for the squad centroid and
   slides along whatever they hit. Usually fine because the squad walks

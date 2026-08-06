@@ -19,7 +19,7 @@ build step, no npm dependencies, deployed to Vercel from `main`.
 **`node tests/run.mjs` must pass before you push. No exceptions.**
 
 ```
-node tests/run.mjs            # ~11s, 242 checks, no dependencies
+node tests/run.mjs            # ~19s, 341 checks, no dependencies
 node tests/run.mjs nav        # filter by suite or test name
 node tests/browser.mjs        # optional: real browser, needs Playwright
 ```
@@ -42,8 +42,15 @@ Neither would survive `node tests/run.mjs` today. Keep it that way.
 
 **Mutation-test anything load-bearing you add.** Break it deliberately and
 confirm the suite goes red. A test that cannot fail is worse than no test,
-because it reads like coverage. Twelve such regressions have been confirmed
-to fail this suite; the list is in `HANDOFF.md`.
+because it reads like coverage. Every system in the game has been through
+this; the running list is in `HANDOFF.md`.
+
+**Screenshot anything visual, and diff it against the same frame without
+your change.** Assertions do not have eyes. The blob shadow layer passed
+its counts, rendered every disc in the right place at the right size, and
+was invisible on screen — dark grey at 42% alpha over asphalt that is
+already nearly black. Two screenshots caught in a minute what the suite
+was happy with. If a change is meant to be seen, prove it can be.
 
 `node tests/browser.mjs` covers what Node cannot see: the page booting,
 modules resolving over HTTP, WebGL rendering each mission, keyboard and

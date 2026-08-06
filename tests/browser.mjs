@@ -814,6 +814,23 @@ check('the road is painted rather than bare',
 check('every tower carries clutter, and none carries a pile',
   look.rooftops >= look.towers && look.rooftops <= look.towers * 3 && look.lamps > 10,
   `${look.rooftops} props on ${look.towers} towers · ${look.lamps} lamp parts`);
+// The grade is CSS, so what matters is that it is over the picture and that
+// it is not in the way of the mouse — a full-bleed div between the player
+// and the canvas would silently eat every move order on the map.
+const grade = await page.evaluate(() => {
+  const el = document.getElementById('screen-grade');
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  const hit = document.elementFromPoint(Math.round(r.width / 2), Math.round(r.height / 2));
+  return {
+    covers: r.width > 100 && r.height > 100,
+    background: getComputedStyle(el).backgroundImage.slice(0, 16),
+    clickThrough: hit?.id === 'game-canvas',
+  };
+});
+check('the picture is graded, and the grade does not eat clicks',
+  grade?.covers && grade.background.includes('radial') && grade.clickThrough,
+  grade?.clickThrough ? 'clicks reach the canvas' : 'blocked');
 check('and the buildings do not all run the same window pattern',
   look.patterns > 2 && look.patterns < look.facades,
   `${look.patterns} patterns across ${look.facades} facades`);
@@ -853,6 +870,115 @@ check('the street has traffic on it, and it is moving',
   `${traffic.cars} cars · ${traffic.meshes} meshes`);
 check('and a wreck is reconciled into the scene',
   traffic.wreckedMesh && traffic.heat > 0, `heat ${Math.round(traffic.heat)}`);
+
+// --- blob shadows. Two things have to hold and only one of them is
+// --- countable: that every body on the block gets a disc, and that the
+// --- discs are actually dark enough to see. The first version of the
+// --- layer passed the count and was invisible on screen — 0x05070c at
+// --- 0.42 alpha over asphalt this dark is not a shadow, it is a rounding
+// --- error. So this reads the framebuffer back and compares the same
+// --- frame drawn with the layer and without it.
+const shade = await page.evaluate(() => {
+  const app = window.__syndicate;
+  const canvas = document.getElementById('game-canvas');
+  const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+  const w = gl.drawingBufferWidth;
+  const h = gl.drawingBufferHeight;
+  // Park the camera low and close, where a contact shadow is meant to
+  // read, and stop the block so the two frames differ only in the layer.
+  app.view.rig.pitch = 0.7;
+  app.view.rig.distance = 30;
+  for (const c of app.sim.civilians) c.speed = 0;
+  for (const v of app.sim.traffic) v.speed = 0;
+
+  const sample = (visible) => {
+    app.view.shadows.mesh.visible = visible;
+    // Render and read inside one task: the drawing buffer survives until
+    // the compositor takes it at the end of the turn.
+    app.view.render(app.sim, 1 / 60);
+    const buf = new Uint8Array(w * h * 4);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    return buf;
+  };
+  const on = sample(true);
+  const off = sample(false);
+  app.view.shadows.mesh.visible = true;
+  app.view.render(app.sim, 1 / 60);
+
+  // Per pixel rather than an average over the frame: a mean is dominated
+  // by the acres of roof and sky that no shadow ever touches, and it stays
+  // green for a layer far too faint to see. What is being asserted is that
+  // somewhere on this street a real number of pixels got visibly darker.
+  let darkened = 0, deepest = 0;
+  for (let i = 0; i < w * h; i++) {
+    const o = i * 4;
+    const d = (off[o] - on[o]) + (off[o + 1] - on[o + 1]) + (off[o + 2] - on[o + 2]);
+    if (d >= 30) darkened++;
+    if (d > deepest) deepest = d;
+  }
+
+  const bodies = app.sim.squad.alive.length
+    + app.sim.hostiles.filter(x => !x.dead).length
+    + app.sim.civilians.filter(x => !x.dead).length
+    + app.sim.traffic.length;
+  const before = app.view.shadows.mesh.count;
+
+  // The pool is rewritten every frame, which is worth nothing if it is
+  // never handed back to the GPU: the discs stay wherever they were on
+  // frame one and everybody walks out of their own shadow. Three uploads
+  // on a version bump, so the bump is the thing to assert — no camera
+  // angle makes stale instance data visible to a pixel test.
+  const version = app.view.shadows.mesh.instanceMatrix.version;
+  app.view.shadows.sync(app.sim);
+  const reuploaded = app.view.shadows.mesh.instanceMatrix.version > version;
+
+  const victim = app.sim.civilians.find(c => !c.dead);
+  victim.dead = true;
+  app.view.shadows.sync(app.sim);
+  const afterDeath = app.view.shadows.mesh.count;
+  victim.dead = false;
+
+  // Sizes, read back off the instance matrices. The layer fills them in a
+  // fixed order — agents, hostiles, civilians, traffic — and the rotation
+  // it bakes in is about X, which leaves the first element of each matrix
+  // as the disc's radius.
+  //
+  // The block has no sedated hostile on it at this point in the run and
+  // putting one there properly would mean fighting a mission for it, so
+  // this hands the layer the four fields it actually reads.
+  const alive = app.sim.squad.alive.length;
+  app.sim.hostiles.push({ x: victim.x, z: victim.z, dead: false, downed: true });
+  app.view.shadows.sync(app.sim);
+  const m = app.view.shadows.mesh.instanceMatrix.array;
+  const radii = {
+    agent: m[0],
+    fallen: m[alive * 16],
+    civilian: m[(alive + 1) * 16],
+    car: m[(app.view.shadows.mesh.count - 1) * 16],
+  };
+  app.sim.hostiles.pop();
+  app.view.shadows.sync(app.sim);
+
+  return {
+    darkened, deepest, pixels: w * h, bodies, before, radii, afterDeath,
+    reuploaded,
+  };
+});
+check('everything standing on the block casts a shadow',
+  shade.before === shade.bodies && shade.bodies > 20,
+  `${shade.before} discs for ${shade.bodies} bodies`);
+check('and a body that is gone stops casting one',
+  shade.afterDeath === shade.before - 1);
+check('and the pool goes back to the card, so a shadow follows its body',
+  shade.reuploaded);
+check('a body on the floor throws a wider one than a body on its feet',
+  shade.radii.fallen > shade.radii.agent
+    && shade.radii.agent > shade.radii.civilian
+    && shade.radii.car > shade.radii.fallen,
+  `civ ${shade.radii.civilian} · agent ${shade.radii.agent} · down ${shade.radii.fallen} · car ${shade.radii.car}`);
+check('and the shadows are dark enough to actually see',
+  shade.darkened > 80 && shade.deepest > 100,
+  `${shade.darkened} of ${shade.pixels} pixels darkened · deepest ${shade.deepest}/765`);
 
 // --- the ledger. Seven flags were being recorded and never read back;
 // --- the last card now spends them.
