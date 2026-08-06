@@ -601,6 +601,22 @@ off → bind → jailbreak. Both modes are already modelled in
   that somehow arrives with no `ending` recorded still gets an ending —
   being shown a blank card at the end of the game is the worst bug the
   game could have, so it is made impossible rather than unlikely.
+- **The coda.** Under the scene, the last card reads back the seven flags
+  the campaign has been recording: `bravoCalibrated`, `playerSuspicion`,
+  `defectedAtRefusal`, `heardYelin`, `pressedYelin`, `toldBravoItWasHers`,
+  `askedTheReplacement`. Flat, specific, one or two sentences each, and no
+  line tells the player how to feel about what they did. Deliberately the
+  same under all three endings — the variant is what happened to the
+  world, the coda is what happened to the people. Both branches of every
+  real decision have a line; half a ledger reads as the game approving of
+  one answer.
+- **`bravoCalibrated: false` changes the closing image.** If the player
+  signed her replacement in Act II, Maren was sunset and cannot be in the
+  tunnel circle, so `walk` plays a different last scene: seven strangers
+  say names that are not hers, the player says hers anyway, and nobody
+  laughs. **Do not "fix" the original scene to cover both** — the point of
+  the two-people version is that it is only available to somebody who paid
+  for it.
 - **The three scenes are §7 below**, written out: the child with the
   chalk line and the passer-by's extraction scar; the new intake filing
   into the atrium and *"you are still working out when you learned to do

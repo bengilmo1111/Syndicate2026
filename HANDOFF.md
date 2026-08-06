@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~15s, 317 checks, no dependencies
+node tests/run.mjs        # the gate — ~15s, 322 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -268,6 +268,22 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   Offered only for blocks you **took and lost**. Not `lostTo`, which is
   deliberately transient, and not sectors you never took — those still have
   an authored briefing that means something.
+- **The coda** (`codaFor` in `src/core/mission.js`) — the last card reads
+  the campaign's seven narrative flags back as a ledger under the ending.
+  Deliberately **orthogonal to the ending**: the variant is what happened
+  to the world, the coda is what happened to the handful of people you
+  decided about, and those are the same either way. Crossing them means
+  writing twenty-one scenes instead of three and seven.
+  Both branches of every real decision have a line. Half a ledger is worse
+  than none — it reads as the game approving of one answer and having no
+  comment on the other.
+  It also takes `completed`, not just `flags`: "you walked past the
+  holding block" is only true of somebody who was standing in front of it,
+  and an absent flag cannot tell that apart from a mission never reached.
+  One flag reaches further than the ledger. `bravoCalibrated: false` swaps
+  the tunnel scene in the `walk` ending, because Maren was sunset eleven
+  missions ago and cannot be standing in the circle — the closing image is
+  two people saying her name, and under that flag it is one.
 - **Sound** (`src/audio/`) — synthesised at runtime. There are no audio
   files, and there should not be: no build step, no package manager, and
   a game whose look comes from a 640×360 framebuffer should not ship 48kHz
@@ -460,7 +476,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 317 checks, ~15s, zero dependencies. Covers city
+`node tests/run.mjs` — 322 checks, ~15s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -517,7 +533,11 @@ unknown syndicate id from a save. Seven more cover the doctrines: making
 Google broad, making SpaceX need unrest, letting SpaceX break a calm
 sector, making Anthropic take ground like the rest, removing the
 portfolio gate, blaming a fixed syndicate for every push, and ignoring
-agitation entirely. Five more cover the room tone: heat that only raises
+agitation entirely. Six cover the coda: a ledger never read back, one
+that fires regardless of what you chose, an empty ledger that still gets
+its heading, a tunnel scene that ignores who is in it, a coda that crosses
+with the ending, and walking past the holding block being assumed of
+somebody who never saw it. Five more cover the room tone: heat that only raises
 the volume, a room that plays under the cards, a linear heat curve,
 unclamped heat, and a bed loud enough to compete with the guns. Ten cover
 the sound mix: a kill with its own voice,
@@ -549,7 +569,7 @@ letting generated missions into the authored list, starting the hold
 before the garrison is down, and removing the ground to hold. It is
 load-bearing, not decorative.
 
-`node tests/browser.mjs` — 81 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 83 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console — plus the retake button, which is the only way into a generated
@@ -592,11 +612,10 @@ all in, offensive ones included. `GAP_ANALYSIS.md` is the ranked backlog;
 gaps 1, 2, 3, 4, 5, 7, 9, 10 and 11 are closed. What is left is vehicles
 and interiors.
 
-1. **The seven flags nothing reads.** `bravoCalibrated`,
-   `playerSuspicion`, `defectedAtRefusal`, `heardYelin`, `pressedYelin`,
-   `toldBravoItWasHers`, `askedTheReplacement` are all recorded and none
-   of them is ever mentioned again. The game promises consequence and
-   banks it without spending it.
+1. **Between-mission interstitials for Acts I–III** — Yelin's notes and
+   the street graffiti. Act IV got its beats *inside* missions, which is
+   where they belonged, but the Act I→II tonal turn still has nothing
+   between the briefings.
 3. **Between-mission interstitials for Acts I–III** — Yelin's notes and
    the street graffiti. Act IV got its beats *inside* missions, which is
    where they belonged, but the Act I→II tonal turn still has nothing

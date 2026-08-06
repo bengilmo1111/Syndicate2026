@@ -781,6 +781,39 @@ const fps = await page.evaluate(() => new Promise(res => {
 }));
 check('renders at a usable rate under software rasterization', fps > 20, `${fps} fps`);
 
+// --- the ledger. Seven flags were being recorded and never read back;
+// --- the last card now spends them.
+await page.evaluate(() => {
+  localStorage.setItem('syndicate2026.campaign', JSON.stringify({
+    version: 4,
+    completed: ['sector-7', 'district-12', 'sable-campus', 'the-bracket',
+      'okafor-contract', 'calibration-window', 'welfare-node-7', 'the-refusal',
+      'gradient-relay-4', 'run-south', 'reverse-the-gradient', 'the-tower',
+      'yelin', 'the-core'],
+    flags: {
+      ending: 'walk', bravoCalibrated: false, playerSuspicion: false,
+      defectedAtRefusal: true, heardYelin: false, askedTheReplacement: true,
+    },
+    records: {},
+  }));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(1200);
+const lastTab = (await page.$$('.mission-tab')).at(-1);
+await lastTab.click();
+await page.waitForTimeout(600);
+const ending = await page.evaluate(() => ({
+  title: document.getElementById('overlay-title').textContent,
+  body: document.getElementById('overlay-body').innerText,
+}));
+check('the last card reads the campaign\'s choices back',
+  /nobody filed/.test(ending.body)
+    && /signed the replacement/.test(ending.body)
+    && /cut the prisoner loose/.test(ending.body),
+  `${ending.title} · ${ending.body.length} chars`);
+check('and the scene itself knows BRAVO is not in the room',
+  !/One of them is BRAVO/.test(ending.body) && /None of the names/.test(ending.body));
+
 // Progress survives a reload — the whole point of persistence.
 await page.evaluate(() => { window.__syndicate.campaign.completed = ['sector-7']; });
 await page.evaluate(() => {

@@ -220,6 +220,9 @@ the 2D logic onto a 3D engine instead of losing it.
 - [x] Core invariants: city, nav, destruction, ballistics, aligner,
       morale, objectives, heat
 - [x] Per-mission story-beat assertions
+- [x] **The coda** — the epilogue reads the campaign's seven narrative
+      flags back as a ledger, and `bravoCalibrated` swaps the closing
+      scene of the `walk` ending outright.
 - [x] Optional Playwright pass: boot, render, input wiring, clean console
 - [x] CI on push and PR (`.github/workflows/verify.yml`)
 - [ ] Golden-image / visual regression (nothing asserts the game *looks*
