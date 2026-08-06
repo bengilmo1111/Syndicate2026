@@ -262,6 +262,10 @@ export class Sound {
         break;
       // The moment the squad turns on its own side. Low, and it does not
       // resolve either.
+      case 'WRECK':
+        this.burst(out, { length: 0.7, type: 'lowpass', freq: 800, decay: 0.6 });
+        this.tone(out, { from: 90, to: 34, length: 0.6, wave: 'sine', level: 0.9 });
+        break;
       case 'DEFECT':
         this.tone(out, { from: 200, to: 66, length: 0.9, wave: 'sawtooth', level: 0.6 });
         break;

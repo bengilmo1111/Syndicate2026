@@ -781,6 +781,42 @@ const fps = await page.evaluate(() => new Promise(res => {
 }));
 check('renders at a usable rate under software rasterization', fps > 20, `${fps} fps`);
 
+// --- ambient traffic. The sim tests prove the driving; only a browser run
+// --- proves the renderer builds cars and reconciles a wreck.
+await page.evaluate(() => {
+  localStorage.setItem('syndicate2026.campaign', JSON.stringify({
+    version: 4, completed: ['sector-7'], flags: {}, records: {},
+  }));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(1200);
+await page.click('.mission-tab:nth-child(2)');
+await page.waitForTimeout(400);
+await page.click('#overlay-button');
+await page.waitForTimeout(1500);
+const traffic = await page.evaluate(async () => {
+  const app = window.__syndicate;
+  const view = app.view.trafficView;
+  const before = app.sim.traffic.map(v => `${v.x.toFixed(1)},${v.z.toFixed(1)}`).join('|');
+  await new Promise(r => setTimeout(r, 1200));
+  const after = app.sim.traffic.map(v => `${v.x.toFixed(1)},${v.z.toFixed(1)}`).join('|');
+  const car = app.sim.traffic[0];
+  car.takeDamage(9999);
+  await new Promise(r => setTimeout(r, 400));
+  return {
+    cars: app.sim.traffic.length,
+    meshes: view.views.size,
+    moved: before !== after,
+    wreckedMesh: view.views.get(car.id)?.wrecked === true,
+    heat: app.sim.heat,
+  };
+});
+check('the street has traffic on it, and it is moving',
+  traffic.cars >= 6 && traffic.meshes === traffic.cars && traffic.moved,
+  `${traffic.cars} cars · ${traffic.meshes} meshes`);
+check('and a wreck is reconciled into the scene',
+  traffic.wreckedMesh && traffic.heat > 0, `heat ${Math.round(traffic.heat)}`);
+
 // --- the ledger. Seven flags were being recorded and never read back;
 // --- the last card now spends them.
 await page.evaluate(() => {

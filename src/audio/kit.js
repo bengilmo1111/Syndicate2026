@@ -40,6 +40,8 @@ export const CUE = Object.freeze({
   ALERT: { id: 'ALERT', gain: 0.6, limit: 1 },
   CHANNEL: { id: 'CHANNEL', gain: 0.5, limit: 1 },
   DEFECT: { id: 'DEFECT', gain: 0.7, limit: 1 },
+  // A car going up on a street. Under a building coming down, over a gun.
+  WRECK: { id: 'WRECK', gain: 0.8, limit: 2 },
 });
 
 /** Beyond this a thing is inaudible. Roughly the far side of the block. */
@@ -72,6 +74,7 @@ export function cueFor(event) {
     case 'alert': return CUE.ALERT;
     case 'interlude': return CUE.CHANNEL;
     case 'defect': return CUE.DEFECT;
+    case 'wreck': return CUE.WRECK;
     default: return null;
   }
 }

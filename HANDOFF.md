@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~15s, 322 checks, no dependencies
+node tests/run.mjs        # the gate — ~16s, 341 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -268,6 +268,22 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   Offered only for blocks you **took and lost**. Not `lostTo`, which is
   deliberately transient, and not sectors you never took — those still have
   an authored briefing that means something.
+- **Ambient traffic** (`src/core/traffic.js`) — cars driving the street
+  grid the squad already paths over. Nothing is drivable.
+  **It brakes for you**, and that is the design: a game that kills your own
+  agents with random background traffic has a random punishment in it.
+  Standing in the road stops the road.
+  A round that hits a car stops there. Two bursts wrecks one; the blast is
+  fatal on top of it and survivable across the road; the shell blocks the
+  lane; and it draws enforcement.
+  A wreck **never decides what happens to a named character** — same rule
+  as `fated`, extended to quarry and assets.
+  Opt in per mission with `traffic: n` from `setup()`. **Not mission one**:
+  the tutorial teaches four things and a car going up is a distraction from
+  all of them.
+  The lights are deliberately oversized for the vehicle. A car is ten
+  pixels across at the default camera and what reads as traffic from up
+  here is the same thing that reads as traffic from a window at night.
 - **The coda** (`codaFor` in `src/core/mission.js`) — the last card reads
   the campaign's seven narrative flags back as a ledger under the ending.
   Deliberately **orthogonal to the ending**: the variant is what happened
@@ -476,7 +492,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 322 checks, ~15s, zero dependencies. Covers city
+`node tests/run.mjs` — 341 checks, ~16s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -533,7 +549,13 @@ unknown syndicate id from a save. Seven more cover the doctrines: making
 Google broad, making SpaceX need unrest, letting SpaceX break a calm
 sector, making Anthropic take ground like the rest, removing the
 portfolio gate, blaming a fixed syndicate for every push, and ignoring
-agitation entirely. Six cover the coda: a ledger never read back, one
+agitation entirely. Fourteen cover ambient traffic: traffic that never
+brakes, that brakes for the pavement, that never gets going again, cars
+that drive off the edge of the world, a wreck reported every frame, a
+blast that does not fall off or has no edge, cars that start stacked,
+rounds that pass through cars, a wreck that decides what happens to a
+named character, a silent explosion, traffic in the tutorial, and a stray
+round closing the Okafor contract. Six cover the coda: a ledger never read back, one
 that fires regardless of what you chose, an empty ledger that still gets
 its heading, a tunnel scene that ignores who is in it, a coda that crosses
 with the ending, and walking past the holding block being assumed of
@@ -569,7 +591,7 @@ letting generated missions into the authored list, starting the hold
 before the garrison is down, and removing the ground to hold. It is
 load-bearing, not decorative.
 
-`node tests/browser.mjs` — 83 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 85 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console — plus the retake button, which is the only way into a generated
@@ -612,15 +634,15 @@ all in, offensive ones included. `GAP_ANALYSIS.md` is the ranked backlog;
 gaps 1, 2, 3, 4, 5, 7, 9, 10 and 11 are closed. What is left is vehicles
 and interiors.
 
-1. **Between-mission interstitials for Acts I–III** — Yelin's notes and
-   the street graffiti. Act IV got its beats *inside* missions, which is
-   where they belonged, but the Act I→II tonal turn still has nothing
-   between the briefings.
-3. **Between-mission interstitials for Acts I–III** — Yelin's notes and
-   the street graffiti. Act IV got its beats *inside* missions, which is
-   where they belonged, but the Act I→II tonal turn still has nothing
-   between the briefings. The card shape is the only thing missing;
-   `src/core/interlude.js` is not it (that one freezes a live field).
+1. **Drivable vehicles** (the rest of gap 6). Ambient traffic is in;
+   getting into one is not. Large.
+2. **Building interiors** (gap 12). Large.
+3. ~~Between-mission interstitials for Acts I–III.~~ **Already shipped**,
+   inside the debriefs — every beat `NARRATIVE.md` §6 specifies is there:
+   Yelin's chart, Vasht audible through the wall, *"They didn't fight like
+   terrorists"*, the Router on the sector coming off the channel. A
+   separate card between missions would repeat what the debrief just said,
+   which is worse than not having one.
 4. **`bravoCalibrated`, `playerSuspicion`, `defectedAtRefusal`,
    `heardYelin`, `pressedYelin`, `toldBravoItWasHers`,
    `askedTheReplacement`** are all recorded and nothing reads them. The

@@ -1143,10 +1143,31 @@ test('an ordinary named non-combatant is still killable, deliberately', () => {
   for (let i = 0; i < 12; i++) {
     const p = new Projectile(target.x, target.z - 1, 0, 20, sim.squad.agents[0]);
     p.friendly = true;
+    p.ordered = true;          // a human pointed this one
     sim.projectiles.push(p);
     step(sim, 1 / 60, idle);
   }
-  lt(target.health, before, 'and a round that reaches her lands');
+  lt(target.health, before, 'and a round somebody aimed lands');
+});
+
+test('but a round nobody aimed at her does not', () => {
+  // A rival's spread, or the squad's own auto-fire at a target standing
+  // behind her, closes the contract on the player's behalf — and the
+  // debrief then reads as though they chose it. The exemption is about
+  // *who decided*, not about who fired.
+  const sim = createSim('okafor-contract');
+  const target = sim.quarry[0];
+  const before = target.health;
+  for (let i = 0; i < 12; i++) {
+    const p = new Projectile(target.x, target.z - 1, 0, 20, sim.squad.agents[0]);
+    p.friendly = true;         // ours, but not ordered — auto-fire at something else
+    sim.projectiles.push(p);
+    const q = new Projectile(target.x, target.z + 1, Math.PI, 20, sim.hostiles[0]);
+    q.friendly = false;
+    sim.projectiles.push(q);
+    step(sim, 1 / 60, idle);
+  }
+  eq(target.health, before, 'she is untouched by everything nobody decided');
 });
 
 test('epilogue: the seven flags are finally read back', () => {

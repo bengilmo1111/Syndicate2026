@@ -105,6 +105,6 @@ export const okaforContract = registerMission({
       }));
     }
 
-    return { city, hostiles, civilianCount: 26, quarry: [okafor] };
+    return { city, hostiles, civilianCount: 26, quarry: [okafor], traffic: 11 };
   },
 });
