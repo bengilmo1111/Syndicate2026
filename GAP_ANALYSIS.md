@@ -480,6 +480,12 @@ right instinct.
   about confusion. Readability is a feature; our low-res PS1 treatment
   makes it *harder*, so HUD clarity and legible silhouettes matter more
   here than they would in a modern-looking game.
+  Most of the graphics work has been readability work wearing a costume.
+  Blob shadows are the clearest case: they are there because at a 45°
+  camera a body standing on the street and a body hovering over it are
+  the same picture, and knowing where somebody is standing is the whole
+  game. The same test applies to anything added next — if it does not
+  help you read the block, it is decoration, and decoration costs frames.
 - **Over-nerfed Persuadertron.** Making police fire on the wielder made
   crowd-building so costly that people stopped using the signature
   mechanic. When we add thresholds (gap 5), tune so that the Aligner

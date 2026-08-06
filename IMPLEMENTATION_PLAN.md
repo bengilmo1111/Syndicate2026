@@ -234,6 +234,12 @@ the 2D logic onto a 3D engine instead of losing it.
       per building, instanced rooftop clutter, street lamps, and a road
       texture carrying lane dashes, crossings and lamp pools. All inside
       the PS1 rules; ~10% of the frame rate under software rasterisation.
+- [x] **Blob shadows** (`src/render/shadows.js`) — one `InstancedMesh` for
+      every body and every car on the block, rewritten each frame, so
+      nothing floats. Near-black and nearly opaque, because the street is
+      already dark and a daylit game's shadow values are invisible on it.
+- [x] **The grade** — a weak CSS vignette over the canvas and under the
+      HUD, so the eye goes to the middle of the block.
 - [x] Camera follow with smoothing; screen shake on collapse
 - [x] **Sound** (`src/audio/`) — synthesised at runtime, no asset files.
       `kit.js` is the pure, tested mix; `sound.js` is the WebAudio half.
@@ -317,6 +323,8 @@ src/
     ps1.js              materials, vertex jitter, fog, lights, windows
     cityView.js         city meshes, collapse reconciliation
     actorView.js        agent/hostile/civilian meshes
+    trafficView.js      four boxes and two light bars, per car
+    shadows.js          one instanced blob shadow per body and per car
     fx.js               pooled tracers, sparks, debris, rings, cursor
     cameraRig.js        constrained orbit camera
     view.js             scene assembly, low-res pipeline, ground picking
