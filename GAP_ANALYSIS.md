@@ -312,14 +312,39 @@ weapons and fight, which the original had.
 
 *Where:* Phase 3. Cheap relative to impact; the follower entity exists.
 
-### 6. No vehicles
+### 6. No vehicles — **half closed**
 Cars and hovercars, drivable by agents and NPCs, plus ambient traffic.
 This is a large chunk of what made the original's cities feel like
 cities rather than dioramas.
 
-*Where:* unscheduled. Large. Ambient traffic alone — no driving — would
-buy most of the atmosphere for a fraction of the work, and is worth
-doing first as a separate item.
+**Ambient traffic shipped** (`src/core/traffic.js`), which was always the
+half worth doing first: most of the atmosphere for a fraction of the work.
+Nothing is drivable.
+
+It reuses the street grid the squad already paths over — a vehicle picks a
+centreline, drives it end to end, picks another. No pathfinding, no
+intersection logic, no turning: a car that only ever goes straight down a
+street it is already on cannot get stuck, cannot deadlock and cannot cost
+a frame. Everything interesting happens where it meets people.
+
+**It brakes for you.** Not "runs you down". These are autonomous in 2041,
+braking is what they are for, and a game that kills your own agents with
+random background traffic is a game with a random punishment in it.
+Standing in the road stops the road, which is a tactic rather than an
+accident — and a queue of stopped cars with their brake lights on is the
+most legible thing on the street.
+
+**And it is a hazard you choose.** A round that hits a car stops there, so
+shooting past a lane of traffic is a different problem from shooting
+across an empty street. Two bursts wrecks one; the blast is fatal on top
+of it and survivable across the road; the shell blocks the lane
+afterwards; and it draws enforcement, because blowing up a car on a street
+is loud.
+
+Not on mission one. The tutorial teaches four things and a car detonating
+during it is a distraction from all of them.
+
+*Still open:* drivable vehicles, for agents and NPCs.
 
 ### 7. Enemy AI has no tactics — **partially closed**
 Hostiles now reposition to cover and are suppressed by near-misses

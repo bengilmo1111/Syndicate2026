@@ -56,6 +56,6 @@ export const district12 = registerMission({
       maxFloors: 6,
       plaza: { col: 3, row: 2, w: 2, h: 4 },
     });
-    return { city, hostiles: [], civilianCount: 34 };
+    return { city, hostiles: [], civilianCount: 34, traffic: 10 };
   },
 });

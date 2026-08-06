@@ -18,6 +18,7 @@ import {
   DEVICE, newDeviceBelt, deploy as deployDevice, tickDevices,
   CHOKE_SPEED, CHOKE_SPREAD, RAZOR_SPEED,
 } from './devices.js';
+import { newTraffic, tickTraffic, blastVictims } from './traffic.js';
 import {
   getMissionDef, buildMission, updateMissionStatus, isMissionComplete,
   failedObjective, OBJECTIVE,
@@ -53,7 +54,7 @@ export function createSim(missionId, opts = {}) {
   const rng = makeRng(def.cityseed ?? 1);
   const {
     city, hostiles, civilianCount, assets = [], extraction = null, quarry = [],
-    extras = [], unthrottled = false, holdZone = null,
+    extras = [], unthrottled = false, holdZone = null, traffic = 0,
   } = def.setup(rng);
 
   const civilians = [];
@@ -153,6 +154,12 @@ export function createSim(missionId, opts = {}) {
     roster: opts.roster ?? null,
     /** Field devices currently on the map. See `src/core/devices.js`. */
     devices: [],
+    /**
+     * Ambient traffic. Not people and not scenery: a car brakes for you,
+     * blocks a lane once it is wreckage, and takes anybody standing next
+     * to it with it. See `src/core/traffic.js`.
+     */
+    traffic: newTraffic(city, traffic, rng),
     /** Charges left, per device type. Not restocked mid-deployment. */
     // The belt grows with the campaign. Act I deploys with two tools and
     // the first ten missions were tuned against exactly that.
@@ -230,6 +237,28 @@ export function step(sim, dt, intent) {
     if (a.isAgent) continue;
     if (a.baseSpeed == null) a.baseSpeed = a.speed;
     else a.speed = a.baseSpeed;
+  }
+
+  // Traffic. Ticked with the devices because it is the other thing on the
+  // street that is neither a person nor a building.
+  for (const v of tickTraffic(sim.traffic, everyone, dt, city, sim.rng)) {
+    sim.events.push({ type: 'wreck', x: v.x, z: v.z });
+    // Blowing up a car on a street is loud, and the sector notices whether
+    // or not it was the squad that did it.
+    sim.heat += HEAT.CIVILIAN_KILL;
+    for (const { actor, amount } of blastVictims(v, everyone)) {
+      // The same rule as every other incidental: what happens to a person
+      // with a name is something the player chose, in as many words. A
+      // player who drops satellite rain on a journalist chose that; a car
+      // going up on the far side of the street is not that, and letting it
+      // kill Okafor or Yelin silently converts an ending nobody decided.
+      if (actor.fated || actor.isQuarry || actor.isAsset) continue;
+      incidentalDamage(sim, actor, amount, true);
+      actor.scare?.(7);
+    }
+    for (const c of sim.civilians) {
+      if (!c.dead && dist(c.x, c.z, v.x, v.z) < 34) c.scare(6);
+    }
   }
 
   const fields = tickDevices(sim.devices, everyone, dt, city);
@@ -322,7 +351,13 @@ export function step(sim, dt, intent) {
       } else if (target) {
         shot = a.fireAt(target.x, target.z, squad.compute, sim.rng);
       }
-      if (shot) spawnProjectile(sim, shot);
+      if (shot) {
+        // Whether a human pointed this round or the squad picked its own
+        // target. Only one of those is an order, and one thing in the game
+        // cares which — see the quarry rule in `resolveProjectile`.
+        shot.ordered = manual;
+        spawnProjectile(sim, shot);
+      }
     }
   } else {
     for (const a of squad.alive) a.tickSpin(dt, false);
@@ -705,6 +740,17 @@ function resolveProjectile(sim, p) {
   suppressNearMisses(sim, p);
 
   // Structures first: a shot that clips a wall never reaches what's behind it.
+  // A car is a big steel box in the road. A round that hits one stops
+  // there — which is what makes shooting past a lane of traffic a
+  // different problem from shooting across an empty street.
+  for (const v of sim.traffic) {
+    if (v.dead || !p.hits(v)) continue;
+    const killed = v.takeDamage(p.damage);
+    sim.events.push({ type: 'hit', x: p.x, z: p.z, actor: v, killed, spent: true });
+    p.dead = true;
+    return;
+  }
+
   const hitStruct = structureInPath(sim.city, p.prevX, p.prevZ, p.x, p.z);
   if (hitStruct) {
     p.dead = true;
@@ -747,6 +793,16 @@ function resolveProjectile(sim, p) {
     // collapse exemption: what happens to a person with a name has to be
     // something the player chose, in as many words.
     if (c.aligned || c.fated || !p.hits(c)) continue;
+    // The same rule, one step weaker, for a named character the player is
+    // *supposed* to be able to shoot. Priya Okafor dies to a round somebody
+    // aimed or she does not die: a rival's spread, or the squad's own
+    // auto-fire at a target behind her, closes the contract on the player's
+    // behalf and the debrief reads as though they chose it.
+    //
+    // Found when ambient traffic shifted the shared RNG stream and a stray
+    // landed on her. It was always possible; the stream just never happened
+    // to do it before.
+    if (c.isQuarry && !p.ordered) continue;
     const killed = c.takeDamage(damageAgainst(sim, p, c));
     c.scare(5);
     const spent = p.consumeHit(c);

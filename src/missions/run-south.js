@@ -107,6 +107,7 @@ export const runSouth = registerMission({
     }
 
     return {
+      traffic: 14,
       city,
       hostiles,
       civilianCount: 14,

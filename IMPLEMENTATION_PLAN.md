@@ -287,6 +287,7 @@ src/
     devices.js          six field devices — the things you put on the map
     roster.js           who is in the suits, what is fitted, who is gone
     territory.js        the map: what you hold, how hard you squeeze it
+    traffic.js          ambient traffic — it brakes for you, and it burns
     retake.js           deployments the map writes to take a block back
     sim.js              the simulation — owns all mutable game state
   audio/                every sound, synthesised at runtime
