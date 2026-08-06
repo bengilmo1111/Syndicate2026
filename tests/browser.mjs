@@ -781,6 +781,43 @@ const fps = await page.evaluate(() => new Promise(res => {
 }));
 check('renders at a usable rate under software rasterization', fps > 20, `${fps} fps`);
 
+// --- the graphics pass. None of this is reachable from Node: it is all
+// --- canvases, materials and instanced meshes.
+const look = await page.evaluate(() => {
+  const app = window.__syndicate;
+  const cv = app.view.cityView;
+  const road = cv.root.children[0].children[0];
+  const facades = [...cv.byId.values()]
+    .filter(v => v.bodyMat.emissiveMap)
+    .map(v => v.bodyMat.emissiveMap.image);
+  let lamps = 0;
+  cv.root.traverse(o => { if (o.isInstancedMesh && o !== cv.rooftops) lamps += o.count; });
+  return {
+    sky: !!app.view.sky && app.view.sky.visible,
+    skyRides: app.view.sky.position.distanceTo(app.view.rig.camera.position) < 0.001,
+    roadMapped: !!road.material.map,
+    rooftops: cv.rooftops?.count ?? 0,
+    towers: cv.city.structures.filter(s => s.kind === 'tower' && !s.collapsed).length,
+    lamps,
+    facades: facades.length,
+    patterns: new Set(facades).size,
+  };
+});
+check('there is a sky, and it rides with the camera',
+  look.sky && look.skyRides);
+check('the road is painted rather than bare',
+  look.roadMapped, 'lane dashes, crossings and lamp pools are one texture');
+// Scaled to the block rather than a flat count: a nine-by-nine of low
+// slabs has five towers in it and a denser one has thirty, and both are
+// correct. What must hold is that every tower gets something and none gets
+// a pile.
+check('every tower carries clutter, and none carries a pile',
+  look.rooftops >= look.towers && look.rooftops <= look.towers * 3 && look.lamps > 10,
+  `${look.rooftops} props on ${look.towers} towers · ${look.lamps} lamp parts`);
+check('and the buildings do not all run the same window pattern',
+  look.patterns > 2 && look.patterns < look.facades,
+  `${look.patterns} patterns across ${look.facades} facades`);
+
 // --- ambient traffic. The sim tests prove the driving; only a browser run
 // --- proves the renderer builds cars and reconciles a wreck.
 await page.evaluate(() => {
