@@ -10,7 +10,7 @@ import { suite, test, ok, notOk, eq, gte, lt, includes } from './lib/harness.mjs
 import { autoplay } from './lib/autopilot.mjs';
 import {
   getAllMissions, getFieldMissions, getMissionDef, isFieldMission, STATUS,
-  winEndings, debriefLines, epilogueFor, epilogueVariants,
+  winEndings, debriefLines, epilogueFor, epilogueVariants, codaFor,
 } from '../src/core/mission.js';
 import { createSim, step, PHASE } from '../src/core/sim.js';
 import { Projectile } from '../src/core/entities.js';
@@ -977,7 +977,8 @@ test('epilogue: the ending the player chose is the ending they get', () => {
     const campaignFlags = { ...r.sim.mission.flags };
     const scene = epilogueFor(def, campaignFlags);
     const expected = def.epilogue.variants[ending];
-    eq(scene, expected, `${ending}: gets its own final scene`);
+    eq(scene.title, expected.title, `${ending}: gets its own final scene`);
+    eq(scene.lines.join(' '), expected.lines.join(' '), `${ending}: and the right one`);
   }
 
   const scenes = epilogueVariants(def).map(k => def.epilogue.variants[k].lines.join(' '));
@@ -992,7 +993,8 @@ test('epilogue: a save that arrives with no ending recorded still gets one', () 
   const def = getMissionDef('epilogue');
   ok(epilogueFor(def, {})?.lines.length, 'no flags at all');
   ok(epilogueFor(def, { ending: 'nonsense' })?.lines.length, 'a flag from a future version');
-  eq(epilogueFor(def, {}), def.epilogue.variants[def.epilogue.fallback], 'and it is the declared fallback');
+  eq(epilogueFor(def, {}).title, def.epilogue.variants[def.epilogue.fallback].title,
+    'and it is the declared fallback');
 });
 
 test('epilogue: the three final scenes are the ones NARRATIVE specifies', () => {
@@ -1145,4 +1147,76 @@ test('an ordinary named non-combatant is still killable, deliberately', () => {
     step(sim, 1 / 60, idle);
   }
   lt(target.health, before, 'and a round that reaches her lands');
+});
+
+test('epilogue: the seven flags are finally read back', () => {
+  // Seven flags were recorded across the campaign and none of them was
+  // ever mentioned again. A game that quietly notices what you chose and
+  // then says nothing is worse than one that never noticed: it spends the
+  // player's attention and banks the interest.
+  const def = getMissionDef('epilogue');
+  const FLAGS = [
+    'bravoCalibrated', 'playerSuspicion', 'defectedAtRefusal',
+    'heardYelin', 'pressedYelin', 'toldBravoItWasHers', 'askedTheReplacement',
+  ];
+  const played = MISSIONS.map(m => m.id);
+  for (const flag of FLAGS) {
+    const on = codaFor(def, { [flag]: true }, played).join(' ');
+    const off = codaFor(def, { [flag]: false }, played).join(' ');
+    ok(on !== off, `${flag}: changes what the last card says`);
+    ok(on.length > 40 || off.length > 40, `${flag}: and says something, not a token`);
+  }
+});
+
+test('epilogue: both branches of a real decision have something to say', () => {
+  // Half a ledger is worse than none — it reads as the game approving of
+  // one answer and having no comment on the other.
+  const def = getMissionDef('epilogue');
+  // A completed campaign, because "you walked past the holding block" is
+  // only true of somebody who was standing in front of it — an absent flag
+  // on a save that never reached Node 7 is not a choice.
+  const played = MISSIONS.map(m => m.id);
+  for (const flag of ['bravoCalibrated', 'playerSuspicion', 'defectedAtRefusal', 'heardYelin']) {
+    gte(codaFor(def, { [flag]: true }, played).length, 3, `${flag}: taking it is on the record`);
+    gte(codaFor(def, { [flag]: false }, played).length, 3, `${flag}: and so is not taking it`);
+    ok(codaFor(def, { [flag]: true }, played).join(' ')
+      !== codaFor(def, { [flag]: false }, played).join(' '), `${flag}: differently`);
+  }
+});
+
+test('epilogue: the coda is the same under every ending', () => {
+  // Orthogonal on purpose. The variant is what happened to the world; the
+  // coda is what happened to the handful of people you decided about, and
+  // those are the same either way. Crossing them means twenty-one scenes.
+  const def = getMissionDef('epilogue');
+  const flags = { bravoCalibrated: true, playerSuspicion: true, heardYelin: false };
+  const codas = ['burn', 'take', 'walk']
+    .map(ending => epilogueFor(def, { ...flags, ending }, MISSIONS.map(m => m.id)).coda);
+  ok(codas.every(c => c.length >= 4), 'the last card actually carries a ledger');
+  eq(new Set(codas.map(c => c.join(' '))).size, 1, 'one ledger, three endings');
+});
+
+test('epilogue: a save with nothing recorded gets no ledger, not an empty one', () => {
+  // Heading a list of consequences and then listing none reads as a bug.
+  const def = getMissionDef('epilogue');
+  eq(codaFor(def, {}).length, 0, 'no flags, no promise');
+  eq(codaFor(def, { ending: 'walk' }).length, 0, 'the ending alone is not a decision about a person');
+  gte(codaFor(def, { ending: 'walk', heardYelin: true }).length, 3, 'one flag is enough for a heading');
+});
+
+test('epilogue: replacing BRAVO changes who is in the tunnel', () => {
+  // The one place a flag makes a shipped scene *wrong* rather than merely
+  // incomplete. If the player signed her replacement in Act II, Maren was
+  // sunset eleven missions ago and cannot be standing in the circle — and
+  // the closing image is two people saying her name.
+  const def = getMissionDef('epilogue');
+  const kept = epilogueFor(def, { ending: 'walk', bravoCalibrated: true }).lines.join(' ');
+  const gone = epilogueFor(def, { ending: 'walk', bravoCalibrated: false }).lines.join(' ');
+
+  includes(kept, 'One of them is BRAVO', 'she is there when you paid for her');
+  notOk(gone.includes('One of them is BRAVO'), 'and not there when you did not');
+  includes(gone, 'It is not your name', 'the name is still the one you are carrying');
+  // Both still end on the name. That is the last word in the game.
+  includes(kept, 'Maren', 'said twice');
+  includes(gone, 'Maren', 'and once');
 });

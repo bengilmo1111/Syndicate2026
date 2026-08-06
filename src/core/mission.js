@@ -78,11 +78,50 @@ export function isFieldMission(def) {
  * `{ title, lines }` per value, and `fallback` covers a save that somehow
  * reaches the end with nothing recorded.
  */
-export function epilogueFor(def, flags = {}) {
+export function epilogueFor(def, flags = {}, completed = []) {
   const spec = def.epilogue;
   if (!spec) return null;
   const key = flags[spec.by] ?? spec.fallback;
-  return spec.variants[key] ?? spec.variants[spec.fallback];
+  const variant = spec.variants[key] ?? spec.variants[spec.fallback];
+  return {
+    title: variant.title,
+    // A variant may declare `linesFor` instead of `lines` when the scene
+    // itself is wrong under some flag — the tunnel circle cannot have
+    // BRAVO in it if the player signed her replacement.
+    lines: variant.linesFor ? variant.linesFor(flags) : variant.lines,
+    coda: codaFor(def, flags, completed),
+  };
+}
+
+/**
+ * The ledger of individual choices, under the ending.
+ *
+ * Deliberately orthogonal to the variant. The variant is what happened to
+ * the world; the coda is what happened to the handful of people the player
+ * made a decision about. Crossing the two would mean writing twenty-one
+ * scenes instead of three and seven, and the seven are the same either
+ * way — that is rather the point of them.
+ *
+ * In campaign order, because it reads as a record and a record is
+ * chronological.
+ */
+export function codaFor(def, flags = {}, completed = []) {
+  const spec = def.epilogue;
+  if (!spec?.coda) return [];
+  // Some entries are about what the player *did not* do, and an absent
+  // flag cannot tell those apart from a mission they never reached. So
+  // the record comes in too: "you walked past the holding block" is only
+  // true of somebody who was standing in front of it.
+  const done = new Set(completed);
+  const out = [];
+  for (const entry of spec.coda) {
+    let due = false;
+    try { due = !!entry.when(flags, done); } catch { due = false; }
+    if (due) out.push(...entry.lines);
+  }
+  // Heading a list of consequences and then listing none reads as a bug,
+  // so it is prepended rather than declared as an entry of its own.
+  return out.length ? [...(spec.codaHeading ?? []), ...out] : [];
 }
 
 /** Every ending an epilogue can deliver. */

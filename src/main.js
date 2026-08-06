@@ -306,7 +306,7 @@ function resolveChoice(def, option) {
 function showEpilogue(def) {
   app.phase = PHASE.WON;
   app.sim = null;
-  const scene = epilogueFor(def, app.campaign.flags);
+  const scene = epilogueFor(def, app.campaign.flags, app.campaign.completed);
 
   // Reaching the last card *is* completing it. There is nothing to do
   // here and no way to fail, so record it on arrival rather than making
@@ -328,7 +328,11 @@ function showEpilogue(def) {
       lockReason: lockReason(app.campaign, m, getMissionDef),
     })),
     onSelectTab: (id) => { app.selectedMissionId = id; showBriefing(); },
-    body: scene.lines,
+    // The scene, then the ledger. Seven flags were recorded across the
+    // campaign and none of them was ever read back — a game that notices
+    // what you chose and never mentions it spends the player's attention
+    // and banks the interest.
+    body: [...scene.lines, ...scene.coda],
     button: { label: 'BRIEFING ROOM', onClick: showBriefing },
     altButton: { label: 'WIPE RECORD', onClick: resetCampaign },
     hint: 'Syndicate 2026 · the endings are in NARRATIVE.md §7, if you want the other two.',
