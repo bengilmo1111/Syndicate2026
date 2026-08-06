@@ -230,6 +230,10 @@ the 2D logic onto a 3D engine instead of losing it.
 
 ## Phase 6 — Polish
 - [x] Particle effects: tracers, impact sparks, collapse debris
+- [x] **Graphics pass** — a banded gradient sky, six window patterns hashed
+      per building, instanced rooftop clutter, street lamps, and a road
+      texture carrying lane dashes, crossings and lamp pools. All inside
+      the PS1 rules; ~10% of the frame rate under software rasterisation.
 - [x] Camera follow with smoothing; screen shake on collapse
 - [x] **Sound** (`src/audio/`) — synthesised at runtime, no asset files.
       `kit.js` is the pure, tested mix; `sound.js` is the WebAudio half.

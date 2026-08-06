@@ -268,6 +268,30 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   Offered only for blocks you **took and lost**. Not `lostTo`, which is
   deliberately transient, and not sectors you never took — those still have
   an authored briefing that means something.
+- **The look** (`src/render/ps1.js`, `cityView.js`) — a pass over what the
+  city actually looks like, all of it inside the PS1 rules:
+  - **A sky.** There was none: the background was flat `FOG_COLOR`, which
+    is fine at street level and falls apart the moment a tower breaks the
+    skyline, because the tower is then a silhouette against nothing. A
+    banded gradient dome, warm at the horizon — a city at night puts its
+    own light back into the haze above it, and that glow is the difference
+    between "night" and "the renderer forgot to draw anything". It rides
+    with the camera, so its radius never has to cover the block.
+  - **Six window patterns, not one.** The city used to share a single
+    canvas offset randomly per building, which reads as *tiling*. Hashed
+    off the structure id, so a block looks the same every load and
+    neighbours rarely match.
+  - **Rooftop clutter.** A skyline is silhouette, and one made of plain
+    boxes reads as a bar chart. One `InstancedMesh` for the whole block.
+  - **Street lamps and a painted road.** Lane dashes, crossings and the
+    warm pools under the lamps are **one canvas texture on the roadway**,
+    not geometry. That is a frame-rate decision first: eighty-one
+    transparent quads for the pools is pure overdraw, and baked into a
+    texture they cost nothing. It also happens to be how a PS1 game did
+    it — light is paint.
+  Costs about **10%** of the frame rate under software rasterisation
+  (36 → 33 fps median on this box, ±3 run to run). The browser check's
+  floor is 20.
 - **Ambient traffic** (`src/core/traffic.js`) — cars driving the street
   grid the squad already paths over. Nothing is drivable.
   **It brakes for you**, and that is the design: a game that kills your own
@@ -591,7 +615,7 @@ letting generated missions into the authored list, starting the hold
 before the garrison is down, and removing the ground to hold. It is
 load-bearing, not decorative.
 
-`node tests/browser.mjs` — 85 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 89 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console — plus the retake button, which is the only way into a generated

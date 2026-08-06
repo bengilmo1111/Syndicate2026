@@ -2,10 +2,23 @@
 // The sim owns structure state; this module only reads it.
 
 import * as THREE from '../../vendor/three.module.min.js';
-import { solid, glow, facade } from './ps1.js';
+import { solid, glow, facade, roadTexture, WINDOW_PATTERN_COUNT } from './ps1.js';
 import { STRUCT, CELL, STREET } from '../core/city.js';
 
 const BOX = new THREE.BoxGeometry(1, 1, 1);
+
+/**
+ * A stable 0..1 from an integer.
+ *
+ * Everything decorative in this file is placed by hashing a structure id
+ * rather than by rolling dice, for the same reason the collapse debris is:
+ * a block that reshuffles its own rooftops every time you load it is a
+ * different bug from a block that looks boring.
+ */
+function hash01(n, salt = 0) {
+  const h = Math.imul((n ^ salt) + 0x9e3779b9, 0x85ebca6b) >>> 0;
+  return h / 4294967296;
+}
 
 export class CityView {
   constructor(city) {
@@ -14,18 +27,52 @@ export class CityView {
     this.byId = new Map();
     this.materials = [];
 
+    // Where the street lights stand. Computed first: the road texture
+    // paints their pools, and the posts are placed on the same points.
+    this.lamps = this.lampSpots();
+
     this.root.add(this.buildGround());
-    this.root.add(this.buildStreetGrid());
     this.root.add(this.buildSidewalks());
 
     for (const s of city.structures) this.root.add(this.buildStructure(s));
+
+    // Decoration, after the buildings, because both read off them.
+    this.root.add(this.buildRooftops());
+    this.root.add(this.buildStreetLights());
+  }
+
+  /**
+   * Lamps, on alternate intersections, kicked off the centreline onto a kerb.
+   *
+   * Every junction is both too many and too regular: it costs a couple of
+   * frames per second under software rasterisation for a grid so even it
+   * reads as graph paper. A checkerboard is half the geometry and looks
+   * more like a city that was wired up over forty years.
+   */
+  lampSpots() {
+    const out = [];
+    const off = STREET * 0.36;
+    this.city.streetsX.forEach((x, cx) => {
+      this.city.streetsZ.forEach((z, cz) => {
+        if ((cx + cz) % 2) return;
+        const i = cx * 31 + cz;
+        out.push({
+          x: x + (hash01(i, 11) < 0.5 ? -off : off),
+          z: z + (hash01(i, 29) < 0.5 ? -off : off),
+        });
+      });
+    });
+    return out;
   }
 
   buildGround() {
     const group = new THREE.Group();
 
-    // Roadway under the block itself — lighter, so streets read as streets.
-    const roadMat = solid(0x191c26);
+    // Roadway under the block itself. Everything painted on it — lane
+    // dashes, crossings, the pools under the lamps — is in this one
+    // texture rather than in geometry: see `roadTexture` in `ps1.js` for
+    // why that is a frame-rate decision as much as a look.
+    const roadMat = solid(0xffffff, { map: roadTexture(this.city, this.lamps) });
     this.materials.push(roadMat);
     const road = new THREE.Mesh(BOX, roadMat);
     road.scale.set(this.city.width, 0.1, this.city.depth);
@@ -43,30 +90,6 @@ export class CityView {
     outer.position.y = -0.12;
     group.add(outer);
 
-    return group;
-  }
-
-  /**
-   * Centre lines down every avenue. Cheap, and they give the vertex jitter
-   * something to shimmer against — the wobble is invisible on blank asphalt.
-   */
-  buildStreetGrid() {
-    const group = new THREE.Group();
-    const mat = glow(0x2f3a55);
-    this.materials.push(mat);
-
-    for (const x of this.city.streetsX) {
-      const strip = new THREE.Mesh(BOX, mat);
-      strip.scale.set(0.5, 0.06, this.city.depth);
-      strip.position.set(x, 0.04, 0);
-      group.add(strip);
-    }
-    for (const z of this.city.streetsZ) {
-      const strip = new THREE.Mesh(BOX, mat);
-      strip.scale.set(this.city.width, 0.06, 0.5);
-      strip.position.set(0, 0.04, z);
-      group.add(strip);
-    }
     return group;
   }
 
@@ -89,13 +112,106 @@ export class CityView {
     return group;
   }
 
+  /**
+   * Rooftop clutter: plant, tanks, stair heads.
+   *
+   * A skyline is silhouette, and a skyline made of plain boxes reads as a
+   * bar chart. Three or four small blocks on top of each tower is the
+   * cheapest possible fix and it is most of the difference between "a
+   * rendering of a city" and "a city".
+   *
+   * One `InstancedMesh` for the whole block, so a hundred towers of clutter
+   * cost one draw call. They are decoration only — nothing in the sim knows
+   * they exist, so they are never in the way of anything.
+   */
+  buildRooftops() {
+    // Towers only — `STRUCT.TOWER` is already the h > 16 band, and clutter
+    // on a four-metre kiosk is invisible from any camera angle the rig
+    // allows.
+    const towers = this.city.structures.filter(
+      s => s.kind === STRUCT.TOWER && !s.collapsed,
+    );
+    const per = 3;
+    const mat = solid(0x2f3541);
+    this.materials.push(mat);
+    const mesh = new THREE.InstancedMesh(BOX, mat, Math.max(1, towers.length * per));
+    const m = new THREE.Matrix4();
+    let n = 0;
+
+    for (const s of towers) {
+      for (let i = 0; i < per; i++) {
+        const a = hash01(s.id, i * 977);
+        const b = hash01(s.id, i * 313 + 7);
+        const c = hash01(s.id, i * 61 + 91);
+        // A third of the slots stay empty, so the density varies building
+        // to building rather than every roof carrying exactly three boxes.
+        if (c < 0.34) continue;
+        const w = s.w * (0.12 + a * 0.22);
+        const d = s.d * (0.12 + b * 0.22);
+        const h = 0.9 + c * 3.4;
+        m.makeScale(w, h, d);
+        m.setPosition(
+          s.x + (a - 0.5) * (s.w - w) * 0.85,
+          s.h + h / 2,
+          s.z + (b - 0.5) * (s.d - d) * 0.85,
+        );
+        mesh.setMatrixAt(n++, m);
+      }
+    }
+    // Unused slots would otherwise render as unit cubes at the origin.
+    mesh.count = n;
+    mesh.instanceMatrix.needsUpdate = true;
+    this.rooftops = mesh;
+    return mesh;
+  }
+
+  /**
+   * Street lighting.
+   *
+   * Not real lights — a hundred point lights would end the frame rate and
+   * flat shading would barely show them. What actually reads at this
+   * resolution is the *pool*: a warm quad on the asphalt under a small
+   * bright head. Blue street, orange pools, and suddenly the grid is lit
+   * rather than merely visible.
+   */
+  buildStreetLights() {
+    const group = new THREE.Group();
+    const spots = this.lamps;
+
+    const postMat = solid(0x232833);
+    const headMat = glow(0xffb46a);
+    this.materials.push(postMat, headMat);
+
+    const posts = new THREE.InstancedMesh(BOX, postMat, spots.length);
+    const heads = new THREE.InstancedMesh(BOX, headMat, spots.length);
+    const m = new THREE.Matrix4();
+
+    spots.forEach((p, i) => {
+      m.makeScale(0.42, 7, 0.42);
+      m.setPosition(p.x, 3.5, p.z);
+      posts.setMatrixAt(i, m);
+
+      m.makeScale(1.5, 0.4, 0.9);
+      m.setPosition(p.x, 7.1, p.z);
+      heads.setMatrixAt(i, m);
+    });
+    for (const mesh of [posts, heads]) {
+      mesh.instanceMatrix.needsUpdate = true;
+      group.add(mesh);
+    }
+    return group;
+  }
+
   buildStructure(s) {
     const group = new THREE.Group();
     group.position.set(s.x, 0, s.z);
 
     // Only real buildings get windows; street cover and pylons are solid.
     const bodyMat = (s.kind === STRUCT.TOWER || s.kind === STRUCT.SLAB)
-      ? facade(s.color, s.w, s.h)
+      // Which window pattern this building runs. Hashed off the id, so a
+      // block looks the same every time it loads and neighbours rarely
+      // match — see WINDOW_PATTERNS in `ps1.js`.
+      ? facade(s.color, s.w, s.h, Math.floor(hash01(s.id, 4177) * WINDOW_PATTERN_COUNT))
       : solid(s.color);
     this.materials.push(bodyMat);
     const body = new THREE.Mesh(BOX, bodyMat);

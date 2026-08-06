@@ -6,7 +6,7 @@
 // game runs at 60fps on integrated graphics.
 
 import * as THREE from '../../vendor/three.module.min.js';
-import { makeFog, makeLights, FOG_COLOR } from './ps1.js';
+import { makeFog, makeLights, makeSky, FOG_COLOR } from './ps1.js';
 import { CityView } from './cityView.js';
 import { occludersBetween } from '../core/city.js';
 import { AgentView, HostileView, CivilianView, ActorLayer } from './actorView.js';
@@ -34,6 +34,11 @@ export class View {
     this.scene = new THREE.Scene();
     this.scene.fog = makeFog();
     this.scene.add(makeLights());
+
+    // The sky rides with the camera, so the dome is always centred on the
+    // viewer and its radius never has to cover the whole block.
+    this.sky = makeSky();
+    this.scene.add(this.sky);
 
     this.rig = new CameraRig(1);
     this.fx = new Fx(this.scene);
@@ -136,6 +141,7 @@ export class View {
 
     this.rig.follow(sim.squad.selectedCenter() ?? sim.squad.center());
     this.rig.update(dt);
+    this.sky.position.copy(this.rig.camera.position);
     this.syncOcclusion(sim, dt);
     this.renderer.render(this.scene, this.rig.camera);
   }
