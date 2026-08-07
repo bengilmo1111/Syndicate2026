@@ -14,7 +14,7 @@ import {
   newTraffic, tickTraffic, lanesFor, blastAt, blastVictims, Vehicle,
   SPEED_MIN, WRECK_RADIUS, VEHICLE_HEALTH, BRAKE_RANGE,
 } from '../src/core/traffic.js';
-import { dist } from '../src/core/math.js';
+import { dist, makeRng } from '../src/core/math.js';
 
 const idle = { moveX: 0, moveZ: 0, firing: false, aimPoint: null };
 const block = () => buildCity({ seed: 4242, cols: 8, rows: 8 });
@@ -40,7 +40,14 @@ test('traffic drives, and keeps driving', () => {
   let n = 0;
   const cars = newTraffic(city, 6, () => ((n += 0.37) % 1));
   const start = cars.map(c => ({ x: c.x, z: c.z }));
-  for (let i = 0; i < 60 * 4; i++) tickTraffic(cars, [], 1 / 60, city, Math.random);
+  // Seeded, not `Math.random`. A car that runs off the end of its lane
+  // picks a new one, and an unseeded pick can drop it onto a lane behind
+  // another car — at which point it correctly brakes, and this test
+  // correctly fails, for a reason that has nothing to do with what it is
+  // asserting. It failed roughly one run in four, which is worse than a
+  // test that fails always.
+  const rng = makeRng(90210);
+  for (let i = 0; i < 60 * 4; i++) tickTraffic(cars, [], 1 / 60, city, rng);
   ok(cars.every((c, i) => dist(c.x, c.z, start[i].x, start[i].z) > 20),
     'everything moved a long way');
   ok(cars.every(c => c.speed >= SPEED_MIN * 0.9), 'and nothing has stalled');

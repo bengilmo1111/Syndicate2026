@@ -269,6 +269,12 @@ export class Sound {
       case 'DEFECT':
         this.tone(out, { from: 200, to: 66, length: 0.9, wave: 'sawtooth', level: 0.6 });
         break;
+      // Bright and gone. A band-limited crack for the metal, and a very
+      // short low thump under it so it lands rather than just clicking.
+      case 'IMPACT':
+        this.burst(out, { length: 0.22, type: 'bandpass', freq: 1900, decay: 0.16 });
+        this.tone(out, { from: 150, to: 52, length: 0.2, wave: 'square', level: 0.7 });
+        break;
       default:
         break;
     }

@@ -425,6 +425,24 @@ button.implant.throttle.retake:hover {
   border-color: rgba(111, 227, 208, 0.5);
 }
 
+/* Driving is a state with its own rules — nobody can shoot, nothing is
+   braking — and the squad is not on screen while it lasts. A player who
+   has to work out from the absence of their own agents that they are
+   still in a car will blame the game, the same way they would for a
+   stance they forgot they set. */
+#hud-vehicle {
+  position: absolute;
+  top: 88px;
+  right: 14px;
+  padding: 4px 12px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  pointer-events: none;
+  color: var(--accent);
+  border: 1px solid rgba(111, 227, 208, 0.5);
+  background: var(--panel);
+}
+
 /* ----------------------------------------------------------------- Compute */
 
 #hud-compute {

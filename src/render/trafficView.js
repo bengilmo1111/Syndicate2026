@@ -97,7 +97,15 @@ export class TrafficView {
         // for your squad legible from across the block.
         const braking = v.speed < v.cruise * 0.7;
         view.tailMat.color.setHex(braking ? 0xff2d1e : 0x8a2f28);
-        view.bodyMat.color.setHex(v.hitFlash > 0 ? 0xffb0a0 : view.paint);
+        // The one the squad is in is repainted in squad teal. Traffic is
+        // deliberately drab so the eye ignores it — which is a problem the
+        // moment one of them is yours, because the player has to be able
+        // to find their own car in a lane of identical ones.
+        const mine = v.crew?.length > 0;
+        const paint = mine ? 0x2f7d74 : view.paint;
+        view.bodyMat.color.setHex(v.hitFlash > 0 ? 0xffb0a0 : paint);
+        view.roofMat.color.setHex(mine ? 0x1f5a54 : 0x2b323d);
+        view.headMat.color.setHex(mine ? 0x9ff5e4 : 0xdfe9ff);
       }
     }
 

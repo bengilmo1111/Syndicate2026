@@ -312,7 +312,7 @@ weapons and fight, which the original had.
 
 *Where:* Phase 3. Cheap relative to impact; the follower entity exists.
 
-### 6. No vehicles — **half closed**
+### 6. No vehicles — **closed**
 Cars and hovercars, drivable by agents and NPCs, plus ambient traffic.
 This is a large chunk of what made the original's cities feel like
 cities rather than dioramas.
@@ -344,7 +344,36 @@ is loud.
 Not on mission one. The tutorial teaches four things and a car detonating
 during it is a distraction from all of them.
 
-*Still open:* drivable vehicles, for agents and NPCs.
+**And now you can drive one** (`src/core/driving.js`). The interesting part
+is that it needed almost no new interface, because the braking rule above
+already *was* one: traffic stops for anybody standing in the road, so the
+way to get a car is to walk into the street and wait for one, then walk up
+the lane to it and press Enter. No hotwiring verb, no ownership model, no
+"press E to steal a vehicle". Two rules that already existed, meeting.
+
+Four decisions worth keeping:
+
+- **It stops braking the moment you are in it.** That is the whole point.
+  Ambient traffic that runs your agents down is a random punishment; a car
+  *you* are steering that runs a stranger down is a decision, and it is
+  charged to the player like every other civilian loss — heat included.
+  The game has been about what you are prepared to do to people since the
+  first briefing, and this is the least ambiguous instrument in it.
+- **It is speed, not armour.** Nobody inside can shoot, nobody outside can
+  hit them — but the *car* is a target, rounds already stop at vehicles,
+  and when it goes up it throws the squad out two metres from the blast.
+  Without the car in the enemy's target list a vehicle would be total
+  cover and the best move in every firefight would be "get in".
+- **Position still counts.** `squad.alive` is what the extraction and hold
+  zones read, and riders are in it, so driving into the zone extracts. It
+  is `squad.afoot` — on their feet *and* out of a car — that gates being
+  shot at, aimed at and walked. A getaway car should work.
+- **A car you have touched stops being ambient for good.** It does not
+  resume its lane when you step out, which is what makes it a getaway car
+  rather than a taxi that leaves.
+
+*Still open:* NPCs do not drive. Ambient traffic is autonomous, which
+covers most of what the original used driven NPC vehicles for.
 
 ### 7. Enemy AI has no tactics — **partially closed**
 Hostiles now reposition to cover and are suppressed by near-misses
@@ -501,7 +530,7 @@ Not padding — these are things not to regress.
   much-complained-about agent movement.
 - **Directional cover with rubble as partial cover.** The original had
   destructible geometry but no cover model on top of it.
-- **A machine-verifiable test loop.** 69 checks including an autopilot
+- **A machine-verifiable test loop.** 366 checks including an autopilot
   that plays every mission to a win. Not a 1996 concern, but it is why
   the above can be changed safely.
 - **Briefing fiction.** Corporate-memo voice with a per-mission truth the

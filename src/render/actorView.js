@@ -92,6 +92,11 @@ export class AgentView extends ActorView {
 
   update(dt) {
     const a = this.agent;
+    // In a car, and therefore not on the street. The sim keeps riders at
+    // the vehicle's position so everything positional still works; drawing
+    // them there would stand four agents up through the roof.
+    this.root.visible = !a.riding;
+    if (a.riding) return;
     this.syncTransform(a);
     this.ring.visible = a.selected && !a.dead;
     this.ringMat.color.setHex(this.baseColor);

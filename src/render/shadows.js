@@ -107,7 +107,8 @@ export class ShadowLayer {
     };
 
     for (const a of sim.squad.agents) {
-      if (a.dead) continue;
+      // Riders sit at their car's position, and the car has its own.
+      if (a.dead || a.riding) continue;
       put(a.x, a.z, R_AGENT);
     }
     for (const h of sim.hostiles) {

@@ -173,6 +173,8 @@ export function updateHUD(sim) {
   stanceEl.classList.toggle('holding', stance === STANCE.HOLD);
   stanceEl.classList.toggle('returning', stance === STANCE.RETURN);
 
+  el('hud-vehicle').classList.toggle('hidden', !sim.vehicle);
+
   const mode = el('hud-mode');
   if (sim.squad.alignerEngaged) {
     mode.classList.remove('hidden');

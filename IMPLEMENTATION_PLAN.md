@@ -240,6 +240,11 @@ the 2D logic onto a 3D engine instead of losing it.
       already dark and a daylit game's shadow values are invisible on it.
 - [x] **The grade** — a weak CSS vignette over the canvas and under the
       HUD, so the eye goes to the middle of the block.
+- [x] **Drivable vehicles** (`src/core/driving.js`, `GAP_ANALYSIS.md`
+      gap 6) — `Enter` gets into a stopped car and out of it. No hotwiring
+      verb: traffic already brakes for people, so standing in the road is
+      how you get one. It stops braking once you are in it, and everyone
+      it goes through is charged to the player.
 - [x] Camera follow with smoothing; screen shake on collapse
 - [x] **Sound** (`src/audio/`) — synthesised at runtime, no asset files.
       `kit.js` is the pure, tested mix; `sound.js` is the WebAudio half.
@@ -298,6 +303,7 @@ src/
     roster.js           who is in the suits, what is fitted, who is gone
     territory.js        the map: what you hold, how hard you squeeze it
     traffic.js          ambient traffic — it brakes for you, and it burns
+    driving.js          the squad in a car — and it brakes for nobody
     retake.js           deployments the map writes to take a block back
     sim.js              the simulation — owns all mutable game state
   audio/                every sound, synthesised at runtime
@@ -339,7 +345,7 @@ src/
 ### The gate — automated
 
 ```
-node tests/run.mjs        # ~2s, 69 checks, no deps. MUST pass before you push.
+node tests/run.mjs        # ~16s, 366 checks, no deps. MUST pass before you push.
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
 
