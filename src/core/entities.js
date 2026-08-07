@@ -11,6 +11,7 @@ import {
   reachOf, isWithdrawing,
 } from './tactics.js';
 import { CHOKE_SPREAD } from './devices.js';
+import { initBuffer, absorb } from './buffer.js';
 
 /**
  * What an unthrottled civilian does with itself.
@@ -79,7 +80,9 @@ class Actor {
 
   takeDamage(amount) {
     if (this.dead) return false;
-    this.health -= amount;
+    // The buffer eats what it can and reports the rest. Actors without
+    // one — everybody who is not an agent — get the amount back unchanged.
+    this.health -= absorb(this, amount);
     this.hitFlash = 0.14;
     if (this.health <= 0) {
       this.health = 0;
@@ -122,6 +125,10 @@ export class Agent extends Actor {
     this.speed = 13.5;
     this.maxHealth = 120;
     this.health = 120;
+    // Split the pool: most of it is flesh, the rest is Instance headroom
+    // that comes back when nobody is shooting. Not a bonus — the total is
+    // the same 120 it always was. See `src/core/buffer.js`.
+    initBuffer(this);
 
     this.weapon = weapon(weaponId);
     this.damage = this.weapon.damage;

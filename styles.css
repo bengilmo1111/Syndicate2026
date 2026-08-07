@@ -605,6 +605,7 @@ button.implant.throttle.retake:hover {
 }
 
 .agent-bar {
+  position: relative;
   height: 5px;
   margin: 4px 0 3px;
   background: rgba(0, 0, 0, 0.5);
@@ -616,6 +617,25 @@ button.implant.throttle.retake:hover {
   background: var(--agent-color);
   transition: width 0.1s linear;
 }
+
+/* Instance headroom, riding on the end of the flesh rather than in a bar
+   of its own. Two bars per agent in a four-agent strip is four more
+   things to read in a firefight; one bar with a paler tail is a glance.
+   Deliberately the agent's own colour, dimmed — it is theirs, and it is
+   not a different resource, it is the part of the same pool that comes
+   back. */
+.agent-bar-buffer {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: var(--agent-color);
+  opacity: 0.42;
+  transition: width 0.1s linear, left 0.1s linear;
+}
+
+/* Coming back right now. The pulse is the tell that breaking contact is
+   working, which is the entire reason the pool is split. */
+.agent-cell.recovering .agent-bar-buffer { animation: pulse 1.1s infinite; }
 
 .agent-tier {
   font-size: 8px;
