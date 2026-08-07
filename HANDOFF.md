@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~16s, 341 checks, no dependencies
+node tests/run.mjs        # the gate — ~16s, 366 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -92,6 +92,9 @@ something. Space engages the Aligner; C/V/B move compute between
 LATENCY / PRECISION / RESILIENCE and G surges by throttling the street.
 Cover is directional and rubble shelters you from shots it no longer
 blocks. Hostiles reposition to cover and are suppressed by near-misses.
+Enter gets the squad into a stopped car and out of it again — traffic
+brakes for people, so standing in the road is how you get one, and it
+stops braking the moment you are in it.
 
 ## What works
 
@@ -328,6 +331,31 @@ blocks. Hostiles reposition to cover and are suppressed by near-misses.
   The lights are deliberately oversized for the vehicle. A car is ten
   pixels across at the default camera and what reads as traffic from up
   here is the same thing that reads as traffic from a window at night.
+- **Drivable vehicles** (`src/core/driving.js`) — the squad can get into a
+  car and drive it. `Enter` gets in and gets out.
+  **There is no hotwiring verb**, and that is the good part: ambient
+  traffic already brakes for people, so the way to get a car is to walk
+  into the road and wait for one, then walk *up the lane* to it — still in
+  front of it, so it stays stopped — and press the key. Two rules that
+  already existed, meeting. Only a stopped car can be boarded.
+  **It stops braking the moment you are in it.** A car you are steering
+  that goes through a crowd is a decision, not an accident the simulation
+  had, and every body is charged to the player with heat like any other
+  civilian loss. The same exemption as everything else applies: a steering
+  wheel is not where the question about Yelin gets answered.
+  **It is speed, not armour.** Nobody aboard can shoot and nobody can hit
+  them — but the car is in the enemy's target list (without that, a
+  vehicle is total cover and "get in a car" wins every firefight), rounds
+  already stop at vehicles, and when one goes up it throws the crew out
+  two metres from the blast.
+  `squad.afoot` is the new distinction: on their feet **and** out of a
+  car. Everything that reaches an agent's *body* — being shot at, aimed
+  at, walking — reads `afoot`. Everything that reaches their *position* —
+  extraction, hold zones, objectives — still reads `alive`, so driving
+  into the extraction zone extracts.
+  A car the squad has touched leaves the ambient model permanently. It
+  stays where they left it, which is what makes it a getaway car rather
+  than a taxi.
 - **The coda** (`codaFor` in `src/core/mission.js`) — the last card reads
   the campaign's seven narrative flags back as a ledger under the ending.
   Deliberately **orthogonal to the ending**: the variant is what happened
@@ -536,7 +564,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 341 checks, ~16s, zero dependencies. Covers city
+`node tests/run.mjs` — 366 checks, ~16s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -633,6 +661,18 @@ another garrison, handing them The Bracket's script, counting a retake as
 campaign progress, failing to resolve a retake id back to its sector,
 letting generated missions into the authored list, starting the hold
 before the garrison is down, and removing the ground to hold. Seven cover
+drivable vehicles: boarding a car doing forty, a car that drives itself
+away with the squad in it, a car that runs over its own crew, sedated
+agents climbing in, a car that seats the whole crowd, one that pivots on
+the spot at full speed, a squad that gets out into two doorways, walking
+pace that hurts, kerbing it costing the car, a car as total cover, a crew
+that stays in the burning wreck, and a body under your wheels being
+nobody's fault. A thirteenth — the contact test being swept rather than
+sampled — **survived**, and the sweep was deleted rather than propped up:
+a car covers 0.45m in a step and reaches 1.9m to each side, so no input
+could ever tell the two apart. What replaced it is an assertion on that
+margin, which fails if anybody raises the top speed far enough to make
+sampling unsafe. Seven cover
 the shadow layer and the grade — a pool that never gets re-uploaded so the
 shadows stay where they first landed, one that never gets trimmed so all
 260 slots draw at the origin, cars casting nothing, the dead keeping
@@ -640,7 +680,7 @@ theirs, a sedated hostile throwing a standing shadow, shadows too faint to
 see, and a grade that swallows every click on the street. It is
 load-bearing, not decorative.
 
-`node tests/browser.mjs` — 95 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 102 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console — plus the retake button, which is the only way into a generated
@@ -681,12 +721,18 @@ The arc is done, the progression loop under it is done, and **gap 1 is now
 closed end to end** — the map both feeds the campaign and writes
 deployments of its own. **Gap 4 is closed too**: the six field devices are
 all in, offensive ones included. `GAP_ANALYSIS.md` is the ranked backlog;
-gaps 1, 2, 3, 4, 5, 7, 9, 10 and 11 are closed. What is left is vehicles
-and interiors.
+gaps 1, 2, 3, 4, 5, 6, 7, 9, 10 and 11 are closed. What is left is
+interiors, and the parts of gap 7 nobody has taken.
 
-1. **Drivable vehicles** (the rest of gap 6). Ambient traffic is in;
-   getting into one is not. Large.
-2. **Building interiors** (gap 12). Large.
+1. **Building interiors** (gap 12). Every structure is a solid box. Large,
+   and it needs real navmesh work rather than the street graph.
+2. **Enemy AI** (the rest of gap 7). Hostiles take cover and are
+   suppressed, but they never retreat and they never coordinate — each of
+   them solves its own problem. Note this was a criticism of the original
+   too; it is not a gap to inherit.
+3. **NPC drivers** (the tail of gap 6). Ambient traffic is autonomous,
+   which covers most of what the original used driven NPC vehicles for.
+   Small, and possibly not worth it.
 3. ~~Between-mission interstitials for Acts I–III.~~ **Already shipped**,
    inside the debriefs — every beat `NARRATIVE.md` §6 specifies is there:
    Yelin's chart, Vasht audible through the wall, *"They didn't fight like

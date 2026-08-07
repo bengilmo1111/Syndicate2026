@@ -19,6 +19,7 @@ import {
   CHOKE_SPEED, CHOKE_SPREAD, RAZOR_SPEED,
 } from './devices.js';
 import { newTraffic, tickTraffic, blastVictims } from './traffic.js';
+import { boardableAt, board, disembark, steerVehicle, tickDriven } from './driving.js';
 import {
   getMissionDef, buildMission, updateMissionStatus, isMissionComplete,
   failedObjective, OBJECTIVE,
@@ -160,6 +161,13 @@ export function createSim(missionId, opts = {}) {
      * to it with it. See `src/core/traffic.js`.
      */
     traffic: newTraffic(city, traffic, rng),
+    /**
+     * The car the squad is in, or null. One at a time: there are four
+     * agents and four seats, and a squad split across two vehicles is a
+     * second control scheme for a situation the game never asks for.
+     * See `src/core/driving.js`.
+     */
+    vehicle: null,
     /** Charges left, per device type. Not restocked mid-deployment. */
     // The belt grows with the campaign. Act I deploys with two tools and
     // the first ten missions were tuned against exactly that.
@@ -243,6 +251,16 @@ export function step(sim, dt, intent) {
   // street that is neither a person nor a building.
   for (const v of tickTraffic(sim.traffic, everyone, dt, city, sim.rng)) {
     sim.events.push({ type: 'wreck', x: v.x, z: v.z });
+    // Anybody still in it is thrown clear first, and then stands two
+    // metres from a car that is going up — which is very nearly the
+    // worst place on the block to be. A vehicle is speed and noise, not
+    // armour, and being shot at inside one has to be worse than being
+    // shot at outside one or it is the only thing anybody would ever do.
+    if (v.crew?.length) {
+      disembark(v, city);
+      if (sim.vehicle === v) sim.vehicle = null;
+      say(sim, 'VEHICLE', 'the car is gone — everybody out', 4);
+    }
     // Blowing up a car on a street is loud, and the sector notices whether
     // or not it was the squad that did it.
     sim.heat += HEAT.CIVILIAN_KILL;
@@ -260,6 +278,8 @@ export function step(sim, dt, intent) {
       if (!c.dead && dist(c.x, c.z, v.x, v.z) < 34) c.scare(6);
     }
   }
+
+  driveVehicle(sim, dt, intent, everyone);
 
   const fields = tickDevices(sim.devices, everyone, dt, city);
   for (const a of fields.downed) {
@@ -319,7 +339,7 @@ export function step(sim, dt, intent) {
   // The Aligner is a broadcast device, not a gun. Engaging it suppresses fire
   // entirely, which is what makes a no-casualty run possible.
   if (!squad.alignerEngaged) {
-    for (const a of squad.alive) {
+    for (const a of squad.afoot) {
       const manual = intent.firing && intent.aimPoint;
       // Fire discipline. Left-click always works — HOLD FIRE is
       // discipline, not disarmament — but what an agent does on its own
@@ -334,7 +354,7 @@ export function step(sim, dt, intent) {
       // to being gassed, and it costs you your own guns to use — which is
       // the trade, not a loophole.
       const pool = a.psycho > 0
-        ? [...stillHostile, ...squad.alive.filter(other => other !== a)]
+        ? [...stillHostile, ...squad.afoot.filter(other => other !== a)]
         : stillHostile;
       const target = (manual || !squad.mayEngage(a))
         ? null
@@ -360,8 +380,20 @@ export function step(sim, dt, intent) {
       }
     }
   } else {
-    for (const a of squad.alive) a.tickSpin(dt, false);
+    for (const a of squad.afoot) a.tickSpin(dt, false);
   }
+
+  // What the other side can actually shoot at.
+  //
+  // Bodies on foot, plus the car if the squad is in one. Without the car
+  // in this list a vehicle is total cover: hostiles find no target at all
+  // and stand there while the squad drives past them, which makes the
+  // best move in every firefight "get in a car". With it, they shoot the
+  // car — and rounds already stop at vehicles, so it takes the damage,
+  // and when it goes up it takes the squad with it.
+  const marks = sim.vehicle && !sim.vehicle.dead
+    ? [...squad.afoot, sim.vehicle]
+    : squad.afoot;
 
   // Turned operatives shoot the side they came from. Converting an
   // enforcer is worth something concrete, not just a counter going up.
@@ -370,7 +402,7 @@ export function step(sim, dt, intent) {
     // Gassed, they stop being a side. `update` skips itself, so a cell
     // caught in a misalignment cloud fights the nearest body it can see,
     // which is usually one of its own.
-    h.update(dt, city, h.psycho > 0 ? [...squad.alive, ...stillHostile] : squad.alive, out);
+    h.update(dt, city, h.psycho > 0 ? [...marks, ...stillHostile] : marks, out);
     for (const shot of out) spawnProjectile(sim, shot);
     // Entities can't reach the subtitle channel from core; they queue a
     // line and the sim delivers it.
@@ -383,7 +415,7 @@ export function step(sim, dt, intent) {
   for (const h of converts) {
     const out = [];
     h.follow = center;
-    h.update(dt, city, h.psycho > 0 ? [...stillHostile, ...squad.alive] : stillHostile, out);
+    h.update(dt, city, h.psycho > 0 ? [...stillHostile, ...marks] : stillHostile, out);
     for (const shot of out) {
       shot.friendly = true; // they are shooting for us now
       spawnProjectile(sim, shot);
@@ -442,7 +474,7 @@ export function step(sim, dt, intent) {
   // --- Contact damage -------------------------------------------------
   for (const h of sim.hostiles) {
     if (h.dead || h.aligned) continue;
-    for (const a of squad.alive) {
+    for (const a of squad.afoot) {
       if (dist(a.x, a.z, h.x, h.z) < a.radius + h.radius) {
         a.takeDamage(9 * dt * 6);
         // Shove apart so bodies don't merge into a single blob.
@@ -665,6 +697,77 @@ function collapseCasualties(sim, s, byPlayer) {
  * step is the only place a dead hostile becomes a kill; anything that
  * counts one early counts it twice.
  */
+/**
+ * Getting in, getting out, and driving.
+ *
+ * Boarding is deliberately not a verb aimed at a vehicle: there is no
+ * "click the car" and no ownership model. The squad stands next to a
+ * stopped one and presses the key. Traffic already brakes for people, so
+ * *making* a car stop is a thing the player does with their body — walk
+ * into the road and wait. That loop existed before this feature did.
+ *
+ * The moment they are in it, it stops braking. See `src/core/driving.js`.
+ */
+function driveVehicle(sim, dt, intent, everyone) {
+  const { city, squad } = sim;
+
+  if (intent.board) {
+    if (sim.vehicle) {
+      const v = sim.vehicle;
+      const out = disembark(v, city);
+      sim.vehicle = null;
+      sim.events.push({ type: 'unboard', x: v.x, z: v.z });
+      say(sim, 'VEHICLE', `${out.length} out — it stays where you left it`, 3);
+    } else {
+      // From the selection's position, not the squad's: half a squad in
+      // cover across the street should not be able to reach into a car
+      // the other half is standing next to.
+      const at = squad.selectedCenter();
+      const car = at && boardableAt(sim.traffic, at.x, at.z);
+      const crew = car ? board(car, squad.selected) : [];
+      if (crew.length) {
+        sim.vehicle = car;
+        sim.events.push({ type: 'board', x: car.x, z: car.z });
+        say(sim, 'VEHICLE', `${crew.length} aboard — it brakes for nobody now`, 4);
+      }
+    }
+  }
+
+  const v = sim.vehicle;
+  if (!v || v.dead) return;
+
+  // The same keys walk an agent and drive a car; who is selected decides
+  // which. Nobody aboard selected means nobody has their foot on it, and
+  // it rolls to a stop.
+  const driving = v.crew.some(a => a.selected);
+  steerVehicle(v, driving ? intent.moveX : 0, driving ? intent.moveZ : 0, dt);
+
+  const { struck, crashed } = tickDriven(v, dt, city, everyone);
+
+  for (const { actor, amount } of struck) {
+    sim.events.push({ type: 'ram', x: actor.x, z: actor.z });
+    // Charged to the player, every time, with no exemption for who was
+    // driving or how fast the street was. A car is the least ambiguous
+    // thing in this game: nothing put that person under it except the
+    // direction somebody was holding. `incidentalDamage` still spares the
+    // handful of people whose fate is a decision the mission asks for in
+    // as many words — running Yelin over is not how that scene ends.
+    incidentalDamage(sim, actor, amount, true);
+    actor.scare?.(9);
+  }
+  // Everyone nearby sees it, whether or not it reached them.
+  if (struck.length) {
+    for (const c of sim.civilians) {
+      if (!c.dead && dist(c.x, c.z, v.x, v.z) < 26) c.scare(7);
+    }
+  }
+
+  if (crashed > 0) {
+    sim.events.push({ type: 'crash', x: v.x, z: v.z });
+    v.takeDamage(crashed);
+  }
+}
+
 function incidentalDamage(sim, actor, amount, byPlayer) {
   if (actor.dead || actor.fated) return false;
   const killed = actor.takeDamage(amount);
@@ -720,7 +823,7 @@ const COLLAPSE_PER_WAVE = 18;
 const COLLAPSE_MAX_WAVES = 3;
 
 function suppressNearMisses(sim, p) {
-  const pool = p.friendly ? sim.hostiles : sim.squad.alive;
+  const pool = p.friendly ? sim.hostiles : sim.squad.afoot;
   for (const t of pool) {
     if (t.dead) continue;
     const d = segmentPointDistance(p.prevX, p.prevZ, p.x, p.z, t.x, t.z);
@@ -769,10 +872,10 @@ function resolveProjectile(sim, p) {
   // harmlessly through them, which is worse than not shipping it.
   const confused = (p.owner?.psycho ?? 0) > 0;
   const targets = confused
-    ? [...sim.hostiles, ...sim.squad.alive]
+    ? [...sim.hostiles, ...sim.squad.afoot]
     : (p.friendly
       ? sim.hostiles          // includes dormant loyalists — you can start it
-      : [...sim.squad.alive, ...sim.civilians.filter(c => c.aligned)]);
+      : [...sim.squad.afoot, ...sim.civilians.filter(c => c.aligned)]);
 
   for (const t of targets) {
     if (!p.hits(t)) continue;

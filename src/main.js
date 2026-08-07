@@ -57,6 +57,9 @@ const PANEL = { BRIEF: 'brief', CRYOVAT: 'cryovat', MAP: 'map' };
 let panel = PANEL.BRIEF;
 /** A device the player asked for, waiting for the next simulation step. */
 let pendingDevice = null;
+// Getting into a car, or out of one. Queued like a device so the fixed-step
+// loop applies one keypress exactly once however the frame rate is doing.
+let pendingBoard = false;
 
 const keys = new Set();
 const pointer = { nx: 0.5, ny: 0.5, firing: false, orbiting: false, lastX: 0, lastY: 0 };
@@ -645,6 +648,10 @@ window.addEventListener('keydown', (e) => {
     squad.compute.toggleSurge();
   } else if (k === 'h') {
     squad.cycleStance();
+  } else if (k === 'enter') {
+    // Get in / get out. The only verb in the game that is about the world
+    // rather than about the squad, which is why it is not a device key.
+    pendingBoard = true;
   } else if (DEVICE_KEYS[k]) {
     // Devices go where the cursor is, and they are consumed on the frame
     // the sim places them — queued here so the fixed-step loop applies it
@@ -720,7 +727,9 @@ function readIntent() {
   // frame rate is doing — the fixed-step loop can run this several times.
   const deployDevice = pendingDevice;
   pendingDevice = null;
-  return { moveX: mx, moveZ: mz, firing: pointer.firing, aimPoint, deployDevice };
+  const board = pendingBoard;
+  pendingBoard = false;
+  return { moveX: mx, moveZ: mz, firing: pointer.firing, aimPoint, deployDevice, board };
 }
 
 function handleCameraKeys(dt) {
@@ -759,6 +768,8 @@ function frame(now) {
         // the same intent object when the frame rate dips, and without
         // this a single press on a bad frame spends the whole belt.
         intent.deployDevice = null;
+        // Same reason: one press is one door, not five.
+        intent.board = false;
         // Collapses are the one event worth shaking the camera for.
         for (let i = before; i < app.sim.events.length; i++) {
           // Kick scaled by what fell. A kiosk is a bump; a tower going

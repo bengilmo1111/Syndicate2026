@@ -57,6 +57,14 @@ export class Vehicle {
     /** Set on the frame it is destroyed, so the sim can blow it up once. */
     this.justWrecked = false;
     this.hitFlash = 0;
+    /**
+     * Who is aboard, and whether anyone ever has been. Both live here
+     * rather than in `driving.js` because `tickTraffic` has to know to
+     * leave this car alone, and it is the only thing ambient traffic
+     * needs to know about the player being in one. See `src/core/driving.js`.
+     */
+    this.crew = [];
+    this.driven = false;
     this.x = 0;
     this.z = 0;
     this.facing = 0;
@@ -156,6 +164,12 @@ export function tickTraffic(vehicles, obstacles, dt, city, rng = Math.random) {
       }
       continue;
     }
+
+    // A car the squad has been in is out of the ambient model for good —
+    // it is steered by `tickDriven` and it stays where they left it. It is
+    // still an obstacle everything else brakes for, which is how a parked
+    // getaway car blocks a lane.
+    if (v.driven) continue;
 
     // Brake for whatever is in the lane ahead — people, and the wreck of
     // whatever was in front of you a moment ago.

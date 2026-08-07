@@ -113,6 +113,16 @@ export class Squad {
   // shoot, or stand in an extraction zone on their own account. Every
   // one of those reads `alive`, so `alive` has to mean "on their feet".
   get alive() { return this.agents.filter(a => !a.neutralised); }
+  /**
+   * On their feet *and* out of a vehicle.
+   *
+   * The distinction only matters for the things that reach an agent's
+   * body — being shot at, being aimed at, walking. Everything that reaches
+   * their *position* still uses `alive`, because somebody in a car is
+   * still somewhere: a squad that drives into the extraction zone has
+   * extracted, and one that parks on a hold zone is holding it.
+   */
+  get afoot() { return this.agents.filter(a => !a.neutralised && !a.riding); }
   get selected() { return this.agents.filter(a => a.selected && !a.neutralised); }
   get allDead() { return this.agents.every(a => a.dead); }
   /** Nobody left standing — dead, sedated, or some of each. */
@@ -188,6 +198,10 @@ export class Squad {
     const nz = dirZ / mag;
     for (const a of this.agents) a.walking = false;
     for (const a of this.selected) {
+      // Somebody in a car is steered as the car, not as a person. The
+      // same keys do both, and which one they reach is decided by who is
+      // selected — see `steerVehicle` in `src/core/driving.js`.
+      if (a.riding) continue;
       a.moveTarget = null;
       a.path = null;
       a.walking = true;
@@ -205,7 +219,7 @@ export class Squad {
    * is full of buildings, so a straight line is rarely the order.
    */
   issueMove(point, city) {
-    const sel = this.selected;
+    const sel = this.selected.filter(a => !a.riding);
     if (!sel.length) return;
     const center = this.selectedCenter();
     for (const a of sel) {
@@ -234,7 +248,7 @@ export class Squad {
   /** Advance any agent with a standing move order, one waypoint at a time. */
   followOrders(dt, city) {
     for (const a of this.agents) a.walking = false;
-    for (const a of this.alive) {
+    for (const a of this.afoot) {
       if (!a.moveTarget) continue;
       a.walking = true;
 

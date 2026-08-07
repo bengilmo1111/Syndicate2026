@@ -42,6 +42,9 @@ export const CUE = Object.freeze({
   DEFECT: { id: 'DEFECT', gain: 0.7, limit: 1 },
   // A car going up on a street. Under a building coming down, over a gun.
   WRECK: { id: 'WRECK', gain: 0.8, limit: 2 },
+  // Sheet metal into something that does not move. Loud, and short — a
+  // long crash sound would still be playing while the player drives away.
+  IMPACT: { id: 'IMPACT', gain: 0.62, limit: 1 },
 });
 
 /** Beyond this a thing is inaudible. Roughly the far side of the block. */
@@ -75,6 +78,11 @@ export function cueFor(event) {
     case 'interlude': return CUE.CHANNEL;
     case 'defect': return CUE.DEFECT;
     case 'wreck': return CUE.WRECK;
+    // A car hitting a person and a car hitting a wall are the same noise
+    // from the driver's seat, and the game should not editorialise about
+    // which one just happened. The difference is on the HUD.
+    case 'ram': return CUE.IMPACT;
+    case 'crash': return CUE.IMPACT;
     default: return null;
   }
 }

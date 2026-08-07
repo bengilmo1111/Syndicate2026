@@ -264,6 +264,9 @@ export const CONTROLS_HINT = [
   'bigger gun and every one of them applies to your squad. The rain gives',
   'you three and a half seconds and a ring on the ground; that is the whole',
   'warning, and it is the same warning everyone else in the block gets.',
+  '<b>Enter</b> get into the car you are standing next to, or get out. It has',
+  'to be stopped — and traffic stops for people, so stand in the road. Once',
+  'you are in it, it stops doing that for anyone else.',
   '<b>Z / X</b> rotate city · <b>R / F</b> tilt · <b>Wheel</b> zoom · <b>Middle-drag</b> orbit',
   '<b>Alt+Enter</b> fullscreen · <b>M</b> sound — or the panels, top right',
 ].join('<br>');

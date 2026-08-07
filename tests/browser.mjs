@@ -871,6 +871,118 @@ check('the street has traffic on it, and it is moving',
 check('and a wreck is reconciled into the scene',
   traffic.wreckedMesh && traffic.heat > 0, `heat ${Math.round(traffic.heat)}`);
 
+// --- drivable vehicles. The sim tests prove the model; what only a
+// --- browser can prove is that the key is wired, that the crew stop
+// --- being drawn on the street, and that the car the squad is in is
+// --- findable in a lane of identical ones.
+const drive = await page.evaluate(async () => {
+  const app = window.__syndicate;
+  // Not `traffic[0]`: the wreck check above blew that one up, and nobody
+  // gets into a burnt-out shell. The fastest live one, because the lane
+  // behind the wreck is a queue of cars that are already stopped and
+  // proving that one of *those* brakes proves nothing. `t < 0.4` keeps
+  // most of the lane ahead of it, so the drive below has somewhere to go
+  // — a car near the far kerb is stopped by the edge of the block, which
+  // would look exactly like the steering not working.
+  const v = app.sim.traffic
+    .filter(x => !x.dead && x.t < 0.4)
+    .sort((a, b) => b.speed - a.speed)[0];
+  // Give it a moment to get up to speed. Cars queued behind the wreck the
+  // check above made are stopped through no fault of this feature, and a
+  // car that was never moving cannot demonstrate braking.
+  for (let i = 0; i < 30 && v.speed < 5; i++) await new Promise(r => setTimeout(r, 100));
+  const moving = v.speed;
+  // Stand in its lane. Traffic brakes for people, which is the whole way
+  // into a car — there is no hotwiring verb.
+  const park = (m) => {
+    for (const g of app.sim.squad.agents) {
+      g.x = v.x + Math.sin(v.facing) * m;
+      g.z = v.z + Math.cos(v.facing) * m;
+    }
+  };
+  park(10);
+  await new Promise(r => setTimeout(r, 1600));
+  const stopped = v.speed;
+  // Walk up the lane to it, still in front, so it stays stopped.
+  park(4);
+  // Point the camera down the lane, so that 'w' — which is camera-relative
+  // for a car exactly as it is for a person — means "forward".
+  app.view.rig.yaw = v.facing + Math.PI;
+  await new Promise(r => setTimeout(r, 200));
+  return { moving, stopped };
+});
+check('a car brakes for a squad standing in its lane',
+  drive.moving > 5 && drive.stopped < 1.5,
+  `${drive.moving.toFixed(1)} → ${drive.stopped.toFixed(2)} m/s`);
+
+await page.keyboard.press('Enter');
+await page.waitForTimeout(500);
+const aboard = await page.evaluate(() => {
+  const app = window.__syndicate;
+  const views = [...app.view.agentLayer.views.values()];
+  return {
+    riding: !!app.sim.vehicle,
+    crew: app.sim.vehicle?.crew.length ?? 0,
+    afoot: app.sim.squad.afoot.length,
+    alive: app.sim.squad.alive.length,
+    drawn: views.filter(x => x.root.visible).length,
+    badge: !document.getElementById('hud-vehicle').classList.contains('hidden'),
+    paint: app.view.trafficView.views.get(app.sim.vehicle.id)?.bodyMat.color.getHex(),
+    otherPaint: [...app.view.trafficView.views.entries()]
+      .find(([id]) => id !== app.sim.vehicle.id)?.[1].bodyMat.color.getHex(),
+  };
+});
+check('Enter puts the squad in it, and takes them off the street',
+  aboard.riding && aboard.crew === 4 && aboard.afoot === 0 && aboard.alive === 4,
+  `${aboard.crew} aboard · ${aboard.afoot} on foot`);
+check('and they stop being drawn standing in the road',
+  aboard.drawn === 0, `${aboard.drawn} agent meshes visible`);
+check('and the HUD says so, because the squad is not on screen to say it',
+  aboard.badge);
+check('and their car is repainted so it is findable in a lane of them',
+  aboard.paint !== aboard.otherPaint,
+  `#${aboard.paint?.toString(16)} vs #${aboard.otherPaint?.toString(16)}`);
+
+const from = await page.evaluate(() => {
+  const v = window.__syndicate.sim.vehicle;
+  return { x: v.x, z: v.z };
+});
+await page.keyboard.down('w');
+await page.waitForTimeout(1500);
+await page.keyboard.up('w');
+const drove = await page.evaluate(([x, z]) => {
+  const app = window.__syndicate;
+  const v = app.sim.vehicle;
+  return {
+    moved: Math.hypot(v.x - x, v.z - z),
+    speed: v.speed,
+    phase: app.phase,
+    onFoot: app.sim.squad.agents.filter(a => !a.riding).length,
+    health: Math.round(v.health),
+  };
+}, [from.x, from.z]);
+check('and WASD drives it, with the squad still inside',
+  drove.moved > 8 && drove.speed > 4 && drove.phase === 'playing' && drove.onFoot === 0,
+  `${drove.moved.toFixed(1)}m at ${drove.speed.toFixed(1)} m/s · car at ${drove.health}%`);
+
+await page.keyboard.press('Enter');
+await page.waitForTimeout(500);
+const out = await page.evaluate(() => {
+  const app = window.__syndicate;
+  const views = [...app.view.agentLayer.views.values()];
+  const spots = new Set(app.sim.squad.agents.map(a => `${a.x.toFixed(1)},${a.z.toFixed(1)}`));
+  return {
+    riding: !!app.sim.vehicle,
+    afoot: app.sim.squad.afoot.length,
+    drawn: views.filter(x => x.root.visible).length,
+    spread: spots.size,
+    badge: !document.getElementById('hud-vehicle').classList.contains('hidden'),
+  };
+});
+check('and Enter again puts four people back on the street, not one pile',
+  !out.riding && out.afoot === 4 && out.drawn === 4 && out.spread === 4 && !out.badge,
+  `${out.spread} positions`);
+
 // --- blob shadows. Two things have to hold and only one of them is
 // --- countable: that every body on the block gets a disc, and that the
 // --- discs are actually dark enough to see. The first version of the
