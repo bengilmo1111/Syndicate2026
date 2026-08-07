@@ -871,6 +871,40 @@ check('the street has traffic on it, and it is moving',
 check('and a wreck is reconciled into the scene',
   traffic.wreckedMesh && traffic.heat > 0, `heat ${Math.round(traffic.heat)}`);
 
+// --- the air. Every block used to share one fog colour, one sky and one
+// --- key light, which `GAP_ANALYSIS.md` §4 names as the original's
+// --- mistake to avoid. Static tables plus one live scene.
+const air = await page.evaluate(async () => {
+  const ps1 = await import('/src/render/ps1.js');
+  const app = window.__syndicate;
+  const names = ['openai', 'google', 'amazon', 'spacex', 'anthropic', 'none'];
+  const table = names.map(n => ps1.airFor(n));
+  return {
+    // Every syndicate the city generator can paint a block for has its own
+    // weather, and no two share it.
+    covered: names.every(n => ps1.AIR[n]),
+    fogs: new Set(table.map(a => a.fog)).size,
+    densities: new Set(table.map(a => a.density)).size,
+    keys: new Set(table.map(a => a.key)).size,
+    // Unknown ground falls back rather than throwing.
+    fallback: ps1.airFor('a-syndicate-that-does-not-exist') === ps1.AIR.openai,
+    // And the live scene is wearing the air of whoever holds this block.
+    live: {
+      syndicate: app.sim.city.syndicate,
+      fog: app.view.scene.fog.color.getHex(),
+      density: app.view.scene.fog.density,
+      expected: ps1.airFor(app.sim.city.syndicate).fog,
+      expectedDensity: ps1.airFor(app.sim.city.syndicate).density,
+    },
+  };
+});
+check('every syndicate holds its own weather, and no two share it',
+  air.covered && air.fogs === 6 && air.densities === 6 && air.keys === 6 && air.fallback,
+  `${air.fogs} fogs, ${air.densities} densities, ${air.keys} keys`);
+check('and the block on screen is wearing the air of whoever holds it',
+  air.live.fog === air.live.expected && air.live.density === air.live.expectedDensity,
+  `${air.live.syndicate} · #${air.live.fog.toString(16)} at ${air.live.density}`);
+
 // --- the Instance buffer. The sim tests own the model; what only a
 // --- browser proves is that one bar carries two pools legibly and that
 // --- the recovery is visible while it happens.

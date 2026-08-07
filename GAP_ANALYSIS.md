@@ -546,8 +546,16 @@ right instinct.
 - **Camera obstruction.** See gap 11.
 - **Environments that don't vary.** HG101: "really no variation in the
   environments at all." We have per-syndicate palettes, density,
-  cover-density and derelict knobs, which is a start; keep pushing so a
-  SpaceX launch sector doesn't read as an Amazon depot with new colours.
+  cover-density and derelict knobs — and, since the air shipped, per
+  syndicate **weather**: fog tint and density, the sodium band at the
+  horizon, and the key light all belong to whoever holds the ground
+  (`AIR` in `src/render/ps1.js`). Repainting alone was not enough; every
+  block still shared one fog colour and one sky, which at any distance is
+  the same picture. A SpaceX corridor is now burnt-off and colourless
+  where an Amazon depot is thick sodium haze.
+  Deliberately not a time of day: `NARRATIVE.md` pins when things happen
+  and a renderer should not invent a clock. Still worth pushing — layout
+  grammar varies less than the paint does.
 - **Two factions that play identically.** HG101 calls the EuroCorp/Church
   difference "largely cosmetic." If we ever add a second playable
   syndicate it has to change how you play, not just the briefing text.

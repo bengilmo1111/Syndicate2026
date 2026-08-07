@@ -6,7 +6,7 @@
 // game runs at 60fps on integrated graphics.
 
 import * as THREE from '../../vendor/three.module.min.js';
-import { makeFog, makeLights, makeSky, FOG_COLOR } from './ps1.js';
+import { makeFog, makeLights, makeSky, airFor, FOG_COLOR } from './ps1.js';
 import { CityView } from './cityView.js';
 import { occludersBetween } from '../core/city.js';
 import { AgentView, HostileView, CivilianView, ActorLayer } from './actorView.js';
@@ -33,12 +33,16 @@ export class View {
     this.renderer.setClearColor(FOG_COLOR, 1);
 
     this.scene = new THREE.Scene();
-    this.scene.fog = makeFog();
-    this.scene.add(makeLights());
+    // Rebuilt per block by `setAir`; this is the default sector's weather
+    // so a View with no city in it still renders something coherent.
+    this.air = airFor('openai');
+    this.scene.fog = makeFog(this.air);
+    this.lights = makeLights(this.air);
+    this.scene.add(this.lights);
 
     // The sky rides with the camera, so the dome is always centred on the
     // viewer and its radius never has to cover the whole block.
-    this.sky = makeSky();
+    this.sky = makeSky(undefined, this.air);
     this.scene.add(this.sky);
 
     this.rig = new CameraRig(1);
@@ -71,8 +75,38 @@ export class View {
     this.rig.resize(w / h);
   }
 
+  /**
+   * Swap the weather over the block.
+   *
+   * Torn down and rebuilt rather than mutated: the sky is a baked canvas
+   * gradient and the fog is a scene property, so there is nothing to
+   * interpolate and a deployment is a hard cut anyway. Three objects, once
+   * per mission.
+   */
+  setAir(syndicate) {
+    const air = airFor(syndicate);
+    if (air === this.air) return;
+    this.air = air;
+
+    this.scene.fog = makeFog(air);
+    this.renderer.setClearColor(air.fog, 1);
+
+    this.scene.remove(this.lights);
+    this.lights = makeLights(air);
+    this.scene.add(this.lights);
+
+    this.scene.remove(this.sky);
+    this.sky.geometry.dispose();
+    this.sky.material.map?.dispose();
+    this.sky.material.dispose();
+    this.sky = makeSky(undefined, air);
+    this.scene.add(this.sky);
+  }
+
   /** Tear down the previous mission's city and build the new one. */
   loadCity(city) {
+    // Whoever holds the ground owns the air over it. See `AIR` in ps1.js.
+    this.setAir(city.syndicate);
     if (this.cityView) {
       this.scene.remove(this.cityView.root);
       this.cityView.dispose();

@@ -254,6 +254,11 @@ the 2D logic onto a 3D engine instead of losing it.
       already dark and a daylit game's shadow values are invisible on it.
 - [x] **The grade** — a weak CSS vignette over the canvas and under the
       HUD, so the eye goes to the middle of the block.
+- [x] **Per-syndicate air** (`AIR` in `src/render/ps1.js`) — fog tint and
+      density, the horizon's sodium band and the key light all belong to
+      whoever holds the block. Answers `GAP_ANALYSIS.md` §4's
+      "environments that don't vary"; deliberately weather rather than a
+      time of day, because `NARRATIVE.md` owns the clock.
 - [x] **Drivable vehicles** (`src/core/driving.js`, `GAP_ANALYSIS.md`
       gap 6) — `Enter` gets into a stopped car and out of it. No hotwiring
       verb: traffic already brakes for people, so standing in the road is
