@@ -307,6 +307,23 @@ stops braking the moment you are in it.
     A sedated hostile gets a wider one, because they are lying across the
     pavement rather than standing on a patch of it, and from up here the
     shadow is how you tell.
+  - **The air belongs to whoever holds the ground** (`AIR` in `ps1.js`).
+    Repainting the buildings per syndicate was the first half of the
+    answer to `GAP_ANALYSIS.md` §4's "environments that don't vary", and
+    it was not enough: every block still shared one fog colour, one sky
+    and one key light, so at any distance they were the same picture.
+    Now an Amazon depot is thick sodium haze, a Google campus is thin and
+    cold, a SpaceX corridor is burnt-off and nearly colourless, an
+    Anthropic sector is low and wet, and unclaimed ground has nobody's air
+    handling. Six entries; fog tint and density, the sodium band at the
+    horizon, and the key light.
+    **Not a time of day.** `NARRATIVE.md` pins when things happen and a
+    renderer should not be inventing a clock. Weather over a sector is a
+    fact about the place, and the place was already in the data —
+    `city.syndicate` has been there since the first block was generated.
+    Only the sodium band of the sky moves. The rest of the gradient is
+    what makes this look like this game, and five different skies would be
+    five different games.
   - **The grade** (`#screen-grade` in `styles.css`) — a weak CSS vignette,
     over the canvas and under the HUD. Deliberately weak: a heavy one on a
     game this dark just eats the block. `pointer-events: none`, or it
@@ -718,6 +735,8 @@ another garrison, handing them The Bracket's script, counting a retake as
 campaign progress, failing to resolve a retake id back to its sector,
 letting generated missions into the authored list, starting the hold
 before the garrison is down, and removing the ground to hold. Seven cover
+the air: a block that never gets its own, one table for every sector, and
+weather that changes the light but not the fog. Six cover
 following: nobody ever routing, a route rebuilt every frame, a route that
 never notices the squad walked off, waypoints that are never consumed, and
 an asset back on the old beeline. A sixth — the *crowd* back on the
@@ -756,7 +775,7 @@ theirs, a sedated hostile throwing a standing shadow, shadows too faint to
 see, and a grade that swallows every click on the street. It is
 load-bearing, not decorative.
 
-`node tests/browser.mjs` — 105 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 107 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console — plus the retake button, which is the only way into a generated

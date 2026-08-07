@@ -199,13 +199,81 @@ const SKY_BANDS = [
   { at: 1.00, color: '#070a14' },
 ];
 
-export function makeSky(radius = 380) {
+// ---------------------------------------------------------------------------
+// The air
+//
+// `GAP_ANALYSIS.md` §4 lists "environments that don't vary" among the
+// things the original got wrong and says, in as many words: keep pushing
+// so a SpaceX launch sector doesn't read as an Amazon depot with new
+// colours. Repainting the buildings was the first half of that and it is
+// not enough — every block still shares one fog colour, one sky and one
+// key light, so at any distance they are the same picture.
+//
+// So the air belongs to whoever holds the ground. Not a time of day:
+// `NARRATIVE.md` pins when things happen and a renderer should not be
+// inventing a clock. Weather and particulates over a sector are a fact
+// about the place, and the place is already in the data — `city.syndicate`
+// has been there since the first block was generated.
+//
+// Each entry is deliberately small: a fog tint and density, the sodium
+// band at the horizon, and what the key light is coming through. Enough
+// that two blocks are different weather, not enough that either stops
+// looking like this game.
+// ---------------------------------------------------------------------------
+
+export const AIR = Object.freeze({
+  // The default, and the one every screenshot in the docs was taken in.
+  openai: {
+    fog: 0x0b101c, density: 0.0068, haze: '#33241f',
+    key: 0xc8dcff, keyPower: 2.1, bounce: 0xff9a52,
+  },
+  // Campus air, and the cleanest on the map: filtered, watered, lit for
+  // the cameras. Thin fog and a colder key.
+  google: {
+    fog: 0x0c1424, density: 0.0056, haze: '#2a2c46',
+    key: 0xd2e2ff, keyPower: 2.3, bounce: 0xff9a52,
+  },
+  // Depot air. Diesel, dust off the pads, and the sodium floods they
+  // never turned off. The thickest and warmest of the five.
+  amazon: {
+    fog: 0x140f0c, density: 0.0092, haze: '#4a2e16',
+    key: 0xffd6a8, keyPower: 1.85, bounce: 0xff8236,
+  },
+  // A launch corridor: burnt-off, hard-edged and nearly colourless, with
+  // the sky washed pale by pad lighting rather than by a city.
+  spacex: {
+    fog: 0x14161c, density: 0.0062, haze: '#4c4f57',
+    key: 0xf0f4ff, keyPower: 2.5, bounce: 0xbfc6d4,
+  },
+  // Low, wet and shuttered. Anthropic sectors are off the update channel
+  // and it shows before anybody says so.
+  anthropic: {
+    fog: 0x120e14, density: 0.0104, haze: '#3a2436',
+    key: 0xbfb0cc, keyPower: 1.7, bounce: 0xd08a5a,
+  },
+  // Unclaimed ground. Nobody's brand, nobody's air handling.
+  none: {
+    fog: 0x101210, density: 0.0086, haze: '#2e2e26',
+    key: 0xc4c8bc, keyPower: 1.9, bounce: 0xd9a463,
+  },
+});
+
+export function airFor(syndicate) {
+  return AIR[syndicate] ?? AIR.openai;
+}
+
+export function makeSky(radius = 380, air = AIR.openai) {
   const c = document.createElement('canvas');
   c.width = 2;
   c.height = 128;
   const g = c.getContext('2d');
   const grad = g.createLinearGradient(0, 128, 0, 0);
-  for (const b of SKY_BANDS) grad.addColorStop(b.at, b.color);
+  for (const b of SKY_BANDS) {
+    // Only the sodium band moves. The rest of the gradient is what makes
+    // this look like this game, and five different skies would be five
+    // different games.
+    grad.addColorStop(b.at, b.at === 0.06 ? air.haze : b.color);
+  }
   g.fillStyle = grad;
   g.fillRect(0, 0, 2, 128);
 
@@ -326,25 +394,26 @@ export function roadTexture(city, lamps = []) {
 export const FOG_COLOR = 0x0b101c;
 export const FOG_DENSITY = 0.0068;
 
-export function makeFog() {
-  return new THREE.FogExp2(FOG_COLOR, FOG_DENSITY);
+export function makeFog(air = AIR.openai) {
+  return new THREE.FogExp2(air.fog, air.density);
 }
 
 /**
  * Lighting rig: one cold key from high above, one warm bounce from the
  * street, and a dim hemisphere so nothing reads as pure black.
  */
-export function makeLights() {
+export function makeLights(air = AIR.openai) {
   const group = new THREE.Group();
 
   // Strong, low-angle key. Flat shading only reads if adjacent faces get
   // meaningfully different light, so keep ambient well below the key.
-  const key = new THREE.DirectionalLight(0xc8dcff, 2.1);
+  const key = new THREE.DirectionalLight(air.key, air.keyPower);
   key.position.set(-70, 90, 55);
   group.add(key);
+  group.userData.key = key;
 
   // Warm sodium bounce off the street, opposite the key.
-  const bounce = new THREE.DirectionalLight(0xff9a52, 0.5);
+  const bounce = new THREE.DirectionalLight(air.bounce, 0.5);
   bounce.position.set(60, 14, -45);
   group.add(bounce);
 
