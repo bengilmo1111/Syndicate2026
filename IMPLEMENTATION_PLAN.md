@@ -274,8 +274,11 @@ the 2D logic onto a 3D engine instead of losing it.
       so it is pure and testable; the renderer only reads it.
 - [ ] Building interiors — currently every structure is a solid box
 - [x] Pathfinding — A* over the street-intersection graph (`src/core/nav.js`)
-- [ ] Followers and escorted assets path too; they still beeline for the
-      squad centroid and slide along whatever they hit
+- [x] **Followers and escorted assets path too** (`src/core/follow.js`) —
+      straight line while they can see who they are following, `findPath`
+      when they cannot, rebuilt at most once every 1.1s. Act I·3 is an
+      escort and the asset used to grind along the facade between her and
+      the squad.
 - [ ] Accessibility: colorblind palette, key remap, reduce-motion mode
 - [ ] Mobile / touch controls (stretch)
 
@@ -300,6 +303,7 @@ tests/
   traffic.test.mjs      ambient traffic, wrecks, and traffic in play
   driving.test.mjs      boarding, steering, running people down
   buffer.test.mjs       the split pool, and what brings it back
+  follow.test.mjs       routing for everybody who follows the squad
   sound.test.mjs        the mix — cues, caps, distance, panning, room tone
   strange.test.mjs      the six field devices and the accounting they touch
   browser.mjs           optional Playwright pass over the real page
@@ -325,6 +329,7 @@ src/
     traffic.js          ambient traffic — it brakes for you, and it burns
     driving.js          the squad in a car — and it brakes for nobody
     buffer.js           the split pool: flesh that stays gone, headroom that returns
+    follow.js           following somebody through a city, not at them
     retake.js           deployments the map writes to take a block back
     sim.js              the simulation — owns all mutable game state
   audio/                every sound, synthesised at runtime
@@ -366,7 +371,7 @@ src/
 ### The gate — automated
 
 ```
-node tests/run.mjs        # ~17s, 389 checks, no deps. MUST pass before you push.
+node tests/run.mjs        # ~17s, 396 checks, no deps. MUST pass before you push.
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
 

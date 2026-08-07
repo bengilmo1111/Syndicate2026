@@ -12,6 +12,7 @@ import {
 } from './tactics.js';
 import { CHOKE_SPREAD } from './devices.js';
 import { initBuffer, absorb } from './buffer.js';
+import { follow } from './follow.js';
 
 /**
  * What an unthrottled civilian does with itself.
@@ -279,10 +280,7 @@ export class Hostile extends Actor {
   trail(dt, city, to) {
     const d = dist(this.x, this.z, to.x, to.z);
     if (d < 7) return;
-    this.turnToward(to.x, to.z, dt, 8);
-    this.x += Math.sin(this.facing) * this.speed * dt;
-    this.z += Math.cos(this.facing) * this.speed * dt;
-    resolveCollision(city, this);
+    follow(this, dt, city, to, this.speed);
   }
 
   update(dt, city, agents, out) {
@@ -628,12 +626,9 @@ export class Civilian extends Actor {
 
     if (this.aligned && squadCenter) {
       const d = dist(this.x, this.z, squadCenter.x, squadCenter.z);
-      if (d > 5.5) {
-        this.turnToward(squadCenter.x, squadCenter.z, dt, 9);
-        this.x += Math.sin(this.facing) * this.followSpeed * t * dt;
-        this.z += Math.cos(this.facing) * this.followSpeed * t * dt;
-        resolveCollision(city, this);
-      }
+      // Routed rather than beelined, so a crowd rounds a corner instead
+      // of pressing into the facade between them and the squad.
+      if (d > 5.5) follow(this, dt, city, squadCenter, this.followSpeed * t);
       return;
     }
 
@@ -739,12 +734,10 @@ export class Asset extends Civilian {
       // Reuse the aligned-follower path without being aligned.
       this.tick(dt);
       const d = dist(this.x, this.z, squadCenter?.x ?? this.x, squadCenter?.z ?? this.z);
-      if (squadCenter && d > 4.5) {
-        this.turnToward(squadCenter.x, squadCenter.z, dt, 9);
-        this.x += Math.sin(this.facing) * this.followSpeed * dt;
-        this.z += Math.cos(this.facing) * this.followSpeed * dt;
-        resolveCollision(city, this);
-      }
+      // The one that matters most: Act I·3 is an escort, and an asset who
+      // grinds along a wall two metres short of the extraction zone is
+      // the mission failing for a reason the player cannot see.
+      if (squadCenter && d > 4.5) follow(this, dt, city, squadCenter, this.followSpeed);
       return;
     }
 

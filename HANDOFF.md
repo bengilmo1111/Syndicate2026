@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~17s, 389 checks, no dependencies
+node tests/run.mjs        # the gate — ~17s, 396 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -331,6 +331,18 @@ stops braking the moment you are in it.
   The lights are deliberately oversized for the vehicle. A car is ten
   pixels across at the default camera and what reads as traffic from up
   here is the same thing that reads as traffic from a window at night.
+- **Following** (`src/core/follow.js`) — agents have routed since
+  `nav.js` shipped; everybody who *follows* one did not. Aligned
+  civilians, turned operatives and escorted assets all pointed at the
+  squad centroid and walked, which is fine until a building is in the way
+  and then they press into the facade and slide. Act I·3 is an escort.
+  A follower walks straight whenever it can see the person it is
+  following and asks `findPath` when it cannot, rebuilding at most once
+  every 1.1s or when the goal drifts 7m. The gating is not an
+  optimisation for a rare path: measured, four in five aligned civilians
+  on a block are holding a route at any instant, because a crowd spreads
+  out and most of it has a building in the way. Ungated, the whole test
+  suite goes from 16s to 24s.
 - **The Instance buffer** (`src/core/buffer.js`) — `GAP_ANALYSIS.md` gap
   8, which was that a firefight had no economy and so the correct play was
   always to keep shooting.
@@ -609,7 +621,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 389 checks, ~17s, zero dependencies. Covers city
+`node tests/run.mjs` — 396 checks, ~17s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -706,6 +718,13 @@ another garrison, handing them The Bracket's script, counting a retake as
 campaign progress, failing to resolve a retake id back to its sector,
 letting generated missions into the authored list, starting the hold
 before the garrison is down, and removing the ground to hold. Seven cover
+following: nobody ever routing, a route rebuilt every frame, a route that
+never notices the squad walked off, waypoints that are never consumed, and
+an asset back on the old beeline. A sixth — the *crowd* back on the
+beeline — survived, and is recorded rather than papered over: the
+difference across a block is three stranded followers against five, which
+is real and far too narrow to assert on. The escorted asset is the case
+that goes red, and it is the case Act I·3 is built on. Eight cover
 the Instance buffer: a buffer that absorbs nothing, a pool extended
 instead of split, a hit that does not put it back on the clock, headroom
 that refills mid-exchange, headroom that overfills, RESILIENCE doing
@@ -755,10 +774,9 @@ invisible on screen.
 
 ## What's stubbed / known gaps
 
-- **Followers and escorted assets don't path.** Agents route properly
-  now; anyone following them still beelines for the squad centroid and
-  slides along whatever they hit. Usually fine because the squad walks
-  streets, but it will show on a tight escort.
+- Followers no longer beeline — see **Following** above — but nobody
+  following the squad *avoids* anybody else, so a crowd of twenty aligned
+  civilians arrives as a crowd of twenty overlapping civilians.
 - Hostiles don't path either — they close in a straight line and hold
   once they have a clear shot. They do take cover, share a contact and
   break off when hurt; what they do not do is move as a pair, one firing
