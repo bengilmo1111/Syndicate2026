@@ -11,7 +11,7 @@ import {
   coverAgainst, STREET,
 } from './city.js';
 import { SURGE_RADIUS, SURGE_HEAT_PER_SECOND, THROTTLED_SPEED } from './compute.js';
-import { applySuppression, decaySuppression } from './tactics.js';
+import { applySuppression, decaySuppression, spreadAlert } from './tactics.js';
 import { pumpInterludes } from './interlude.js';
 import { deployed, applyToAgent } from './roster.js';
 import {
@@ -395,9 +395,23 @@ export function step(sim, dt, intent) {
     ? [...squad.afoot, sim.vehicle]
     : squad.afoot;
 
+  // A cell fights as a cell.
+  //
+  // Two frames' worth of coordination, and between them they are most of
+  // what `GAP_ANALYSIS.md` gap 7 was still asking for. `spreadAlert`
+  // passes a contact from whoever can see the squad to whoever is near
+  // them, so a patient player can no longer stand at thirty-five metres
+  // and take a room apart one man at a time. `claimed` stops two of them
+  // walking to the same corner and standing in each other — they each
+  // reconsider on their own clock, so it has to be the *current* set,
+  // rebuilt every frame rather than accumulated.
+  spreadAlert(stillHostile, dt);
+  const claimed = stillHostile.map(h => h.coverSpot).filter(Boolean);
+
   // Turned operatives shoot the side they came from. Converting an
   // enforcer is worth something concrete, not just a counter going up.
   for (const h of stillHostile) {
+    h.claimed = claimed.filter(spot => spot !== h.coverSpot);
     const out = [];
     // Gassed, they stop being a side. `update` skips itself, so a cell
     // caught in a misalignment cloud fights the nearest body it can see,

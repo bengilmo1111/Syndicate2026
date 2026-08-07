@@ -174,7 +174,15 @@ the 2D logic onto a 3D engine instead of losing it.
       reconsider their position
 - [x] Fire discipline — engage at will / return fire / hold fire (`H`),
       with `provoked` set by a near miss and expiring after 4s
-- [ ] Hostiles retreat when badly hurt rather than dying in place
+- [x] **Hostiles retreat when badly hurt** rather than dying in place —
+      below 35% health they score a wall between themselves and the squad
+      above cover they can still shoot from, stop closing, and keep firing
+      as they go. Not `Unquantized.broken`, which is panic; this is a
+      professional deciding a position is not worth standing in.
+- [x] **A cell shares a contact** (`spreadAlert`) — one of them seeing you
+      tells everyone within 26m and extends how far they will come. One
+      hop, not a flood; dormant loyalists are never woken by it. Closes
+      `GAP_ANALYSIS.md` gap 7.
 
 ## Phase 4 — Loadout and progression
 - [ ] Pre-mission loadout screen: assign weapons per agent
@@ -278,10 +286,15 @@ vendor/
 tests/
   run.mjs               the gate: `node tests/run.mjs`
   campaign.test.mjs     gating, prerequisite graph, records, save migration
-  tactics.test.mjs      cover-seeking, suppression, tactics in a live fight
+  tactics.test.mjs      cover-seeking, suppression, the cell, breaking contact
   core.test.mjs         city, nav, ballistics, aligner, morale, objectives
   depth.test.mjs        weapons, cover, compute allocation, surge
   missions.test.mjs     definitions, completability, per-mission story beats
+  retake.test.mjs       deployments the map writes, and their garrisons
+  traffic.test.mjs      ambient traffic, wrecks, and traffic in play
+  driving.test.mjs      boarding, steering, running people down
+  sound.test.mjs        the mix — cues, caps, distance, panning, room tone
+  strange.test.mjs      the six field devices and the accounting they touch
   browser.mjs           optional Playwright pass over the real page
   lib/harness.mjs       zero-dependency registry + assertions
   lib/autopilot.mjs     bot that plays a mission headlessly to completion
@@ -297,7 +310,7 @@ src/
     squad.js            selection, formation, move orders, the Aligner
     mission.js          objective model, prerequisites, mission registry
     campaign.js         completions, gating, records, branch flags
-    tactics.js          hostile cover-seeking, repositioning, suppression
+    tactics.js          cover-seeking, suppression, contact calls, withdrawal
     interlude.js        mid-mission dialog beats — freeze, ask, record
     devices.js          six field devices — the things you put on the map
     roster.js           who is in the suits, what is fitted, who is gone
@@ -345,7 +358,7 @@ src/
 ### The gate — automated
 
 ```
-node tests/run.mjs        # ~16s, 366 checks, no deps. MUST pass before you push.
+node tests/run.mjs        # ~17s, 377 checks, no deps. MUST pass before you push.
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
 
