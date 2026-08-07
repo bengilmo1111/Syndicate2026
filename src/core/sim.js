@@ -20,6 +20,7 @@ import {
 } from './devices.js';
 import { newTraffic, tickTraffic, blastVictims } from './traffic.js';
 import { boardableAt, board, disembark, steerVehicle, tickDriven } from './driving.js';
+import { recoverBuffer } from './buffer.js';
 import {
   getMissionDef, buildMission, updateMissionStatus, isMissionComplete,
   failedObjective, OBJECTIVE,
@@ -207,7 +208,12 @@ export function step(sim, dt, intent) {
 
   squad.applyCompute();
   squad.tick(dt);
+  const resilience = squad.compute.points('resilience');
   for (const a of squad.agents) {
+    // Instance headroom comes back only once nobody has hit them for a
+    // few seconds, which is the whole reason to break contact. See
+    // `src/core/buffer.js`.
+    recoverBuffer(a, dt, resilience);
     decaySuppression(a, dt);
     // RETURN FIRE reads this. It has to expire, or one stray round early
     // in a mission quietly turns the stance into ENGAGE for good.

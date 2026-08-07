@@ -194,6 +194,12 @@ the 2D logic onto a 3D engine instead of losing it.
       aerosol (non-lethal), then razor wire, misalignment aerosol,
       graviton charge and satellite rain. The belt grows act by act.
 - [x] Per-weapon stats: damage, fire rate, range, spread, penetration
+- [x] **The Instance buffer** (`src/core/buffer.js`, `GAP_ANALYSIS.md`
+      gap 8) — in-mission resource pressure, as the recharging half rather
+      than the ammo half. An agent's pool is split 70/30 into flesh and
+      headroom; the headroom comes back only after 4.5s without a hit, at
+      a rate RESILIENCE sets. Not extra health: the total is unchanged, so
+      what it adds is a reason to break contact.
 - [ ] Compute upgrade slots: latency / throughput / context window /
       attention range (3 tiers each)
 - [x] Campaign persistence in localStorage (completions, records, flags)
@@ -293,6 +299,7 @@ tests/
   retake.test.mjs       deployments the map writes, and their garrisons
   traffic.test.mjs      ambient traffic, wrecks, and traffic in play
   driving.test.mjs      boarding, steering, running people down
+  buffer.test.mjs       the split pool, and what brings it back
   sound.test.mjs        the mix — cues, caps, distance, panning, room tone
   strange.test.mjs      the six field devices and the accounting they touch
   browser.mjs           optional Playwright pass over the real page
@@ -317,6 +324,7 @@ src/
     territory.js        the map: what you hold, how hard you squeeze it
     traffic.js          ambient traffic — it brakes for you, and it burns
     driving.js          the squad in a car — and it brakes for nobody
+    buffer.js           the split pool: flesh that stays gone, headroom that returns
     retake.js           deployments the map writes to take a block back
     sim.js              the simulation — owns all mutable game state
   audio/                every sound, synthesised at runtime
@@ -358,7 +366,7 @@ src/
 ### The gate — automated
 
 ```
-node tests/run.mjs        # ~17s, 377 checks, no deps. MUST pass before you push.
+node tests/run.mjs        # ~17s, 389 checks, no deps. MUST pass before you push.
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
 

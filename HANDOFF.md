@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~17s, 377 checks, no dependencies
+node tests/run.mjs        # the gate — ~17s, 389 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -331,6 +331,29 @@ stops braking the moment you are in it.
   The lights are deliberately oversized for the vehicle. A car is ten
   pixels across at the default camera and what reads as traffic from up
   here is the same thing that reads as traffic from a window at night.
+- **The Instance buffer** (`src/core/buffer.js`) — `GAP_ANALYSIS.md` gap
+  8, which was that a firefight had no economy and so the correct play was
+  always to keep shooting.
+  An agent's pool is **split, not extended**: still 120, of which 30% is
+  headroom that comes back and 70% is flesh that does not. Handing the
+  player thirty more hit points would have made every fight easier, which
+  is the opposite of adding pressure — what changed is the shape. A squad
+  that can break contact has what it always had; a squad pinned in the
+  open has a third less.
+  It recovers only after **4.5 seconds without being hit** — longer than
+  any enemy's fire rate, so it cannot refill inside an exchange — and
+  **RESILIENCE sets how fast**. That is the second thing this bought: the
+  channel used to be a slightly smaller number on incoming damage and is
+  now how quickly a squad is ready to go again.
+  Damage goes through `absorb()` and then to health, so there is still
+  exactly one place in the codebase that can kill somebody. Hostiles do
+  not have one, deliberately: it would double every time-to-kill on the
+  block, and the fiction is that this is what a field-grade allocation
+  buys. Ammo was **not** taken — it is bookkeeping rather than a decision,
+  and the fifteen missions are tuned against unlimited fire.
+  One bar per agent, with the buffer as a paler tail on the end of the
+  same bar. Two bars in a four-agent strip is four more things to read in
+  a firefight.
 - **A cell fights as a cell** (`spreadAlert` in `src/core/tactics.js`) —
   one hostile seeing the squad tells everyone within 26m, and being told
   extends how far they will come for you by 60%. Before this a patient
@@ -586,7 +609,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 377 checks, ~17s, zero dependencies. Covers city
+`node tests/run.mjs` — 389 checks, ~17s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -683,6 +706,11 @@ another garrison, handing them The Bracket's script, counting a retake as
 campaign progress, failing to resolve a retake id back to its sector,
 letting generated missions into the authored list, starting the hold
 before the garrison is down, and removing the ground to hold. Seven cover
+the Instance buffer: a buffer that absorbs nothing, a pool extended
+instead of split, a hit that does not put it back on the clock, headroom
+that refills mid-exchange, headroom that overfills, RESILIENCE doing
+nothing for it, a corpse recovering, and a sim that never ticks it.
+Twelve cover
 hostile tactics: nobody telling anybody anything, a contact that carries
 across the whole block, a shout that wakes the sleeping, a contact that
 never goes cold, being told changing nothing about how far they come,
@@ -709,7 +737,7 @@ theirs, a sedated hostile throwing a standing shadow, shadows too faint to
 see, and a grade that swallows every click on the street. It is
 load-bearing, not decorative.
 
-`node tests/browser.mjs` — 102 checks in real Chromium. Boot, module
+`node tests/browser.mjs` — 105 checks in real Chromium. Boot, module
 resolution over HTTP, WebGL render of every mission, keyboard and mouse
 wiring, compute keys, surge and its visible cost, frame rate, clean
 console — plus the retake button, which is the only way into a generated
@@ -753,8 +781,7 @@ The arc is done, the progression loop under it is done, and **gap 1 is now
 closed end to end** — the map both feeds the campaign and writes
 deployments of its own. **Gap 4 is closed too**: the six field devices are
 all in, offensive ones included. `GAP_ANALYSIS.md` is the ranked backlog;
-gaps 1 through 11 are closed except 8 (no in-mission resource pressure).
-What is left is interiors.
+gaps 1 through 11 are all closed. What is left is interiors.
 
 1. **Building interiors** (gap 12). Every structure is a solid box. Large,
    and it needs real navmesh work rather than the street graph.

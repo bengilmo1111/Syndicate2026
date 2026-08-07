@@ -6,6 +6,7 @@ import { heatRatio } from '../core/sim.js';
 import { CHANNELS, BUDGET } from '../core/compute.js';
 import { DEVICE, DEVICE_IDS } from '../core/devices.js';
 import { STANCE, STANCE_LABEL } from '../core/squad.js';
+import { poolMax } from '../core/buffer.js';
 import { AGENT_COLORS } from '../render/actorView.js';
 
 const el = id => document.getElementById(id);
@@ -23,7 +24,10 @@ function buildSquadStrip() {
       <div class="agent-key">${i + 1}</div>
       <div class="agent-body">
         <div class="agent-name">${name}<span class="agent-weapon"></span></div>
-        <div class="agent-bar"><div class="agent-bar-fill"></div></div>
+        <div class="agent-bar">
+          <div class="agent-bar-fill"></div>
+          <div class="agent-bar-buffer"></div>
+        </div>
         <div class="agent-tier">PRO</div>
       </div>`;
     const color = `#${AGENT_COLORS[i].toString(16).padStart(6, '0')}`;
@@ -32,6 +36,7 @@ function buildSquadStrip() {
     return {
       root: cell,
       fill: cell.querySelector('.agent-bar-fill'),
+      buffer: cell.querySelector('.agent-bar-buffer'),
       tier: cell.querySelector('.agent-tier'),
       weapon: cell.querySelector('.agent-weapon'),
     };
@@ -155,7 +160,16 @@ export function updateHUD(sim) {
     const c = cells[i];
     c.root.classList.toggle('selected', a.selected && !a.dead);
     c.root.classList.toggle('kia', a.dead);
-    c.fill.style.width = `${Math.round((a.health / a.maxHealth) * 100)}%`;
+    // One bar, two pools. The buffer rides on top of the flesh rather
+    // than beside it, because what the player needs at a glance is how
+    // much is left in total and how much of that is going to come back.
+    const total = poolMax(a);
+    const flesh = (a.health / total) * 100;
+    c.fill.style.width = `${Math.round(flesh)}%`;
+    c.buffer.style.left = `${flesh}%`;
+    c.buffer.style.width = `${Math.round(((a.buffer ?? 0) / total) * 100)}%`;
+    c.root.classList.toggle('recovering', !a.dead && (a.bufferCold ?? 0) <= 0
+      && (a.buffer ?? 0) < (a.maxBuffer ?? 0));
     c.tier.textContent = a.dead ? 'KIA' : a.weapon.name;
     // Spin-up is worth showing: a minigun agent who has not committed yet
     // is not a minigun agent.

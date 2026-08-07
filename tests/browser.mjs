@@ -871,6 +871,39 @@ check('the street has traffic on it, and it is moving',
 check('and a wreck is reconciled into the scene',
   traffic.wreckedMesh && traffic.heat > 0, `heat ${Math.round(traffic.heat)}`);
 
+// --- the Instance buffer. The sim tests own the model; what only a
+// --- browser proves is that one bar carries two pools legibly and that
+// --- the recovery is visible while it happens.
+const pool = await page.evaluate(async () => {
+  const app = window.__syndicate;
+  const a = app.sim.squad.agents[0];
+  const cell = document.querySelectorAll('.agent-cell')[0];
+  const flesh = cell.querySelector('.agent-bar-fill');
+  const buffer = cell.querySelector('.agent-bar-buffer');
+  const width = el => parseFloat(el.style.width) || 0;
+
+  const full = { flesh: width(flesh), buffer: width(buffer) };
+  a.takeDamage(a.maxBuffer);
+  await new Promise(r => setTimeout(r, 200));
+  const spent = { flesh: width(flesh), buffer: width(buffer) };
+  // Four and a half seconds of nobody shooting at them.
+  await new Promise(r => setTimeout(r, 5200));
+  const back = { flesh: width(flesh), buffer: width(buffer) };
+  const pulsing = cell.classList.contains('recovering');
+  await new Promise(r => setTimeout(r, 4000));
+  return { full, spent, back, pulsing, filled: width(buffer), maxBuffer: a.maxBuffer };
+});
+check('one bar carries both pools, and the headroom is the tail of it',
+  pool.full.buffer > 10 && pool.full.flesh > 50
+    && Math.abs(pool.full.flesh + pool.full.buffer - 100) < 2,
+  `${Math.round(pool.full.flesh)}% flesh + ${Math.round(pool.full.buffer)}% headroom`);
+check('and spending the headroom shortens the bar without wounding anyone',
+  pool.spent.buffer === 0 && Math.abs(pool.spent.flesh - pool.full.flesh) < 1,
+  'the flesh is untouched');
+check('and it visibly comes back once nobody is shooting',
+  pool.back.buffer > 0 && pool.filled >= pool.back.buffer,
+  `${Math.round(pool.back.buffer)}% back after five seconds`);
+
 // --- drivable vehicles. The sim tests prove the model; what only a
 // --- browser can prove is that the key is wired, that the crew stop
 // --- being drawn on the street, and that the car the squad is in is

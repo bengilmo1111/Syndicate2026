@@ -20,6 +20,7 @@ import { buildCity, coverAgainst, isBlocked, hasLineOfSight, COVER } from '../sr
 import { Hostile, Unquantized, Agent } from '../src/core/entities.js';
 import { createSim, step } from '../src/core/sim.js';
 import { makeRng, dist } from '../src/core/math.js';
+import { poolOf, poolMax } from '../src/core/buffer.js';
 
 const idle = { moveX: 0, moveZ: 0, firing: false, aimPoint: null };
 
@@ -125,7 +126,10 @@ suite('tactics in play');
 /** Drive a real engagement: walk the squad onto the nearest hostile. */
 function engage(missionId, seconds = 60) {
   const sim = createSim(missionId);
-  const seen = { sought: new Set(), peakSuppression: 0, moved: 0 };
+  const seen = {
+    sought: new Set(), peakSuppression: 0, moved: 0, lowestPool: Infinity,
+  };
+  const fullPool = sim.squad.agents.reduce((n, a) => n + poolMax(a), 0);
   const start = sim.hostiles.map(h => ({ id: h.id, x: h.x, z: h.z }));
 
   for (let i = 0; i < 60 * seconds; i++) {
@@ -144,13 +148,20 @@ function engage(missionId, seconds = 60) {
     for (const a of sim.squad.agents) {
       seen.peakSuppression = Math.max(seen.peakSuppression, a.suppression ?? 0);
     }
+    // The low-water mark, not the final state. The Instance buffer comes
+    // back once the shooting stops, so a squad that won a fight it was
+    // hurt in looks untouched by the time the last hostile is down.
+    seen.lowestPool = Math.min(
+      seen.lowestPool,
+      sim.squad.agents.reduce((n, a) => n + poolOf(a), 0),
+    );
     if (!sim.hostiles.length) break;
   }
   for (const s of start) {
     const h = sim.hostiles.find(x => x.id === s.id);
     if (h && dist(s.x, s.z, h.x, h.z) > 2) seen.moved++;
   }
-  return { sim, ...seen };
+  return { sim, fullPool, ...seen };
 }
 
 test('hostiles actually seek cover during a firefight', () => {
@@ -169,8 +180,13 @@ test('a firefight now costs the squad something', () => {
   // untouched every single time. If this ever returns to zero, the enemy
   // AI has gone back to standing in the road.
   const r = engage('sector-7');
-  const damage = r.sim.squad.agents.reduce((n, a) => n + (a.maxHealth - a.health), 0);
-  ok(damage > 0, `the squad took ${Math.round(damage)} damage`);
+  // The whole pool, not just the flesh. Since the Instance buffer landed
+  // this exact assertion read zero on `health` alone — everything the
+  // tutorial's cell managed to do was absorbed, which is the buffer
+  // working rather than the AI failing, and the test could not tell the
+  // difference until it was asked the right question.
+  const damage = r.fullPool - r.lowestPool;
+  ok(damage > 0, `the squad was ${Math.round(damage)} down at its worst`);
 });
 
 test('the unquantized do not take cover — they are not trained', () => {

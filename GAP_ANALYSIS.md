@@ -53,8 +53,8 @@ Legend: ✅ have · ◐ partial · ❌ missing
 | Persuadertron | strength thresholds per target type; followers arm themselves from dropped weapons and fight | radius conversion, followers trail the squad, unarmed and non-combatant | ◐ |
 | Police react to Persuadertron use | yes — carrying it draws fire | heat comes from gunfire and surge only | ◐ |
 | Real-time behaviour sliders | **IPA**: Intelligence / Perception / Adrenaline, altering autonomous agent *behaviour* | compute channels: latency / precision / resilience, altering *stats* | ◐ |
-| Shields | recharging, separate from health | none | ❌ |
-| Ammo / weapon energy | recharging pool | unlimited | ❌ |
+| Shields | recharging, separate from health | the Instance buffer — a recovering share of the same pool, squad only | ✅ |
+| Ammo / weapon energy | recharging pool | unlimited, deliberately — see gap 8 | ❌ |
 | Weapon roster | ~19, including psycho gas, knockout gas, razor wire, ion mines, status fields, graviton gun, satellite rain, nuclear grenade | 4 firearms plus 6 field devices — choke, standdown, razor wire, misalignment, graviton, satellite rain | ◐ |
 | Dropped weapons | pick up in the field | none | ❌ |
 | Deployables / traps | trip wires, mines, Cerberus IFF guardian drone | razor wire and three thrown fields, all of which apply to your own squad | ◐ |
@@ -407,13 +407,37 @@ The last two pieces were the ones that changed how a block plays:
 next thing and is deliberately unscheduled — it needs a planner, and the
 whole point of this file is that it does not have one.
 
-### 8. No in-mission resource pressure
-No ammo, no shields, no reason to disengage. Firefights have no economy,
-so the correct play is always to keep shooting.
+### 8. No in-mission resource pressure — **closed**
+No ammo, no shields, no reason to disengage. Firefights had no economy,
+so the correct play was always to keep shooting.
 
-*Where:* Phase 4. Shields-that-recharge are the more interesting half:
-they create a reason to break contact and reposition, which is exactly
-the "cold tactical pacing" pillar.
+**Shipped** as the **Instance buffer** (`src/core/buffer.js`), which is
+this document's own recommendation taken literally: the recharging half
+is the interesting half, because it creates a reason to break contact.
+
+The decision that makes it work is that the pool is **split, not
+extended**. An agent still has the 120 they always had; 30% of it is now
+headroom that comes back and 70% is flesh that does not. Handing the
+player thirty more hit points would have made every fight easier, which
+is the opposite of adding pressure. What actually changed is the *shape*:
+a squad that can disengage has exactly what it had before, and a squad
+pinned in the open has a third less.
+
+It recovers only after four and a half seconds without being hit — longer
+than any enemy's fire rate, so it cannot refill inside an exchange — and
+RESILIENCE sets how fast. That is the second thing this bought: the
+channel used to be a slightly smaller number on incoming damage, and it
+is now how quickly a squad is ready to go again, which is something the
+player feels between fights rather than only inside them.
+
+Ammo deliberately not taken. It is the half the original had that adds
+bookkeeping rather than decisions — a magazine count does not create a
+reason to reposition, it creates a reason to stand still and wait, and
+the fifteen missions are tuned against unlimited fire.
+
+Hostiles do not get one. The fiction is that it is what a field-grade
+allocation buys, and the practical reason is that it would double every
+time-to-kill on the block.
 
 ### 9. No sound — **closed**
 Weapons, ambient city, mission stingers. Absent entirely. Disproportionate
