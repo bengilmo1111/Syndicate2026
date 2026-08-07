@@ -27,19 +27,98 @@ const DIRECTIONS = 8;
 export const RETHINK_INTERVAL = 0.9;
 
 /**
+ * How far a contact call carries.
+ *
+ * The other half of gap 7, and the one that changes how a block plays:
+ * before this, hostiles each solved their own problem, so a patient
+ * player could stand at thirty-five metres and take a cell apart one at
+ * a time while the man beside the one being shot did nothing. A cell is
+ * a cell now — one of them seeing you is all of them knowing.
+ *
+ * Deliberately shorter than `aggroRange`. It is a shout across a street,
+ * not a radio net; two groups on opposite sides of the block still fight
+ * as two groups.
+ */
+export const CELL_RADIUS = 26;
+
+/** How much further an alerted hostile will come for you. */
+export const ALERT_REACH = 1.6;
+
+/** How long a contact stays live after the last sighting. */
+export const ALERT_SECONDS = 8;
+
+/**
+ * Below this fraction of health, a hostile stops trying to win the
+ * exchange and tries to leave it.
+ *
+ * Not a morale system — `Unquantized.broken` is that, and it makes people
+ * run in a straight line until they are out of sight. This is a
+ * professional deciding a position is no longer worth standing in: they
+ * fall back to something solid, and they keep shooting the whole way.
+ */
+export const WITHDRAW_AT = 0.35;
+
+/** How much room two hostiles leave each other when picking cover. */
+export const CLAIM_SPACING = 3.4;
+
+/**
+ * Pass a contact around a cell.
+ *
+ * Called once a frame with everyone still fighting. Anybody who can
+ * actually see a target marks it; anybody near enough to somebody who
+ * can is told. One hop, not a flood — a chain of relays across a whole
+ * block would mean stepping on any one of them alerts everything, and
+ * `aggroRange` already covers "they heard the shooting".
+ */
+export function spreadAlert(hostiles, dt, radius = CELL_RADIUS) {
+  const callers = [];
+  for (const h of hostiles) {
+    if (h.alertFor > 0) h.alertFor -= dt;
+    if (h.sawTarget) callers.push(h);
+  }
+  for (const h of hostiles) {
+    if (h.dormant || h.dead || h.sawTarget) continue;
+    for (const c of callers) {
+      if (c === h) continue;
+      if (dist(h.x, h.z, c.x, c.z) <= radius) { h.alertFor = ALERT_SECONDS; break; }
+    }
+  }
+  return callers.length;
+}
+
+/** How far this hostile is currently willing to come. */
+export function reachOf(actor) {
+  return actor.aggroRange * (actor.alertFor > 0 ? ALERT_REACH : 1);
+}
+
+/** Is this one hurt badly enough to want out of the exchange? */
+export function isWithdrawing(actor) {
+  return actor.health <= actor.maxHealth * WITHDRAW_AT;
+}
+
+/**
  * Score a position: cover against the threat, minus the cost of losing
  * the shot. A hostile that hides somewhere it cannot fire from has not
  * improved anything.
  */
-function scorePosition(city, x, z, threat, weaponRange) {
+function scorePosition(city, x, z, threat, weaponRange, withdrawing = false) {
   const range = dist(x, z, threat.x, threat.z);
   if (!hasLineOfSight(city, x, z, threat.x, threat.z)) {
     // Total concealment is worth something, but only as a way to break
     // contact — it scores below good cover you can still shoot from.
-    return 0.35;
+    // Somebody who has already decided to break contact reads it the
+    // other way round: a wall between them and the squad is the best
+    // thing on the block.
+    return withdrawing ? 1.5 : 0.35;
   }
   const cover = coverAgainst(city, x, z, threat.x, threat.z);
   let score = cover;
+  if (withdrawing) {
+    // Backwards, deliberately: distance is the objective and the shot is
+    // the consolation. Capped so a hurt hostile falls back to the far end
+    // of the street rather than sprinting off the edge of the block.
+    return score + Math.min(0.9, range / 70);
+  }
   // Being inside effective range is worth roughly as much as light cover.
   if (range <= weaponRange) score += 0.4;
   else score -= Math.min(0.5, (range - weaponRange) / 60);
@@ -58,11 +137,19 @@ export function findCover(city, actor, threat, opts = {}) {
     radius = REPOSITION_RADIUS,
     weaponRange = actor.range ?? 26,
     improveBy = 0.2,
+    withdrawing = false,
+    // Where everyone else on this side is already going. Two hostiles
+    // scoring the same corner independently both walk to it and stand in
+    // each other, which reads as one of them being stuck rather than as
+    // two people making the same reasonable decision.
+    taken = [],
   } = opts;
 
-  const current = scorePosition(city, actor.x, actor.z, threat, weaponRange);
-  // Already tucked in somewhere good — don't fidget.
-  if (current >= COVER.HARD) return null;
+  const current = scorePosition(city, actor.x, actor.z, threat, weaponRange, withdrawing);
+  // Already tucked in somewhere good — don't fidget. Somebody breaking
+  // contact keeps looking: hard cover they can still be shot around is
+  // not what they are after.
+  if (!withdrawing && current >= COVER.HARD) return null;
 
   let best = null;
   let bestScore = current + improveBy;
@@ -72,7 +159,10 @@ export function findCover(city, actor, threat, opts = {}) {
     if (Math.abs(x) > city.halfW - 2 || Math.abs(z) > city.halfD - 2) return;
     if (isBlocked(city, x, z, clearance)) return;
     if (dist(actor.x, actor.z, x, z) > radius * 1.6) return;
-    const score = scorePosition(city, x, z, threat, weaponRange);
+    for (const t of taken) {
+      if (t && dist(x, z, t.x, t.z) < CLAIM_SPACING) return;
+    }
+    const score = scorePosition(city, x, z, threat, weaponRange, withdrawing);
     if (score > bestScore) {
       bestScore = score;
       best = { x, z, score };

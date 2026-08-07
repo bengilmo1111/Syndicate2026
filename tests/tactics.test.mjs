@@ -10,11 +10,13 @@
 // functions return plausible values.
 
 import '../src/missions/index.js';
-import { suite, test, ok, notOk, eq, gte, lt } from './lib/harness.mjs';
+import { suite, test, ok, notOk, eq, gt, gte, lt } from './lib/harness.mjs';
 import {
   findCover, applySuppression, decaySuppression, suppressionSpread,
+  spreadAlert, reachOf, isWithdrawing,
+  CELL_RADIUS, ALERT_SECONDS, WITHDRAW_AT, CLAIM_SPACING,
 } from '../src/core/tactics.js';
-import { buildCity, coverAgainst, isBlocked, COVER } from '../src/core/city.js';
+import { buildCity, coverAgainst, isBlocked, hasLineOfSight, COVER } from '../src/core/city.js';
 import { Hostile, Unquantized, Agent } from '../src/core/entities.js';
 import { createSim, step } from '../src/core/sim.js';
 import { makeRng, dist } from '../src/core/math.js';
@@ -185,4 +187,231 @@ test('the unquantized do not take cover — they are not trained', () => {
 test('syndicate hostiles do seek cover — the difference is the point', () => {
   const sim = createSim('sector-7');
   ok(sim.hostiles.every(h => h.seeksCover), 'trained operatives think about position');
+});
+
+// ---------------------------------------------------------------------------
+// The rest of gap 7: a cell that talks, and a professional who leaves.
+//
+// What was still missing after cover-seeking shipped was everything
+// *between* hostiles. Each of them solved its own problem, which meant a
+// patient player could stand outside one man's aggro range and take a
+// room apart one at a time while the rest of it did nothing — and a
+// hostile on four health walked into the squad that had just done it to
+// them, because closing was all the model knew how to do.
+// ---------------------------------------------------------------------------
+
+suite('the cell');
+
+/** A hostile standing somewhere specific, with the defaults. */
+function planted(x, z, opts = {}) {
+  const h = new Hostile(x, z, opts);
+  h.id = opts.id ?? 1;
+  return h;
+}
+
+test('one of them seeing you is all of them knowing', () => {
+  const caller = planted(0, 0, { id: 1 });
+  const near = planted(CELL_RADIUS - 4, 0, { id: 2 });
+  const far = planted(CELL_RADIUS + 30, 0, { id: 3 });
+  caller.sawTarget = true;
+
+  spreadAlert([caller, near, far], 1 / 60);
+  gte(near.alertFor, 1, 'the man beside him is told');
+  eq(far.alertFor, 0, 'and the one across the block is not — this is a shout');
+});
+
+test('a contact is not relayed across the map one man at a time', () => {
+  // Otherwise stepping on any single hostile alerts the whole city, and
+  // `aggroRange` already covers "they heard the shooting".
+  const caller = planted(0, 0, { id: 1 });
+  const middle = planted(CELL_RADIUS - 2, 0, { id: 2 });
+  const end = planted((CELL_RADIUS - 2) * 2, 0, { id: 3 });
+  caller.sawTarget = true;
+
+  for (let i = 0; i < 30; i++) spreadAlert([caller, middle, end], 1 / 60);
+  gte(middle.alertFor, 1);
+  eq(end.alertFor, 0, 'one hop, not a flood');
+});
+
+test('a contact goes cold', () => {
+  const caller = planted(0, 0, { id: 1 });
+  const near = planted(4, 0, { id: 2 });
+  caller.sawTarget = true;
+  spreadAlert([caller, near], 1 / 60);
+  gte(near.alertFor, 1);
+
+  caller.sawTarget = false;
+  for (let i = 0; i < 60 * (ALERT_SECONDS + 1); i++) spreadAlert([caller, near], 1 / 60);
+  lt(near.alertFor, 0.001, 'nobody stays switched on forever');
+});
+
+test('being told extends how far they will come for you', () => {
+  const h = planted(0, 0);
+  eq(reachOf(h), h.aggroRange, 'on their own, their own eyes');
+  h.alertFor = ALERT_SECONDS;
+  gte(reachOf(h), h.aggroRange * 1.5, 'told, they come further');
+});
+
+test('the sleeping are not woken by a shout', () => {
+  // Dormant loyalists are on your side until you make them otherwise, and
+  // that has to stay a decision the player makes in as many words.
+  const caller = planted(0, 0, { id: 1 });
+  const loyal = planted(5, 0, { id: 2, dormant: true });
+  caller.sawTarget = true;
+  spreadAlert([caller, loyal], 1 / 60);
+  eq(loyal.alertFor, 0);
+});
+
+test('the far one holds off, and the alerted one comes', () => {
+  // The behaviour all of the above is for, driven through `update`.
+  const city = buildCity({ seed: 77, cols: 8, rows: 8 });
+  const agent = new Agent(0, 0, 0);
+  const far = planted(0, 60, { id: 4, aggroRange: 40 });
+  const start = far.z;
+
+  for (let i = 0; i < 60; i++) far.update(1 / 60, city, [agent], []);
+  eq(far.z, start, 'sixty metres away and nobody has told them anything');
+
+  far.alertFor = ALERT_SECONDS;
+  for (let i = 0; i < 60; i++) far.update(1 / 60, city, [agent], []);
+  lt(far.z, start - 1, 'told, they close');
+});
+
+suite('breaking contact');
+
+test('a hurt hostile stops walking into the squad that hurt it', () => {
+  const city = buildCity({ seed: 77, cols: 8, rows: 8 });
+  const agent = new Agent(0, 0, 0);
+
+  const healthy = planted(0, 34, { id: 5, seeksCover: false });
+  for (let i = 0; i < 90; i++) healthy.update(1 / 60, city, [agent], []);
+  lt(healthy.z, 33, 'a whole one closes the distance');
+
+  const hurt = planted(0, 34, { id: 6, seeksCover: false });
+  hurt.health = hurt.maxHealth * (WITHDRAW_AT * 0.9);
+  ok(isWithdrawing(hurt));
+  const at = hurt.z;
+  for (let i = 0; i < 90; i++) hurt.update(1 / 60, city, [agent], []);
+  eq(hurt.z, at, 'and one on its last legs holds what it has');
+});
+
+/**
+ * Every standoff on this block: an actor in the open beside a building,
+ * with a threat that can see them.
+ *
+ * Built by search rather than by hand. A hand-placed pair depends on
+ * whichever structure a seed happens to put first, and the two attempts
+ * before this one asserted against a corner kiosk and a slab at the edge
+ * of the map — both of which correctly returned "nowhere better", and
+ * neither of which was the situation the test was about.
+ */
+function standoffs(city) {
+  const out = [];
+  for (const s of city.structures) {
+    if (s.collapsed || Math.max(s.w, s.d) < 8) continue;
+    const actor = {
+      x: s.x + s.w / 2 + 5, z: s.z + s.d / 2 + 5, radius: 1.15, id: 1, range: 26,
+    };
+    const threat = { x: actor.x + 20, z: actor.z + 14 };
+    if (isBlocked(city, actor.x, actor.z, 1.5)) continue;
+    if (!hasLineOfSight(city, actor.x, actor.z, threat.x, threat.z)) continue;
+    const hold = findCover(city, actor, threat, {});
+    const leave = findCover(city, actor, threat, { withdrawing: true });
+    if (hold && leave) out.push({ actor, threat, hold, leave });
+  }
+  return out;
+}
+
+test('somebody leaving is not solving the same problem as somebody staying', () => {
+  const city = buildCity({ seed: 77, cols: 8, rows: 8 });
+  const cases = standoffs(city);
+  gte(cases.length, 4, `${cases.length} standoffs on this block`);
+
+  let holdHidden = 0;
+  let leaveHidden = 0;
+  for (const { threat, hold, leave } of cases) {
+    ok(dist(hold.x, hold.z, leave.x, leave.z) > 0.01,
+      'the two answers are different points');
+    // And the difference always runs one way: what they are breaking
+    // contact into is either a wall, or further off. Never nearer.
+    const covered = !hasLineOfSight(city, leave.x, leave.z, threat.x, threat.z);
+    const further = dist(leave.x, leave.z, threat.x, threat.z)
+      >= dist(hold.x, hold.z, threat.x, threat.z);
+    ok(covered || further, 'a wall, or more ground — not less');
+    if (covered) leaveHidden++;
+    if (!hasLineOfSight(city, hold.x, hold.z, threat.x, threat.z)) holdHidden++;
+  }
+
+  // The half of it that "further off" alone does not pin. Concealment is
+  // scored *above* the best cover you can shoot from, but only for
+  // somebody leaving — so the two modes should disagree about walls, not
+  // merely about distance. Deleting that preference and letting range do
+  // all the work survives every assertion above.
+  gt(leaveHidden, holdHidden,
+    `${leaveHidden} of ${cases.length} break line of sight, against ${holdHidden} holding`);
+});
+
+test('two of them do not walk to the same corner', () => {
+  const city = buildCity({ seed: 77, cols: 8, rows: 8 });
+  const cases = standoffs(city);
+  let checked = 0;
+  for (const { actor, threat, hold } of cases) {
+    const second = findCover(city, actor, threat, { taken: [hold] });
+    if (!second) continue;   // nowhere else worth standing is a fair answer
+    checked++;
+    gte(dist(hold.x, hold.z, second.x, second.z), CLAIM_SPACING,
+      'the second man goes somewhere else');
+  }
+  gte(checked, 1, `${checked} of ${cases.length} had a second spot to take`);
+});
+
+test('the sim tells each of them where the others are going', () => {
+  // The unit test above proves `findCover` respects a claim; this proves
+  // the sim hands it one, which is a single line and therefore exactly
+  // the kind of thing that gets quietly deleted.
+  //
+  // Asserted on the wiring rather than on the spacing, because the
+  // spacing almost never bites: measured over six missions, a claim
+  // rejects a candidate seventeen times in a forty-second engagement on
+  // `run-south` and not once anywhere else. Hostiles are simply rarely
+  // near enough to want the same corner. It is worth keeping — seventeen
+  // is not zero, and two men standing inside each other reads as a bug —
+  // but no assertion about distances between cover spots can see it.
+  const sim = createSim('sector-7');
+  let sawOthers = false;
+  for (let i = 0; i < 60 * 30 && !sawOthers; i++) {
+    if (i % 40 === 0 && sim.hostiles.length) {
+      sim.squad.issueMove({ x: sim.hostiles[0].x, z: sim.hostiles[0].z }, sim.city);
+    }
+    step(sim, 1 / 60, idle);
+    for (const h of sim.hostiles) {
+      if (!h.claimed?.length) continue;
+      ok(!h.claimed.includes(h.coverSpot), 'nobody is told to avoid their own spot');
+      sawOthers = true;
+    }
+  }
+  ok(sawOthers, 'somebody was told where somebody else was going');
+});
+
+test('a cell in play alerts itself', () => {
+  // Walk the squad in, the way `engage` does — a squad standing on the
+  // deploy point is not a contact anybody has to call.
+  const sim = createSim('sector-7');
+  const told = new Set();
+  for (let i = 0; i < 60 * 40; i++) {
+    if (i % 40 === 0 && sim.hostiles.length) {
+      const c = sim.squad.center();
+      let best = sim.hostiles[0];
+      let bd = Infinity;
+      for (const h of sim.hostiles) {
+        const d = dist(c.x, c.z, h.x, h.z);
+        if (d < bd) { bd = d; best = h; }
+      }
+      sim.squad.issueMove({ x: best.x, z: best.z }, sim.city);
+    }
+    step(sim, 1 / 60, idle);
+    for (const h of sim.hostiles) if (h.alertFor > 0) told.add(h.id);
+    if (told.size) break;
+  }
+  gte(told.size, 1, 'somebody heard about the squad from somebody else');
 });

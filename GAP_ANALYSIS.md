@@ -46,37 +46,37 @@ Legend: ✅ have · ◐ partial · ❌ missing
 |---|---|---|---|
 | Four agents, single + group select | yes | yes | ✅ |
 | Rotatable **and pitchable** camera | yes | Z/X yaw, R/F tilt, constrained | ✅ |
-| Destructible environment | **practically every building**; level whole blocks | street cover + scripted landmarks only; buildings are permanent | ◐ |
+| Destructible environment | **practically every building**; level whole blocks | every tower and slab, with occupancy as the cost model | ✅ |
 | Cover and positioning | implicit in geometry | directional cover, rubble as cover | ✅ (we go further) |
 | Pathfinding | criticised as poor | A\* over the street graph | ✅ (we go further) |
-| Vehicles | agents and NPCs, some flying | none | ❌ |
+| Vehicles | agents and NPCs, some flying | ambient traffic, drivable by the squad; NPCs don't drive, none fly | ◐ |
 | Persuadertron | strength thresholds per target type; followers arm themselves from dropped weapons and fight | radius conversion, followers trail the squad, unarmed and non-combatant | ◐ |
 | Police react to Persuadertron use | yes — carrying it draws fire | heat comes from gunfire and surge only | ◐ |
 | Real-time behaviour sliders | **IPA**: Intelligence / Perception / Adrenaline, altering autonomous agent *behaviour* | compute channels: latency / precision / resilience, altering *stats* | ◐ |
 | Shields | recharging, separate from health | none | ❌ |
 | Ammo / weapon energy | recharging pool | unlimited | ❌ |
-| Weapon roster | ~19, including psycho gas, knockout gas, razor wire, ion mines, status fields, graviton gun, satellite rain, nuclear grenade | 4 conventional firearms | ◐ |
+| Weapon roster | ~19, including psycho gas, knockout gas, razor wire, ion mines, status fields, graviton gun, satellite rain, nuclear grenade | 4 firearms plus 6 field devices — choke, standdown, razor wire, misalignment, graviton, satellite rain | ◐ |
 | Dropped weapons | pick up in the field | none | ❌ |
-| Deployables / traps | trip wires, mines, Cerberus IFF guardian drone | none | ❌ |
+| Deployables / traps | trip wires, mines, Cerberus IFF guardian drone | razor wire and three thrown fields, all of which apply to your own squad | ◐ |
 | Enemy variety | police, punks, guards, agents, zealots | rivals, enforcers, unquantized | ◐ |
-| Enemy tactics | criticised as limited | limited — no cover seeking, no flanking | ◐ |
+| Enemy tactics | criticised as limited | cover-seeking, suppression, a shared contact, withdrawal when hurt | ✅ (we go further) |
 | Crowd behaviour | panic, gas reactions | panic, throttle under surge | ◐ |
 
 ### Meta layer
 
 | System | Syndicate Wars | Syndicate 2026 | |
 |---|---|---|---|
-| World map | regions, progressive unlock by conquest | none | ❌ |
-| Territory economy | per-country tax rate; income vs rebellion risk | none | ❌ |
-| Research | funded per item, money buys speed | none | ❌ |
-| Agent roster | larger than four; pick a squad of four | exactly four, fixed | ❌ |
-| Agent upgrades | cryovat cybernetics | none | ❌ |
+| World map | regions, progressive unlock by conquest | ten Austin sectors on the briefing card, taken by winning their mission | ✅ |
+| Territory economy | per-country tax rate; income vs rebellion risk | four rations per sector; income vs unrest, revolt and rivals | ✅ |
+| Research | funded per item, money buys speed | earned from held sectors, spent in the cryovat | ◐ |
+| Agent roster | larger than four; pick a squad of four | four named people with permanent losses and replacements who inherit the designation | ◐ |
+| Agent upgrades | cryovat cybernetics | four implants, bought with research on the briefing card | ✅ |
 | In-mission economy | rob or destroy banks for funds | none | ❌ |
-| Persistence | full campaign save | none | ❌ |
-| Campaign length | 34 / 29 missions in chapters | 4 shipped of 15 specified | ◐ |
+| Persistence | full campaign save | save v4 — progress, flags, records, roster and the map | ✅ |
+| Campaign length | 34 / 29 missions in chapters | all 15 shipped, plus retakes the map writes on demand | ◐ |
 | Two playable factions | EuroCorp and the Church | one (OpenAI) | ❌ |
 | Briefing fiction | in-game email client | briefing cards, corporate memo voice | ✅ |
-| Sound | full | none | ❌ |
+| Sound | full | synthesised at runtime — 17 cues, a room tone ridden by heat, no asset files | ✅ |
 
 ---
 
@@ -375,15 +375,37 @@ Four decisions worth keeping:
 *Still open:* NPCs do not drive. Ambient traffic is autonomous, which
 covers most of what the original used driven NPC vehicles for.
 
-### 7. Enemy AI has no tactics — **partially closed**
-Hostiles now reposition to cover and are suppressed by near-misses
-(`src/core/tactics.js`). Still missing: retreating when badly hurt, and
-any coordination between them — they each solve their own problem.
+### 7. Enemy AI has no tactics — **closed**
+Hostiles reposition to cover, are suppressed by near-misses, break contact
+when badly hurt, and fight as a cell rather than as four separate people
+(`src/core/tactics.js`).
 
 Note this was a criticism of the *original* too. It is a gap we should
 not inherit just because our reference did.
 
-*Where:* Phase 3.5, partially done.
+The last two pieces were the ones that changed how a block plays:
+
+- **A contact is shared.** One of them seeing the squad tells everyone
+  within twenty-six metres, and being told extends how far they will come
+  for you. Before this, a patient player could stand just outside one
+  man's aggro range and take a room apart one at a time while the man
+  next to him did nothing at all. One hop, not a flood — a relay chain
+  would mean stepping on any single hostile alerts the whole city, and
+  `aggroRange` already covers "they heard the shooting". Dormant
+  loyalists are never woken by it; that has to stay a decision the player
+  makes in as many words.
+- **A professional leaves.** Below 35% health a hostile stops trying to
+  win the exchange and tries to leave it: it scores a wall between itself
+  and the squad above cover it can still shoot from, it stops closing,
+  and it keeps firing the whole way. Deliberately not `Unquantized.broken`
+  — that is a person panicking and running in a straight line, and it
+  should not be what a trained operative does.
+- Plus the small one that stops both of the above looking stupid: two
+  hostiles no longer walk to the same corner and stand inside each other.
+
+*Still open:* nothing that matters. Fire-and-move by pairs is the obvious
+next thing and is deliberately unscheduled — it needs a planner, and the
+whole point of this file is that it does not have one.
 
 ### 8. No in-mission resource pressure
 No ammo, no shields, no reason to disengage. Firefights have no economy,

@@ -8,6 +8,7 @@ import { weapon, DEFAULT_LOADOUT } from './weapons.js';
 import { THROTTLED_SPEED } from './compute.js';
 import {
   findCover, decaySuppression, suppressionSpread, RETHINK_INTERVAL,
+  reachOf, isWithdrawing,
 } from './tactics.js';
 import { CHOKE_SPREAD } from './devices.js';
 
@@ -259,6 +260,12 @@ export class Hostile extends Actor {
     this.coverSpot = null;
     this.rethinkIn = 0;
     this.suppression = 0;
+    /** Set every frame: can this one actually see somebody right now? */
+    this.sawTarget = false;
+    /** Seconds left on a contact somebody else called. See `spreadAlert`. */
+    this.alertFor = 0;
+    /** Cover spots the rest of the cell has already claimed this frame. */
+    this.claimed = [];
   }
 
   /** Walk toward a point, used by turned operatives following the squad. */
@@ -285,7 +292,19 @@ export class Hostile extends Actor {
       if (d < bestD) { bestD = d; target = a; }
     }
     if (this.dormant) return;
-    if (!target || bestD > this.aggroRange) {
+    // Line of sight, computed once. It answers two questions — whether
+    // this one has a shot, and whether it is the one calling the contact
+    // — and it walks every structure on the block, so asking twice
+    // measurably costs.
+    const reach = reachOf(this);
+    const inSight = !!target && bestD <= reach
+      && hasLineOfSight(city, this.x, this.z, target.x, target.z);
+    // Somebody who can see a target *on their own* is the one who calls
+    // it; `spreadAlert` reads this and tells the rest of the cell. Their
+    // own aggro range, not the extended one, or a cell would talk itself
+    // across the block one relay at a time.
+    this.sawTarget = inSight && bestD <= this.aggroRange;
+    if (!target || bestD > reach) {
       // Nothing to shoot. A turned operative sticks with the squad that
       // took them rather than standing where they were converted.
       if (this.aligned && this.follow) this.trail(dt, city, this.follow);
@@ -293,14 +312,19 @@ export class Hostile extends Actor {
     }
 
     decaySuppression(this, dt);
-    const clearShot = hasLineOfSight(city, this.x, this.z, target.x, target.z);
+    const clearShot = inSight;
     this.turnToward(target.x, target.z, dt, 7);
 
     // --- Reposition. Periodically, or immediately when shot at.
     this.rethinkIn = (this.rethinkIn ?? 0) - dt;
+    const withdrawing = isWithdrawing(this);
     if (this.seeksCover && this.rethinkIn <= 0) {
       this.rethinkIn = RETHINK_INTERVAL * (0.7 + (this.id % 5) * 0.15);
-      const spot = findCover(city, this, target, { weaponRange: this.range });
+      const spot = findCover(city, this, target, {
+        weaponRange: this.range,
+        withdrawing,
+        taken: this.claimed ?? [],
+      });
       this.coverSpot = spot ? { x: spot.x, z: spot.z } : null;
     }
 
@@ -340,7 +364,10 @@ export class Hostile extends Actor {
       return;
     }
 
-    // Otherwise close the distance.
+    // Otherwise close the distance — unless they are hurt, in which case
+    // walking into a squad that has already nearly killed them is the one
+    // thing they are trying not to do. They hold what they have.
+    if (withdrawing) return;
     const dx = target.x - this.x;
     const dz = target.z - this.z;
     const d = Math.hypot(dx, dz) || 1;

@@ -41,7 +41,7 @@ selection, mission model, heat escalation) were all ported into
 ## How to test
 
 ```
-node tests/run.mjs        # the gate — ~16s, 366 checks, no dependencies
+node tests/run.mjs        # the gate — ~17s, 377 checks, no dependencies
 node tests/run.mjs nav    # filter to one suite while iterating
 node tests/browser.mjs    # optional: real browser + WebGL, needs Playwright
 ```
@@ -331,6 +331,28 @@ stops braking the moment you are in it.
   The lights are deliberately oversized for the vehicle. A car is ten
   pixels across at the default camera and what reads as traffic from up
   here is the same thing that reads as traffic from a window at night.
+- **A cell fights as a cell** (`spreadAlert` in `src/core/tactics.js`) —
+  one hostile seeing the squad tells everyone within 26m, and being told
+  extends how far they will come for you by 60%. Before this a patient
+  player could stand just outside one man's aggro range and take a room
+  apart one at a time while the man next to him did nothing.
+  **One hop, not a flood.** A relay chain would mean stepping on any
+  single hostile alerts the whole city, and `aggroRange` already covers
+  "they heard the shooting". Dormant loyalists are never woken by it —
+  starting that fight has to stay something the player does on purpose.
+  A contact goes cold after eight seconds without a sighting.
+- **And a professional leaves** (`isWithdrawing`) — below 35% health a
+  hostile stops trying to win the exchange and tries to leave it: a wall
+  between them and the squad scores *above* cover they can still shoot
+  from, they stop closing, and they keep firing the whole way.
+  Deliberately not `Unquantized.broken`, which is a person panicking and
+  running in a straight line. These are trained.
+  They also avoid each other's chosen cover, which almost never bites —
+  measured, a claim rejects a candidate seventeen times in a forty-second
+  engagement on `run-south` and not once on five other missions. Kept
+  because seventeen is not zero and two men standing inside each other
+  reads as a bug; asserted on the wiring, because no assertion about
+  distances between cover spots can see something that rare.
 - **Drivable vehicles** (`src/core/driving.js`) — the squad can get into a
   car and drive it. `Enter` gets in and gets out.
   **There is no hotwiring verb**, and that is the good part: ambient
@@ -564,7 +586,7 @@ expensive.
 
 ## Test coverage
 
-`node tests/run.mjs` — 366 checks, ~16s, zero dependencies. Covers city
+`node tests/run.mjs` — 377 checks, ~17s, zero dependencies. Covers city
 generation invariants, navigation, collapse-to-cover, ballistics,
 weapons, cover, compute allocation, surge, the Aligner (including the
 unquantized refusal), morale, the objective model, heat and enforcement,
@@ -661,6 +683,13 @@ another garrison, handing them The Bracket's script, counting a retake as
 campaign progress, failing to resolve a retake id back to its sector,
 letting generated missions into the authored list, starting the hold
 before the garrison is down, and removing the ground to hold. Seven cover
+hostile tactics: nobody telling anybody anything, a contact that carries
+across the whole block, a shout that wakes the sleeping, a contact that
+never goes cold, being told changing nothing about how far they come,
+nobody ever breaking contact, a man on his last legs still walking into
+you, breaking contact valuing neither a wall nor ground, two of them
+taking the same corner, nobody knowing where anybody else is going, and
+everybody calling a contact whether or not they can see one. Twelve cover
 drivable vehicles: boarding a car doing forty, a car that drives itself
 away with the squad in it, a car that runs over its own crew, sedated
 agents climbing in, a car that seats the whole crowd, one that pivots on
@@ -703,7 +732,10 @@ invisible on screen.
   slides along whatever they hit. Usually fine because the squad walks
   streets, but it will show on a tight escort.
 - Hostiles don't path either — they close in a straight line and hold
-  once they have a clear shot
+  once they have a clear shot. They do take cover, share a contact and
+  break off when hurt; what they do not do is move as a pair, one firing
+  while the other advances. That needs a planner and this file's whole
+  approach is that it does not have one.
 - Buildings are solid boxes. No interiors.
 
 ## Next up
@@ -721,16 +753,12 @@ The arc is done, the progression loop under it is done, and **gap 1 is now
 closed end to end** — the map both feeds the campaign and writes
 deployments of its own. **Gap 4 is closed too**: the six field devices are
 all in, offensive ones included. `GAP_ANALYSIS.md` is the ranked backlog;
-gaps 1, 2, 3, 4, 5, 6, 7, 9, 10 and 11 are closed. What is left is
-interiors, and the parts of gap 7 nobody has taken.
+gaps 1 through 11 are closed except 8 (no in-mission resource pressure).
+What is left is interiors.
 
 1. **Building interiors** (gap 12). Every structure is a solid box. Large,
    and it needs real navmesh work rather than the street graph.
-2. **Enemy AI** (the rest of gap 7). Hostiles take cover and are
-   suppressed, but they never retreat and they never coordinate — each of
-   them solves its own problem. Note this was a criticism of the original
-   too; it is not a gap to inherit.
-3. **NPC drivers** (the tail of gap 6). Ambient traffic is autonomous,
+2. **NPC drivers** (the tail of gap 6). Ambient traffic is autonomous,
    which covers most of what the original used driven NPC vehicles for.
    Small, and possibly not worth it.
 3. ~~Between-mission interstitials for Acts I–III.~~ **Already shipped**,
